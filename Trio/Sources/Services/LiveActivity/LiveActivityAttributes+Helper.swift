@@ -55,13 +55,14 @@ extension LiveActivityAttributes.ContentState {
         return formatter.string(from: deltaAsDecimal as NSNumber) ?? "--"
     }
 
-    init?(
+    init(
         new bg: GlucoseData,
         prev _: GlucoseData?,
         units: GlucoseUnits,
         chart: [GlucoseData],
         settings: TrioSettings,
         determination: DeterminationData?,
+        iob: Decimal?,
         override: OverrideData?,
         widgetItems: [LiveActivityAttributes.LiveActivityItem]?
     ) {
@@ -108,7 +109,7 @@ extension LiveActivityAttributes.ContentState {
                 chartDate: chartDate,
                 rotationDegrees: rotationDegrees,
                 cob: Decimal(determination?.cob ?? 0),
-                iob: determination?.iob ?? 0 as Decimal,
+                iob: iob ?? 0 as Decimal,
                 tdd: determination?.tdd ?? 0 as Decimal,
                 isOverrideActive: override?.isActive ?? false,
                 overrideName: override?.overrideName ?? "Override",

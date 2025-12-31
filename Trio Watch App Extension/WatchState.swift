@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import WatchConnectivity
+import WidgetKit
 
 /// WatchState manages the communication between the Watch app and the iPhone app using WatchConnectivity.
 /// It handles glucose data synchronization and sending treatment requests (bolus, carbs) to the phone.
@@ -573,5 +574,67 @@ import WatchConnectivity
                 self.confirmBolusFaster = booleanValue
             }
         }
+
+        // Update complications with new glucose data
+        updateComplicationData()
+    }
+
+    // MARK: - Complication Updates
+
+    /// Saves current glucose data to shared storage and triggers complication refresh
+    private func updateComplicationData() {
+        // Get glucose date from the most recent glucose value
+        let glucoseDate = glucoseValues.last?.date
+
+        // Create complication data
+        let complicationData = GlucoseComplicationData(
+            glucose: currentGlucose,
+            trend: trend ?? "→",
+            delta: delta ?? "--",
+            iob: iob,
+            cob: cob,
+            glucoseDate: glucoseDate,
+            lastLoopDate: lastWatchStateUpdate.map { Date(timeIntervalSince1970: $0) }
+        )
+
+        // Save to shared UserDefaults
+        complicationData.save()
+
+        // Reload complications
+        WidgetCenter.shared.reloadAllTimelines()
+
+        Task {
+            await WatchLogger.shared.log("📊 Updated complication data: \(currentGlucose) \(trend ?? "")")
+        }
+    }
+}
+
+// MARK: - Shared Complication Data (must match Trio Watch Complication)
+
+/// Data structure for sharing glucose information with complications
+struct GlucoseComplicationData: Codable {
+    let glucose: String
+    let trend: String
+    let delta: String
+    let iob: String?
+    let cob: String?
+    let glucoseDate: Date?
+    let lastLoopDate: Date?
+
+    static let key = "complicationData"
+
+    /// Saves the data to UserDefaults
+    func save() {
+        if let encoded = try? JSONEncoder().encode(self) {
+            UserDefaults.standard.set(encoded, forKey: Self.key)
+        }
+    }
+
+    /// Loads the data from UserDefaults
+    static func load() -> GlucoseComplicationData? {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let decoded = try? JSONDecoder().decode(GlucoseComplicationData.self, from: data)
+        else { return nil }
+        return decoded
     }
 }

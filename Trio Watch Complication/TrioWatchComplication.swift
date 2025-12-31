@@ -1,46 +1,130 @@
 import SwiftUI
 import WidgetKit
 
+// MARK: - Shared Complication Data
+
+/// Data structure for sharing glucose information with complications
+struct GlucoseComplicationData: Codable {
+    let glucose: String
+    let trend: String
+    let delta: String
+    let iob: String?
+    let cob: String?
+    let glucoseDate: Date?
+    let lastLoopDate: Date?
+
+    static let key = "complicationData"
+
+    /// Saves the data to UserDefaults
+    func save() {
+        if let encoded = try? JSONEncoder().encode(self) {
+            UserDefaults.standard.set(encoded, forKey: Self.key)
+        }
+    }
+
+    /// Loads the data from UserDefaults
+    static func load() -> GlucoseComplicationData? {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let decoded = try? JSONDecoder().decode(GlucoseComplicationData.self, from: data)
+        else { return nil }
+        return decoded
+    }
+
+    /// Returns the minutes since the last glucose reading
+    var minutesAgo: Int {
+        guard let glucoseDate = glucoseDate else { return 999 }
+        return Int(Date().timeIntervalSince(glucoseDate) / 60)
+    }
+
+    /// Indicates if data is stale (> 15 min old)
+    var isStale: Bool { minutesAgo > 15 }
+
+    /// Indicates if data is very stale (> 30 min old)
+    var isVeryStale: Bool { minutesAgo > 30 }
+
+    /// Returns the appropriate color based on staleness
+    var stalenessColor: Color {
+        if isVeryStale { return .red }
+        if isStale { return .yellow }
+        return .green
+    }
+}
+
 // MARK: - Timeline Entry
 
 struct TrioWatchComplicationEntry: TimelineEntry {
     let date: Date
+    let data: GlucoseComplicationData?
+
+    static var placeholder: TrioWatchComplicationEntry {
+        TrioWatchComplicationEntry(
+            date: Date(),
+            data: GlucoseComplicationData(
+                glucose: "120",
+                trend: "→",
+                delta: "+2",
+                iob: "1.5",
+                cob: "20",
+                glucoseDate: Date(),
+                lastLoopDate: Date()
+            )
+        )
+    }
 }
 
 // MARK: - Provider
 
 struct TrioWatchComplicationProvider: TimelineProvider {
     func placeholder(in _: Context) -> TrioWatchComplicationEntry {
-        TrioWatchComplicationEntry(date: Date())
+        .placeholder
     }
 
     func getSnapshot(in _: Context, completion: @escaping (TrioWatchComplicationEntry) -> Void) {
-        let entry = TrioWatchComplicationEntry(date: Date())
+        let data = GlucoseComplicationData.load()
+        let entry = TrioWatchComplicationEntry(date: Date(), data: data)
         completion(entry)
     }
 
     func getTimeline(in _: Context, completion: @escaping (Timeline<TrioWatchComplicationEntry>) -> Void) {
-        let entry = TrioWatchComplicationEntry(date: Date())
-        let timeline = Timeline(entries: [entry], policy: .never)
+        let data = GlucoseComplicationData.load()
+        let currentDate = Date()
+
+        // Create entries for the next hour to update staleness indicator
+        var entries: [TrioWatchComplicationEntry] = []
+
+        // Current entry
+        entries.append(TrioWatchComplicationEntry(date: currentDate, data: data))
+
+        // Future entries every 5 minutes to update staleness
+        for minuteOffset in stride(from: 5, through: 60, by: 5) {
+            let futureDate = currentDate.addingTimeInterval(Double(minuteOffset) * 60)
+            entries.append(TrioWatchComplicationEntry(date: futureDate, data: data))
+        }
+
+        // Request refresh after timeline ends
+        let timeline = Timeline(entries: entries, policy: .after(currentDate.addingTimeInterval(60 * 60)))
         completion(timeline)
     }
 }
 
-// MARK: - Views
+// MARK: - Main Entry View
 
-//// Displayed View Wrapper
 struct TrioWatchComplicationEntryView: View {
     @Environment(\.widgetFamily) private var widgetFamily
-
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
         switch widgetFamily {
         case .accessoryCircular:
-            TrioAccessoryCircularView(entry: entry)
+            AccessoryCircularView(entry: entry)
         case .accessoryCorner:
-            TrioAccessoryCornerView(entry: entry)
+            AccessoryCornerView(entry: entry)
+        case .accessoryRectangular:
+            AccessoryRectangularView(entry: entry)
+        case .accessoryInline:
+            AccessoryInlineView(entry: entry)
         default:
+            // Fallback for unsupported families
             Image("ComplicationIcon")
                 .widgetAccentable()
                 .widgetBackground(backgroundView: Color.clear)
@@ -48,29 +132,143 @@ struct TrioWatchComplicationEntryView: View {
     }
 }
 
-/// Corner Complication
-struct TrioAccessoryCornerView: View {
-    var entry: TrioWatchComplicationProvider.Entry
+// MARK: - Accessory Circular View
+
+struct AccessoryCircularView: View {
+    var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        Text("")
-            .widgetCurvesContent()
-            .widgetLabel {
-                Text("Trio")
+        if let data = entry.data {
+            ZStack {
+                // Gauge showing freshness (fills as it gets stale)
+                let fraction = min(Double(data.minutesAgo) / 15.0, 1.0)
+
+                Gauge(value: 1.0 - fraction) {
+                    EmptyView()
+                } currentValueLabel: {
+                    VStack(spacing: -2) {
+                        Text(data.glucose)
+                            .font(.system(size: 16, weight: .bold))
+                            .minimumScaleFactor(0.6)
+                        Text(data.trend)
+                            .font(.system(size: 12))
+                    }
+                }
+                .gaugeStyle(.accessoryCircular)
+                .tint(data.stalenessColor)
             }
             .widgetBackground(backgroundView: Color.clear)
+        } else {
+            // No data - show placeholder
+            VStack(spacing: -2) {
+                Text("--")
+                    .font(.system(size: 16, weight: .bold))
+                Text("→")
+                    .font(.system(size: 12))
+            }
+            .widgetBackground(backgroundView: Color.clear)
+        }
     }
 }
 
-/// Circular Complication
-struct TrioAccessoryCircularView: View {
-    var entry: TrioWatchComplicationProvider.Entry
+// MARK: - Accessory Corner View
+
+struct AccessoryCornerView: View {
+    var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        Image("ComplicationIcon")
-            .resizable()
-            .widgetAccentable()
+        if let data = entry.data {
+            Text(data.glucose)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(data.stalenessColor)
+                .widgetCurvesContent()
+                .widgetLabel {
+                    Text("\(data.trend) \(data.delta)")
+                }
+                .widgetBackground(backgroundView: Color.clear)
+        } else {
+            Text("--")
+                .font(.system(size: 20, weight: .bold))
+                .widgetCurvesContent()
+                .widgetLabel {
+                    Text("Trio")
+                }
+                .widgetBackground(backgroundView: Color.clear)
+        }
+    }
+}
+
+// MARK: - Accessory Rectangular View
+
+struct AccessoryRectangularView: View {
+    var entry: TrioWatchComplicationEntry
+
+    var body: some View {
+        if let data = entry.data {
+            VStack(alignment: .leading, spacing: 2) {
+                // Top row: Glucose, trend, delta
+                HStack {
+                    Text(data.glucose)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(data.stalenessColor)
+                    Text(data.trend)
+                        .font(.system(size: 18))
+                    Text(data.delta)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+
+                // Bottom row: IOB, COB, time ago
+                HStack(spacing: 8) {
+                    if let iob = data.iob {
+                        Text("IOB: \(iob)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    if let cob = data.cob {
+                        Text("COB: \(cob)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    if data.minutesAgo < 999 {
+                        Text("\(data.minutesAgo)m")
+                            .font(.system(size: 11))
+                            .foregroundColor(data.stalenessColor)
+                    }
+                }
+            }
             .widgetBackground(backgroundView: Color.clear)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text("--")
+                        .font(.system(size: 22, weight: .bold))
+                    Text("→")
+                        .font(.system(size: 18))
+                    Spacer()
+                }
+                Text("No data")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .widgetBackground(backgroundView: Color.clear)
+        }
+    }
+}
+
+// MARK: - Accessory Inline View
+
+struct AccessoryInlineView: View {
+    var entry: TrioWatchComplicationEntry
+
+    var body: some View {
+        if let data = entry.data {
+            Text("\(data.glucose) \(data.trend) \(data.delta)")
+        } else {
+            Text("Trio: --")
+        }
     }
 }
 
@@ -83,14 +281,18 @@ struct TrioAccessoryCircularView: View {
         StaticConfiguration(kind: kind, provider: TrioWatchComplicationProvider()) { entry in
             TrioWatchComplicationEntryView(entry: entry)
         }
-        .configurationDisplayName("Trio")
-        .description("Displays Trio app icon as complication")
+        .configurationDisplayName("Trio Glucose")
+        .description("Displays live glucose, trend, and diabetes data")
         .supportedFamilies([
             .accessoryCorner,
-            .accessoryCircular
+            .accessoryCircular,
+            .accessoryRectangular,
+            .accessoryInline
         ])
     }
 }
+
+// MARK: - View Extension
 
 extension View {
     func widgetBackground(backgroundView: some View) -> some View {

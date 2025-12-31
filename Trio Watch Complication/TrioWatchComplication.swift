@@ -1,6 +1,28 @@
 import SwiftUI
 import WidgetKit
 
+// MARK: - App Group Helper
+
+/// Returns the App Group suite name for sharing data between Watch app and complications
+private func getAppGroupSuiteName() -> String? {
+    guard let bundleId = Bundle.main.bundleIdentifier else { return nil }
+    // Bundle ID format: org.nightscout.TEAMID.trio.watchkitapp.TrioWatchComplication
+    // App Group format: group.org.nightscout.TEAMID.trio.trio-app-group
+    let components = bundleId.components(separatedBy: ".")
+    // Find the base: org.nightscout.TEAMID.trio
+    if let trioIndex = components.firstIndex(of: "trio"), trioIndex >= 3 {
+        let base = components[0...trioIndex].joined(separator: ".")
+        return "group.\(base).trio-app-group"
+    }
+    return nil
+}
+
+/// Shared UserDefaults for Watch app and complications
+private var sharedUserDefaults: UserDefaults? {
+    guard let suiteName = getAppGroupSuiteName() else { return nil }
+    return UserDefaults(suiteName: suiteName)
+}
+
 // MARK: - Shared Complication Data
 
 /// Data structure for sharing glucose information with complications
@@ -15,15 +37,25 @@ struct GlucoseComplicationData: Codable {
 
     static let key = "complicationData"
 
-    /// Saves the data to UserDefaults
+    /// Saves the data to shared App Group UserDefaults
     func save() {
         if let encoded = try? JSONEncoder().encode(self) {
+            if let shared = sharedUserDefaults {
+                shared.set(encoded, forKey: Self.key)
+            }
             UserDefaults.standard.set(encoded, forKey: Self.key)
         }
     }
 
-    /// Loads the data from UserDefaults
+    /// Loads the data from shared App Group UserDefaults
     static func load() -> GlucoseComplicationData? {
+        // Try shared App Group first (this is what the complication uses)
+        if let shared = sharedUserDefaults,
+           let data = shared.data(forKey: key),
+           let decoded = try? JSONDecoder().decode(GlucoseComplicationData.self, from: data) {
+            return decoded
+        }
+        // Fall back to standard UserDefaults
         guard let data = UserDefaults.standard.data(forKey: key),
               let decoded = try? JSONDecoder().decode(GlucoseComplicationData.self, from: data)
         else { return nil }

@@ -285,24 +285,18 @@ struct AccessoryRectangularView: View {
                     Spacer()
                 }
 
-                // Bottom row: IOB, COB, time ago
+                // Bottom row: Minutes ago prominently displayed
                 HStack(spacing: 8) {
-                    if let iob = data.iob {
-                        Text("IOB: \(iob)")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                    if let cob = data.cob {
-                        Text("COB: \(cob)")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
                     if data.minutesAgo < 999 {
-                        Text("\(data.minutesAgo)m")
+                        Text("Updated \(data.minutesAgo)m ago")
                             .font(.system(size: 11))
                             .foregroundColor(data.stalenessColor)
+                    } else {
+                        Text("No update time")
+                            .font(.system(size: 11))
+                            .foregroundColor(.red)
                     }
+                    Spacer()
                 }
             }
             .widgetBackground(backgroundView: Color.clear)

@@ -11,12 +11,19 @@ import WidgetKit
             TrioMainWatchView()
         }
         .onChange(of: scenePhase) { _, newScenePhase in
-            if newScenePhase == .background {
+            switch newScenePhase {
+            case .active:
+                // App became active - schedule refresh and request fresh data
+                WatchAppDelegate.scheduleBackgroundRefresh()
+                WatchState.shared.requestWatchStateUpdate()
+            case .background:
                 Task {
                     await WatchLogger.shared.flushPersistedLogs()
                 }
                 // Schedule background refresh to keep complications updated
                 WatchAppDelegate.scheduleBackgroundRefresh()
+            default:
+                break
             }
         }
     }
@@ -25,6 +32,19 @@ import WidgetKit
 // MARK: - Watch App Delegate for Background Refresh
 
 class WatchAppDelegate: NSObject, WKApplicationDelegate {
+
+    /// Called when the app finishes launching
+    func applicationDidFinishLaunching() {
+        // Schedule background refresh immediately on launch
+        Self.scheduleBackgroundRefresh()
+
+        // Request fresh data from iPhone
+        WatchState.shared.requestWatchStateUpdate()
+
+        Task {
+            await WatchLogger.shared.log("🚀 Watch app launched - scheduled background refresh")
+        }
+    }
 
     /// Schedule background refresh to run periodically
     static func scheduleBackgroundRefresh() {

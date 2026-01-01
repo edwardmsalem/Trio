@@ -68,11 +68,11 @@ struct GlucoseComplicationData: Codable {
         return Int(Date().timeIntervalSince(glucoseDate) / 60)
     }
 
-    /// Indicates if data is stale (> 15 min old)
-    var isStale: Bool { minutesAgo > 15 }
+    /// Indicates if data is stale (> 10 min old) - shows yellow
+    var isStale: Bool { minutesAgo > 10 }
 
-    /// Indicates if data is very stale (> 30 min old)
-    var isVeryStale: Bool { minutesAgo > 30 }
+    /// Indicates if data is very stale (> 15 min old) - shows "--" in red
+    var isVeryStale: Bool { minutesAgo > 15 }
 
     /// Returns the appropriate color based on staleness
     var stalenessColor: Color {

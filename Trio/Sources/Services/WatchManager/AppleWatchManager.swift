@@ -519,23 +519,23 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
 
         // TESTING MODE: Always send high-priority complication push
-        // This will exceed the 50/day budget but lets us verify it works
-        // TODO: Revert to intelligent pushing after testing
+        // Bypassing isComplicationEnabled check to debug
         #if os(iOS)
-        if session.isComplicationEnabled {
-            let complicationData: [String: Any] = [
-                "complicationUpdate": true,
-                WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
-                WatchMessageKeys.trend: state.trend ?? "",
-                WatchMessageKeys.delta: state.delta ?? "",
-                WatchMessageKeys.iob: state.iob ?? "",
-                WatchMessageKeys.cob: state.cob ?? "",
-                WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
-                WatchMessageKeys.date: state.date.timeIntervalSince1970
-            ]
-            session.transferCurrentComplicationUserInfo(complicationData)
-            debug(.watchManager, "📤 Sent high-priority complication update (TESTING - always push)")
-        }
+        debug(.watchManager, "🔍 isComplicationEnabled = \(session.isComplicationEnabled)")
+
+        // Send regardless of isComplicationEnabled for testing
+        let complicationData: [String: Any] = [
+            "complicationUpdate": true,
+            WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
+            WatchMessageKeys.trend: state.trend ?? "",
+            WatchMessageKeys.delta: state.delta ?? "",
+            WatchMessageKeys.iob: state.iob ?? "",
+            WatchMessageKeys.cob: state.cob ?? "",
+            WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
+            WatchMessageKeys.date: state.date.timeIntervalSince1970
+        ]
+        session.transferCurrentComplicationUserInfo(complicationData)
+        debug(.watchManager, "📤 Sent high-priority complication update (TESTING - always push)")
         #endif
     }
 

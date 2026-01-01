@@ -170,7 +170,7 @@ struct AccessoryCircularView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        if let data = entry.data {
+        if let data = entry.data, !data.isVeryStale {
             ZStack {
                 // Gauge showing freshness (fills as it gets stale)
                 let fraction = min(Double(data.minutesAgo) / 15.0, 1.0)
@@ -191,10 +191,11 @@ struct AccessoryCircularView: View {
             }
             .widgetBackground(backgroundView: Color.clear)
         } else {
-            // No data - show placeholder
+            // No data or very stale - show placeholder
             VStack(spacing: -2) {
                 Text("--")
                     .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.red)
                 Text("→")
                     .font(.system(size: 12))
             }
@@ -209,7 +210,7 @@ struct AccessoryCornerView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        if let data = entry.data {
+        if let data = entry.data, !data.isVeryStale {
             Text(data.glucose)
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(data.stalenessColor)
@@ -221,9 +222,10 @@ struct AccessoryCornerView: View {
         } else {
             Text("--")
                 .font(.system(size: 20, weight: .bold))
+                .foregroundColor(.red)
                 .widgetCurvesContent()
                 .widgetLabel {
-                    Text("Trio")
+                    Text("Stale")
                 }
                 .widgetBackground(backgroundView: Color.clear)
         }
@@ -236,7 +238,7 @@ struct AccessoryRectangularView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        if let data = entry.data {
+        if let data = entry.data, !data.isVeryStale {
             VStack(alignment: .leading, spacing: 2) {
                 // Top row: Glucose, trend, delta
                 HStack {
@@ -277,13 +279,14 @@ struct AccessoryRectangularView: View {
                 HStack {
                     Text("--")
                         .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.red)
                     Text("→")
                         .font(.system(size: 18))
                     Spacer()
                 }
-                Text("No data")
+                Text("Data stale - open Trio")
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.red)
             }
             .widgetBackground(backgroundView: Color.clear)
         }
@@ -296,10 +299,10 @@ struct AccessoryInlineView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        if let data = entry.data {
+        if let data = entry.data, !data.isVeryStale {
             Text("\(data.glucose) \(data.trend) \(data.delta)")
         } else {
-            Text("Trio: --")
+            Text("Trio: -- (stale)")
         }
     }
 }

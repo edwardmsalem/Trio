@@ -96,7 +96,7 @@ struct GlucoseComplicationData: Codable {
     /// Indicates if data is stale (> 10 min old) - shows yellow
     var isStale: Bool { minutesAgo > 10 }
 
-    /// Indicates if data is very stale (> 15 min old) - shows "--" in red
+    /// Indicates if data is very stale (> 15 min old) - shows value in red
     var isVeryStale: Bool { minutesAgo > 15 }
 
     /// Returns the appropriate color based on staleness
@@ -202,7 +202,7 @@ struct AccessoryCircularView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        if let data = entry.data, !data.isVeryStale {
+        if let data = entry.data {
             ZStack {
                 // Gauge showing freshness (fills as it gets stale)
                 let fraction = min(Double(data.minutesAgo) / 15.0, 1.0)
@@ -223,7 +223,7 @@ struct AccessoryCircularView: View {
             }
             .widgetBackground(backgroundView: Color.clear)
         } else {
-            // No data or very stale - show placeholder
+            // No data at all
             VStack(spacing: -2) {
                 Text("--")
                     .font(.system(size: 16, weight: .bold))
@@ -242,7 +242,7 @@ struct AccessoryCornerView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        if let data = entry.data, !data.isVeryStale {
+        if let data = entry.data {
             Text(data.glucose)
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(data.stalenessColor)
@@ -257,7 +257,7 @@ struct AccessoryCornerView: View {
                 .foregroundColor(.red)
                 .widgetCurvesContent()
                 .widgetLabel {
-                    Text("Stale")
+                    Text("No data")
                 }
                 .widgetBackground(backgroundView: Color.clear)
         }
@@ -270,7 +270,7 @@ struct AccessoryRectangularView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        if let data = entry.data, !data.isVeryStale {
+        if let data = entry.data {
             VStack(alignment: .leading, spacing: 2) {
                 // Top row: Glucose, trend, delta
                 HStack {
@@ -316,7 +316,7 @@ struct AccessoryRectangularView: View {
                         .font(.system(size: 18))
                     Spacer()
                 }
-                Text("Data stale - open Trio")
+                Text("No data - open Trio")
                     .font(.system(size: 11))
                     .foregroundColor(.red)
             }
@@ -331,10 +331,14 @@ struct AccessoryInlineView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        if let data = entry.data, !data.isVeryStale {
-            Text("\(data.glucose) \(data.trend) \(data.delta)")
+        if let data = entry.data {
+            if data.isVeryStale {
+                Text("\(data.glucose) \(data.trend) (\(data.minutesAgo)m)")
+            } else {
+                Text("\(data.glucose) \(data.trend) \(data.delta)")
+            }
         } else {
-            Text("Trio: -- (stale)")
+            Text("Trio: no data")
         }
     }
 }

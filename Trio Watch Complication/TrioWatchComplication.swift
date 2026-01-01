@@ -214,8 +214,8 @@ struct AccessoryCircularView: View {
                         Text(data.glucose)
                             .font(.system(size: 16, weight: .bold))
                             .minimumScaleFactor(0.6)
-                        Text(data.trend)
-                            .font(.system(size: 12))
+                        Text("\(data.minutesAgo)m")
+                            .font(.system(size: 10))
                     }
                 }
                 .gaugeStyle(.accessoryCircular)
@@ -228,8 +228,8 @@ struct AccessoryCircularView: View {
                 Text("--")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.red)
-                Text("→")
-                    .font(.system(size: 12))
+                Text("--")
+                    .font(.system(size: 10))
             }
             .widgetBackground(backgroundView: Color.clear)
         }
@@ -248,7 +248,7 @@ struct AccessoryCornerView: View {
                 .foregroundColor(data.stalenessColor)
                 .widgetCurvesContent()
                 .widgetLabel {
-                    Text("\(data.trend) \(data.delta)")
+                    Text("\(data.trend) \(data.minutesAgo)m ago")
                 }
                 .widgetBackground(backgroundView: Color.clear)
         } else {
@@ -326,11 +326,7 @@ struct AccessoryInlineView: View {
 
     var body: some View {
         if let data = entry.data {
-            if data.isVeryStale {
-                Text("\(data.glucose) \(data.trend) (\(data.minutesAgo)m)")
-            } else {
-                Text("\(data.glucose) \(data.trend) \(data.delta)")
-            }
+            Text("\(data.glucose) \(data.trend) \(data.minutesAgo)m ago")
         } else {
             Text("Trio: no data")
         }

@@ -28,8 +28,8 @@ class WatchAppDelegate: NSObject, WKApplicationDelegate {
 
     /// Schedule background refresh to run periodically
     static func scheduleBackgroundRefresh() {
-        // Schedule refresh for 15 minutes from now
-        let refreshDate = Date().addingTimeInterval(15 * 60)
+        // Schedule refresh for 5 minutes from now
+        let refreshDate = Date().addingTimeInterval(5 * 60)
 
         WKApplication.shared().scheduleBackgroundRefresh(
             withPreferredDate: refreshDate,
@@ -52,12 +52,14 @@ class WatchAppDelegate: NSObject, WKApplicationDelegate {
         for task in backgroundTasks {
             switch task {
             case let backgroundTask as WKApplicationRefreshBackgroundTask:
-                // Trigger complication update
                 Task {
                     await WatchLogger.shared.log("🔄 Background refresh triggered")
                 }
 
-                // Reload complications to show staleness
+                // Request fresh data from iPhone
+                WatchState.shared.requestWatchStateUpdate()
+
+                // Reload complications to show current data or staleness
                 WidgetCenter.shared.reloadAllTimelines()
 
                 // Schedule next refresh

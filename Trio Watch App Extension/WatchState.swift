@@ -28,6 +28,11 @@ var sharedUserDefaults: UserDefaults? {
 /// WatchState manages the communication between the Watch app and the iPhone app using WatchConnectivity.
 /// It handles glucose data synchronization and sending treatment requests (bolus, carbs) to the phone.
 @Observable final class WatchState: NSObject, WCSessionDelegate {
+    // MARK: - Shared Instance
+
+    /// Shared instance for background refresh access
+    static let shared = WatchState()
+
     // MARK: - Properties
 
     /// The WatchConnectivity session instance used for communication

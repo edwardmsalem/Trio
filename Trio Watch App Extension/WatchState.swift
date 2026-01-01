@@ -274,6 +274,15 @@ var sharedUserDefaults: UserDefaults? {
     }
 
     func session(_: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        // Check if this is a high-priority complication update from iPhone
+        if userInfo["complicationUpdate"] as? Bool == true {
+            Task {
+                await WatchLogger.shared.log("⌚️ Received high-priority complication update")
+            }
+            handleComplicationUpdate(userInfo)
+            return
+        }
+
         guard let snapshot = WatchStateSnapshot(from: userInfo) else {
             Task {
                 await WatchLogger.shared.log("⌚️ Invalid snapshot received", force: true)
@@ -294,6 +303,40 @@ var sharedUserDefaults: UserDefaults? {
 
         DispatchQueue.main.async {
             self.scheduleUIUpdate(with: snapshot.payload)
+        }
+    }
+
+    /// Handles high-priority complication updates from iPhone
+    /// This is called when the iPhone sends data via transferCurrentComplicationUserInfo
+    private func handleComplicationUpdate(_ userInfo: [String: Any]) {
+        let glucose = userInfo[WatchMessageKeys.currentGlucose] as? String ?? "--"
+        let trend = userInfo[WatchMessageKeys.trend] as? String ?? ""
+        let delta = userInfo[WatchMessageKeys.delta] as? String ?? "--"
+        let iob = userInfo[WatchMessageKeys.iob] as? String
+        let cob = userInfo[WatchMessageKeys.cob] as? String
+        let colorString = userInfo[WatchMessageKeys.currentGlucoseColorString] as? String ?? "#ffffff"
+        let timestamp = userInfo[WatchMessageKeys.date] as? TimeInterval
+
+        // Determine if urgent based on color
+        let isUrgent = !isGlucoseColorInRange(colorString)
+
+        // Create and save complication data
+        let complicationData = GlucoseComplicationData(
+            glucose: glucose,
+            trend: trend.isEmpty ? "→" : trend,
+            delta: delta,
+            iob: iob,
+            cob: cob,
+            glucoseDate: timestamp.map { Date(timeIntervalSince1970: $0) },
+            lastLoopDate: timestamp.map { Date(timeIntervalSince1970: $0) },
+            isUrgent: isUrgent
+        )
+
+        complicationData.save()
+        WidgetCenter.shared.reloadAllTimelines()
+
+        Task {
+            await WatchLogger.shared.log("📊 Complication updated from high-priority push: \(glucose) \(trend)")
         }
     }
 

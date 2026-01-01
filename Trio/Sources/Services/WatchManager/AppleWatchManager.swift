@@ -512,6 +512,25 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchStateSnapshot.saveLatestDateToDisk(state.date)
             session.transferUserInfo([WatchMessageKeys.watchState: message])
             debug(.watchManager, "📤 Transferred new WatchState snapshot via userInfo")
+
+            // Also send complication data with high priority - this can wake the Watch app
+            // and has a dedicated budget (50/day) separate from regular userInfo
+            #if os(iOS)
+            if session.isComplicationEnabled {
+                let complicationData: [String: Any] = [
+                    "complicationUpdate": true,
+                    WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
+                    WatchMessageKeys.trend: state.trend ?? "",
+                    WatchMessageKeys.delta: state.delta ?? "",
+                    WatchMessageKeys.iob: state.iob ?? "",
+                    WatchMessageKeys.cob: state.cob ?? "",
+                    WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
+                    WatchMessageKeys.date: state.date.timeIntervalSince1970
+                ]
+                session.transferCurrentComplicationUserInfo(complicationData)
+                debug(.watchManager, "📤 Sent high-priority complication update")
+            }
+            #endif
         }
     }
 

@@ -364,16 +364,17 @@ var sharedUserDefaults: UserDefaults? {
 
     /// Handles incoming messages that either contain an acknowledgement or fresh watchState data  (<15 min)
     private func processWatchMessage(_ message: [String: Any]) {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
             // 1) Acknowledgment logic
             if let acknowledged = message[WatchMessageKeys.acknowledged] as? Bool,
                let ackMessage = message[WatchMessageKeys.message] as? String,
                let ackCodeRaw = message[WatchMessageKeys.ackCode] as? String,
                let ackCode = AcknowledgmentCode(rawValue: ackCodeRaw)
             {
-                DispatchQueue.main.async {
-                    self.showSyncingAnimation = false
-                }
+                // Already on main queue, no need for nested dispatch
+                self.showSyncingAnimation = false
 
                 Task {
                     await WatchLogger.shared.log("⌚️ Received acknowledgment: \(ackMessage), success: \(acknowledged)")
@@ -434,7 +435,8 @@ var sharedUserDefaults: UserDefaults? {
         finalizeWorkItem?.cancel()
 
         // 4) Create and schedule a new finalization
-        let workItem = DispatchWorkItem { [self] in
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
             Task {
                 await WatchLogger.shared.log("⏳ Debounced update fired")
             }

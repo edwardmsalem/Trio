@@ -659,7 +659,7 @@ var sharedUserDefaults: UserDefaults? {
         let glucoseDate = glucoseValues.last?.date
 
         // Determine if glucose is urgent (out of range) based on color
-        // Green (#00FF00 or similar) = in range, anything else = urgent
+        // White (#ffffff) = in range, anything else = urgent
         let isUrgent = !isGlucoseColorInRange(currentGlucoseColorString)
 
         // Create complication data
@@ -685,25 +685,12 @@ var sharedUserDefaults: UserDefaults? {
         }
     }
 
-    /// Checks if the glucose color indicates "in range" (green tones)
+    /// Checks if the glucose color indicates "in range"
+    /// iPhone sends white (#ffffff) for in-range, colored for out-of-range
     private func isGlucoseColorInRange(_ colorString: String) -> Bool {
-        var hex = colorString.trimmingCharacters(in: .whitespacesAndNewlines)
-        hex = hex.replacingOccurrences(of: "#", with: "")
-
-        guard hex.count == 6, hex.allSatisfy({ $0.isHexDigit }) else {
-            return true  // Default to in-range if invalid color
-        }
-
-        var rgb: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&rgb)
-
-        let red = Int((rgb & 0xFF0000) >> 16)
-        let green = Int((rgb & 0x00FF00) >> 8)
-        let blue = Int(rgb & 0x0000FF)
-
-        // Green-ish colors indicate in-range: high green, low red/blue
-        // This catches various shades of green used for normal glucose
-        return green > 150 && red < 180 && blue < 180
+        let normalized = colorString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // White (#ffffff) means in range, anything else is out of range
+        return normalized == "#ffffff" || normalized == "ffffff"
     }
 }
 

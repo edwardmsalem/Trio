@@ -615,6 +615,10 @@ var sharedUserDefaults: UserDefaults? {
         // Get glucose date from the most recent glucose value
         let glucoseDate = glucoseValues.last?.date
 
+        // Determine if glucose is urgent (out of range) based on color
+        // Green (#00FF00 or similar) = in range, anything else = urgent
+        let isUrgent = !isGlucoseColorInRange(currentGlucoseColorString)
+
         // Create complication data
         let complicationData = GlucoseComplicationData(
             glucose: currentGlucose,
@@ -623,7 +627,8 @@ var sharedUserDefaults: UserDefaults? {
             iob: iob,
             cob: cob,
             glucoseDate: glucoseDate,
-            lastLoopDate: lastWatchStateUpdate.map { Date(timeIntervalSince1970: $0) }
+            lastLoopDate: lastWatchStateUpdate.map { Date(timeIntervalSince1970: $0) },
+            isUrgent: isUrgent
         )
 
         // Save to shared UserDefaults
@@ -633,8 +638,29 @@ var sharedUserDefaults: UserDefaults? {
         WidgetCenter.shared.reloadAllTimelines()
 
         Task {
-            await WatchLogger.shared.log("📊 Updated complication data: \(currentGlucose) \(trend ?? "")")
+            await WatchLogger.shared.log("📊 Updated complication data: \(currentGlucose) \(trend ?? "") urgent=\(isUrgent)")
         }
+    }
+
+    /// Checks if the glucose color indicates "in range" (green tones)
+    private func isGlucoseColorInRange(_ colorString: String) -> Bool {
+        var hex = colorString.trimmingCharacters(in: .whitespacesAndNewlines)
+        hex = hex.replacingOccurrences(of: "#", with: "")
+
+        guard hex.count == 6, hex.allSatisfy({ $0.isHexDigit }) else {
+            return true  // Default to in-range if invalid color
+        }
+
+        var rgb: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&rgb)
+
+        let red = Int((rgb & 0xFF0000) >> 16)
+        let green = Int((rgb & 0x00FF00) >> 8)
+        let blue = Int(rgb & 0x0000FF)
+
+        // Green-ish colors indicate in-range: high green, low red/blue
+        // This catches various shades of green used for normal glucose
+        return green > 150 && red < 180 && blue < 180
     }
 }
 
@@ -649,8 +675,20 @@ struct GlucoseComplicationData: Codable {
     let cob: String?
     let glucoseDate: Date?
     let lastLoopDate: Date?
+    let isUrgent: Bool  // true when glucose is out of range (high/low)
 
     static let key = "complicationData"
+
+    init(glucose: String, trend: String, delta: String, iob: String?, cob: String?, glucoseDate: Date?, lastLoopDate: Date?, isUrgent: Bool = false) {
+        self.glucose = glucose
+        self.trend = trend
+        self.delta = delta
+        self.iob = iob
+        self.cob = cob
+        self.glucoseDate = glucoseDate
+        self.lastLoopDate = lastLoopDate
+        self.isUrgent = isUrgent
+    }
 
     /// Saves the data to shared App Group UserDefaults for complication access
     func save() {

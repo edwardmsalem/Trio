@@ -34,8 +34,33 @@ struct GlucoseComplicationData: Codable {
     let cob: String?
     let glucoseDate: Date?
     let lastLoopDate: Date?
+    let isUrgent: Bool  // true when glucose is out of range (high/low)
 
     static let key = "complicationData"
+
+    // For backwards compatibility with data saved without isUrgent
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        glucose = try container.decode(String.self, forKey: .glucose)
+        trend = try container.decode(String.self, forKey: .trend)
+        delta = try container.decode(String.self, forKey: .delta)
+        iob = try container.decodeIfPresent(String.self, forKey: .iob)
+        cob = try container.decodeIfPresent(String.self, forKey: .cob)
+        glucoseDate = try container.decodeIfPresent(Date.self, forKey: .glucoseDate)
+        lastLoopDate = try container.decodeIfPresent(Date.self, forKey: .lastLoopDate)
+        isUrgent = try container.decodeIfPresent(Bool.self, forKey: .isUrgent) ?? false
+    }
+
+    init(glucose: String, trend: String, delta: String, iob: String?, cob: String?, glucoseDate: Date?, lastLoopDate: Date?, isUrgent: Bool = false) {
+        self.glucose = glucose
+        self.trend = trend
+        self.delta = delta
+        self.iob = iob
+        self.cob = cob
+        self.glucoseDate = glucoseDate
+        self.lastLoopDate = lastLoopDate
+        self.isUrgent = isUrgent
+    }
 
     /// Saves the data to shared App Group UserDefaults
     func save() {
@@ -121,20 +146,27 @@ struct TrioWatchComplicationProvider: TimelineProvider {
         let data = GlucoseComplicationData.load()
         let currentDate = Date()
 
-        // Create entries for the next hour to update staleness indicator
+        // Smart refresh: more frequent when urgent (out of range), less when stable
+        let isUrgent = data?.isUrgent ?? false
+        let refreshInterval: Double = isUrgent ? 5 * 60 : 15 * 60  // 5 min urgent, 15 min normal
+        let timelineLength: Double = isUrgent ? 30 * 60 : 60 * 60  // 30 min urgent, 60 min normal
+
+        // Create entries to update staleness indicator
         var entries: [TrioWatchComplicationEntry] = []
 
         // Current entry
         entries.append(TrioWatchComplicationEntry(date: currentDate, data: data))
 
-        // Future entries every 5 minutes to update staleness
-        for minuteOffset in stride(from: 5, through: 60, by: 5) {
-            let futureDate = currentDate.addingTimeInterval(Double(minuteOffset) * 60)
+        // Future entries at refresh interval to update staleness
+        var offset = refreshInterval
+        while offset <= timelineLength {
+            let futureDate = currentDate.addingTimeInterval(offset)
             entries.append(TrioWatchComplicationEntry(date: futureDate, data: data))
+            offset += refreshInterval
         }
 
         // Request refresh after timeline ends
-        let timeline = Timeline(entries: entries, policy: .after(currentDate.addingTimeInterval(60 * 60)))
+        let timeline = Timeline(entries: entries, policy: .after(currentDate.addingTimeInterval(timelineLength)))
         completion(timeline)
     }
 }

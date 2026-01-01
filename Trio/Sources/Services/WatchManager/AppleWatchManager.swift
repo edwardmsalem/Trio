@@ -518,37 +518,23 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             debug(.watchManager, "📤 Transferred new WatchState snapshot via userInfo")
         }
 
-        // Send high-priority complication push INTELLIGENTLY when glucose is OUT of range
-        // This conserves the 50/day budget by only pushing when:
-        // 1. First time going out of range (transition from in-range to out-of-range)
-        // 2. Significant change while still out of range (>10 mg/dL or >0.5 mmol/L)
+        // TESTING MODE: Always send high-priority complication push
+        // This will exceed the 50/day budget but lets us verify it works
+        // TODO: Revert to intelligent pushing after testing
         #if os(iOS)
         if session.isComplicationEnabled {
-            let isUrgent = isGlucoseOutOfRange(colorString: state.currentGlucoseColorString)
-            let shouldPush = shouldPushComplication(isUrgent: isUrgent, currentGlucose: state.currentGlucose)
-
-            if shouldPush {
-                let complicationData: [String: Any] = [
-                    "complicationUpdate": true,
-                    WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
-                    WatchMessageKeys.trend: state.trend ?? "",
-                    WatchMessageKeys.delta: state.delta ?? "",
-                    WatchMessageKeys.iob: state.iob ?? "",
-                    WatchMessageKeys.cob: state.cob ?? "",
-                    WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
-                    WatchMessageKeys.date: state.date.timeIntervalSince1970
-                ]
-                session.transferCurrentComplicationUserInfo(complicationData)
-                debug(.watchManager, "📤 Sent high-priority complication update (urgent)")
-
-                // Update tracking state
-                lastComplicationPushWasUrgent = isUrgent
-                lastComplicationPushGlucose = state.currentGlucose
-            } else if !isUrgent {
-                // Reset tracking when back in range
-                lastComplicationPushWasUrgent = false
-                lastComplicationPushGlucose = nil
-            }
+            let complicationData: [String: Any] = [
+                "complicationUpdate": true,
+                WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
+                WatchMessageKeys.trend: state.trend ?? "",
+                WatchMessageKeys.delta: state.delta ?? "",
+                WatchMessageKeys.iob: state.iob ?? "",
+                WatchMessageKeys.cob: state.cob ?? "",
+                WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
+                WatchMessageKeys.date: state.date.timeIntervalSince1970
+            ]
+            session.transferCurrentComplicationUserInfo(complicationData)
+            debug(.watchManager, "📤 Sent high-priority complication update (TESTING - always push)")
         }
         #endif
     }

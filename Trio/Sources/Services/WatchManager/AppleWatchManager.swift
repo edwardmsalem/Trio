@@ -33,6 +33,10 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     private var currentGlucoseTarget: Decimal = 100.0
     private var activeBolusAmount: Double = 0.0
 
+    // Track last high-priority complication push state for intelligent pushing
+    private var lastComplicationPushWasUrgent: Bool = false
+    private var lastComplicationPushGlucose: String?
+
     // Queue for handling Core Data change notifications
     private let queue = DispatchQueue(label: "BaseWatchManagerManager.queue", qos: .utility)
     private var coreDataPublisher: AnyPublisher<Set<NSManagedObjectID>, Never>?
@@ -514,22 +518,37 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             debug(.watchManager, "📤 Transferred new WatchState snapshot via userInfo")
         }
 
-        // Always send complication data with high priority - this ensures complications
-        // stay updated even when Watch app is killed. Budget: 50/day.
+        // Send high-priority complication push INTELLIGENTLY when glucose is OUT of range
+        // This conserves the 50/day budget by only pushing when:
+        // 1. First time going out of range (transition from in-range to out-of-range)
+        // 2. Significant change while still out of range (>10 mg/dL or >0.5 mmol/L)
         #if os(iOS)
         if session.isComplicationEnabled {
-            let complicationData: [String: Any] = [
-                "complicationUpdate": true,
-                WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
-                WatchMessageKeys.trend: state.trend ?? "",
-                WatchMessageKeys.delta: state.delta ?? "",
-                WatchMessageKeys.iob: state.iob ?? "",
-                WatchMessageKeys.cob: state.cob ?? "",
-                WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
-                WatchMessageKeys.date: state.date.timeIntervalSince1970
-            ]
-            session.transferCurrentComplicationUserInfo(complicationData)
-            debug(.watchManager, "📤 Sent high-priority complication update")
+            let isUrgent = isGlucoseOutOfRange(colorString: state.currentGlucoseColorString)
+            let shouldPush = shouldPushComplication(isUrgent: isUrgent, currentGlucose: state.currentGlucose)
+
+            if shouldPush {
+                let complicationData: [String: Any] = [
+                    "complicationUpdate": true,
+                    WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
+                    WatchMessageKeys.trend: state.trend ?? "",
+                    WatchMessageKeys.delta: state.delta ?? "",
+                    WatchMessageKeys.iob: state.iob ?? "",
+                    WatchMessageKeys.cob: state.cob ?? "",
+                    WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
+                    WatchMessageKeys.date: state.date.timeIntervalSince1970
+                ]
+                session.transferCurrentComplicationUserInfo(complicationData)
+                debug(.watchManager, "📤 Sent high-priority complication update (urgent)")
+
+                // Update tracking state
+                lastComplicationPushWasUrgent = isUrgent
+                lastComplicationPushGlucose = state.currentGlucose
+            } else if !isUrgent {
+                // Reset tracking when back in range
+                lastComplicationPushWasUrgent = false
+                lastComplicationPushGlucose = nil
+            }
         }
         #endif
     }
@@ -1263,6 +1282,65 @@ extension BaseWatchManager {
         }
 
         return nil
+    }
+}
+
+extension BaseWatchManager {
+    /// Checks if glucose is out of range based on the color string
+    /// When glucose is in range, the color is white (#ffffff)
+    /// When out of range (high or low), it's a different color
+    private func isGlucoseOutOfRange(colorString: String?) -> Bool {
+        guard let color = colorString else { return false }
+        // White color (#ffffff) means in range, anything else is out of range
+        return color.lowercased() != "#ffffff"
+    }
+
+    /// Determines if a high-priority complication push should be sent
+    /// Push immediately when first going out of range, then only on significant changes
+    private func shouldPushComplication(isUrgent: Bool, currentGlucose: String?) -> Bool {
+        // Never push if glucose is in range
+        guard isUrgent else { return false }
+
+        // Always push on transition from in-range to out-of-range
+        if !lastComplicationPushWasUrgent {
+            debug(.watchManager, "🚨 First reading out of range - pushing immediately")
+            return true
+        }
+
+        // Already out of range - check if there's a significant change
+        guard let current = currentGlucose,
+              let last = lastComplicationPushGlucose else {
+            return true // Push if we don't have previous data
+        }
+
+        // Parse glucose values (handle both mg/dL and mmol/L formats)
+        let currentValue = parseGlucoseValue(current)
+        let lastValue = parseGlucoseValue(last)
+
+        guard let currentNum = currentValue, let lastNum = lastValue else {
+            return true // Push if we can't parse values
+        }
+
+        // Significant change threshold: 10 mg/dL or 0.5 mmol/L
+        // If values are small (< 30), assume mmol/L and use 0.5 threshold
+        // Otherwise assume mg/dL and use 10 threshold
+        let threshold: Double = currentNum < 30 ? 0.5 : 10.0
+        let change = abs(currentNum - lastNum)
+
+        if change >= threshold {
+            debug(.watchManager, "🚨 Significant glucose change (\(change)) - pushing")
+            return true
+        }
+
+        debug(.watchManager, "📊 Glucose change (\(change)) below threshold (\(threshold)) - skipping push")
+        return false
+    }
+
+    /// Parses a glucose string value to a Double, handling decimal formats
+    private func parseGlucoseValue(_ value: String) -> Double? {
+        // Remove any non-numeric characters except decimal point and comma
+        let cleaned = value.replacingOccurrences(of: ",", with: ".")
+        return Double(cleaned)
     }
 }
 

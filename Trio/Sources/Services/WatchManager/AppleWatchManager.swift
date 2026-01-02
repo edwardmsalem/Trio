@@ -523,7 +523,15 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchMessageKeys.date: state.date.timeIntervalSince1970
         ]
         session.transferUserInfo(complicationData)
-        debug(.watchManager, "📤 Sent complication update via transferUserInfo")
+
+        // Also update applicationContext - this persists and is available immediately
+        // when the Watch extension wakes, unlike transferUserInfo which queues
+        do {
+            try session.updateApplicationContext(complicationData)
+            debug(.watchManager, "📤 Updated applicationContext with complication data")
+        } catch {
+            debug(.watchManager, "❌ Failed to update applicationContext: \(error)")
+        }
         #endif
     }
 

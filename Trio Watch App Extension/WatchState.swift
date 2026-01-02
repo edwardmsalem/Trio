@@ -195,6 +195,15 @@ var sharedUserDefaults: UserDefaults? {
 
                 self.isReachable = session.isReachable
 
+                // Check applicationContext for any pending complication data
+                let context = session.receivedApplicationContext
+                if context["complicationUpdate"] as? Bool == true {
+                    Task {
+                        await WatchLogger.shared.log("⌚️ Found complication data in applicationContext on activation")
+                    }
+                    self.handleComplicationUpdate(context)
+                }
+
                 Task {
                     await WatchLogger.shared.log("⌚️ Watch isReachable after activation: \(session.isReachable)")
                 }
@@ -352,6 +361,18 @@ var sharedUserDefaults: UserDefaults? {
                 await WatchLogger.shared.log("⌚️ Saving logs to disk as fallback!")
                 await WatchLogger.shared.persistLogsLocally()
             }
+        }
+    }
+
+    /// Called when applicationContext is received from iPhone
+    /// This is more reliable than transferUserInfo as it persists
+    func session(_: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        // Check if this contains complication data
+        if applicationContext["complicationUpdate"] as? Bool == true {
+            Task {
+                await WatchLogger.shared.log("⌚️ Received applicationContext with complication data")
+            }
+            handleComplicationUpdate(applicationContext)
         }
     }
 

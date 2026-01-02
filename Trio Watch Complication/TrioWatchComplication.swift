@@ -93,6 +93,14 @@ struct GlucoseComplicationData: Codable {
         return Int(Date().timeIntervalSince(glucoseDate) / 60)
     }
 
+    /// Returns the time of the last glucose reading as a string (e.g., "10:45")
+    var timeString: String {
+        guard let glucoseDate = glucoseDate else { return "--:--" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm"
+        return formatter.string(from: glucoseDate)
+    }
+
     /// Indicates if data is stale (> 10 min old) - shows yellow
     var isStale: Bool { minutesAgo > 10 }
 
@@ -214,7 +222,7 @@ struct AccessoryCircularView: View {
                         Text(data.glucose)
                             .font(.system(size: 16, weight: .bold))
                             .minimumScaleFactor(0.6)
-                        Text("\(data.minutesAgo)m")
+                        Text(data.timeString)
                             .font(.system(size: 10))
                     }
                 }
@@ -228,7 +236,7 @@ struct AccessoryCircularView: View {
                 Text("--")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.red)
-                Text("--")
+                Text("--:--")
                     .font(.system(size: 10))
             }
             .widgetBackground(backgroundView: Color.clear)
@@ -248,7 +256,7 @@ struct AccessoryCornerView: View {
                 .foregroundColor(data.stalenessColor)
                 .widgetCurvesContent()
                 .widgetLabel {
-                    Text("\(data.trend) \(data.minutesAgo)m ago")
+                    Text("\(data.trend) @\(data.timeString)")
                 }
                 .widgetBackground(backgroundView: Color.clear)
         } else {
@@ -285,17 +293,11 @@ struct AccessoryRectangularView: View {
                     Spacer()
                 }
 
-                // Bottom row: Minutes ago prominently displayed
+                // Bottom row: Timestamp of reading
                 HStack(spacing: 8) {
-                    if data.minutesAgo < 999 {
-                        Text("Updated \(data.minutesAgo)m ago")
-                            .font(.system(size: 11))
-                            .foregroundColor(data.stalenessColor)
-                    } else {
-                        Text("No update time")
-                            .font(.system(size: 11))
-                            .foregroundColor(.red)
-                    }
+                    Text("@ \(data.timeString)")
+                        .font(.system(size: 11))
+                        .foregroundColor(data.stalenessColor)
                     Spacer()
                 }
             }
@@ -326,7 +328,7 @@ struct AccessoryInlineView: View {
 
     var body: some View {
         if let data = entry.data {
-            Text("\(data.glucose) \(data.trend) \(data.minutesAgo)m ago")
+            Text("\(data.glucose) \(data.trend) @\(data.timeString)")
         } else {
             Text("Trio: no data")
         }

@@ -162,27 +162,21 @@ struct TrioWatchComplicationProvider: TimelineProvider {
         let data = GlucoseComplicationData.load()
         let currentDate = Date()
 
-        // Smart refresh: more frequent when urgent (out of range), less when stable
-        let isUrgent = data?.isUrgent ?? false
-        let refreshInterval: Double = isUrgent ? 5 * 60 : 15 * 60  // 5 min urgent, 15 min normal
-        let timelineLength: Double = isUrgent ? 30 * 60 : 60 * 60  // 30 min urgent, 60 min normal
-
-        // Create entries to update staleness indicator
+        // Create entries every 5 minutes for the next 15 minutes
+        // Short timeline forces system to call getTimeline() more frequently
         var entries: [TrioWatchComplicationEntry] = []
 
-        // Current entry
+        // Entry for now
         entries.append(TrioWatchComplicationEntry(date: currentDate, data: data))
 
-        // Future entries at refresh interval to update staleness
-        var offset = refreshInterval
-        while offset <= timelineLength {
-            let futureDate = currentDate.addingTimeInterval(offset)
+        // Entries at 5 and 10 minutes
+        for minutes in [5, 10] {
+            let futureDate = currentDate.addingTimeInterval(Double(minutes * 60))
             entries.append(TrioWatchComplicationEntry(date: futureDate, data: data))
-            offset += refreshInterval
         }
 
-        // Request refresh after timeline ends
-        let timeline = Timeline(entries: entries, policy: .after(currentDate.addingTimeInterval(timelineLength)))
+        // Use .atEnd to request refresh as soon as timeline expires
+        let timeline = Timeline(entries: entries, policy: .atEnd)
         completion(timeline)
     }
 }

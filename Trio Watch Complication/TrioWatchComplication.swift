@@ -23,6 +23,14 @@ private var sharedUserDefaults: UserDefaults? {
     return UserDefaults(suiteName: suiteName)
 }
 
+/// Debug info for troubleshooting
+private func getDebugInfo() -> String {
+    let appGroup = getAppGroupSuiteName() ?? "nil"
+    let hasDefaults = sharedUserDefaults != nil
+    let hasData = sharedUserDefaults?.data(forKey: "complicationData") != nil
+    return "AG:\(appGroup.suffix(15)) D:\(hasDefaults) V:\(hasData)"
+}
+
 // MARK: - Shared Complication Data
 
 /// Data structure for sharing glucose information with complications
@@ -312,9 +320,10 @@ struct AccessoryRectangularView: View {
                         .font(.system(size: 18))
                     Spacer()
                 }
-                Text("No data - open Trio")
-                    .font(.system(size: 11))
-                    .foregroundColor(.red)
+                // Show debug info: AG=app group suffix, D=defaults exist, V=value exists
+                Text(getDebugInfo())
+                    .font(.system(size: 9))
+                    .foregroundColor(.orange)
             }
             .widgetBackground(backgroundView: Color.clear)
         }

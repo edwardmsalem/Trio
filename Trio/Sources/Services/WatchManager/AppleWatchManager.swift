@@ -509,12 +509,9 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             debug(.watchManager, "📤 Transferred new WatchState snapshot via userInfo")
         }
 
-        // TESTING MODE: Always send high-priority complication push
-        // Bypassing isComplicationEnabled check to debug
+        // Send complication data via transferUserInfo (NOT transferCurrentComplicationUserInfo)
+        // transferCurrentComplicationUserInfo is ClockKit-era and doesn't work with WidgetKit
         #if os(iOS)
-        debug(.watchManager, "🔍 isComplicationEnabled = \(session.isComplicationEnabled)")
-
-        // Send regardless of isComplicationEnabled for testing
         let complicationData: [String: Any] = [
             "complicationUpdate": true,
             WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
@@ -525,8 +522,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
             WatchMessageKeys.date: state.date.timeIntervalSince1970
         ]
-        session.transferCurrentComplicationUserInfo(complicationData)
-        debug(.watchManager, "📤 Sent high-priority complication update (TESTING - always push)")
+        session.transferUserInfo(complicationData)
+        debug(.watchManager, "📤 Sent complication update via transferUserInfo")
         #endif
     }
 

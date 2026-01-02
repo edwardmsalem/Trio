@@ -306,8 +306,8 @@ var sharedUserDefaults: UserDefaults? {
         }
     }
 
-    /// Handles high-priority complication updates from iPhone
-    /// This is called when the iPhone sends data via transferCurrentComplicationUserInfo
+    /// Handles complication updates from iPhone
+    /// This is called when the iPhone sends data via transferUserInfo
     private func handleComplicationUpdate(_ userInfo: [String: Any]) {
         let glucose = userInfo[WatchMessageKeys.currentGlucose] as? String ?? "--"
         let trend = userInfo[WatchMessageKeys.trend] as? String ?? ""
@@ -333,10 +333,15 @@ var sharedUserDefaults: UserDefaults? {
         )
 
         complicationData.save()
-        WidgetCenter.shared.reloadAllTimelines()
+
+        // Delay before reloading to ensure UserDefaults is synced
+        // This is critical for WidgetKit to read the updated data
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
 
         Task {
-            await WatchLogger.shared.log("📊 Complication updated from high-priority push: \(glucose) \(trend)")
+            await WatchLogger.shared.log("📊 Complication updated: \(glucose) \(trend)")
         }
     }
 
@@ -677,8 +682,11 @@ var sharedUserDefaults: UserDefaults? {
         // Save to shared UserDefaults
         complicationData.save()
 
-        // Reload complications
-        WidgetCenter.shared.reloadAllTimelines()
+        // Delay before reloading to ensure UserDefaults is synced
+        // This is critical for WidgetKit to read the updated data
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
 
         Task {
             await WatchLogger.shared.log("📊 Updated complication data: \(currentGlucose) \(trend ?? "") urgent=\(isUrgent)")
@@ -726,9 +734,12 @@ struct GlucoseComplicationData: Codable {
             // Use shared App Group UserDefaults so complications can read it
             if let shared = sharedUserDefaults {
                 shared.set(encoded, forKey: Self.key)
+                shared.set(Date(), forKey: "lastUpdate")
+                shared.synchronize() // Force immediate write for WidgetKit
             }
             // Also save to standard for backwards compatibility
             UserDefaults.standard.set(encoded, forKey: Self.key)
+            UserDefaults.standard.synchronize()
         }
     }
 

@@ -49,8 +49,9 @@ class WatchAppDelegate: NSObject, WKApplicationDelegate {
 
     /// Schedule background refresh to run periodically
     static func scheduleBackgroundRefresh() {
-        // Schedule refresh for 5 minutes from now
-        let refreshDate = Date().addingTimeInterval(5 * 60)
+        // Schedule refresh for 15 minutes from now
+        // watchOS allows ~4 background refreshes per hour, so 15 min is realistic
+        let refreshDate = Date().addingTimeInterval(15 * 60)
 
         WKApplication.shared().scheduleBackgroundRefresh(
             withPreferredDate: refreshDate,

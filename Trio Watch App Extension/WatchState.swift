@@ -315,6 +315,12 @@ var sharedUserDefaults: UserDefaults? {
         }
     }
 
+    /// Public method to update complication from applicationContext
+    /// Called during background refresh to check for pending data
+    func updateComplicationFromContext(_ context: [String: Any]) {
+        handleComplicationUpdate(context)
+    }
+
     /// Handles complication updates from iPhone
     /// This is called when the iPhone sends data via transferUserInfo
     private func handleComplicationUpdate(_ userInfo: [String: Any]) {

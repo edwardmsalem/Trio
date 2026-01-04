@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchConnectivity
 import WatchKit
 import WidgetKit
 
@@ -76,11 +77,26 @@ class WatchAppDelegate: NSObject, WKApplicationDelegate {
                     await WatchLogger.shared.log("🔄 Background refresh triggered")
                 }
 
+                // Check applicationContext for any pending complication data
+                // This data was sent by iPhone while the app was killed
+                if WCSession.default.activationState == .activated {
+                    let context = WCSession.default.receivedApplicationContext
+                    if context["complicationUpdate"] as? Bool == true {
+                        Task {
+                            await WatchLogger.shared.log("📥 Found complication data in applicationContext during background refresh")
+                        }
+                        // Update complication data from context
+                        WatchState.shared.updateComplicationFromContext(context)
+                    }
+                }
+
                 // Request fresh data from iPhone
                 WatchState.shared.requestWatchStateUpdate()
 
                 // Reload complications to show current data or staleness
-                WidgetCenter.shared.reloadAllTimelines()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
 
                 // Schedule next refresh
                 Self.scheduleBackgroundRefresh()

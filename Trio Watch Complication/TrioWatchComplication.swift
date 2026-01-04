@@ -163,14 +163,14 @@ struct TrioWatchComplicationProvider: TimelineProvider {
         let currentDate = Date()
 
         // Create entries every 5 minutes for the next 15 minutes
-        // Short timeline forces system to call getTimeline() more frequently
+        // Aligned with the 15-minute background refresh schedule
         var entries: [TrioWatchComplicationEntry] = []
 
         // Entry for now
         entries.append(TrioWatchComplicationEntry(date: currentDate, data: data))
 
-        // Entries at 5 and 10 minutes
-        for minutes in [5, 10] {
+        // Entries at 5, 10, and 15 minutes - matches background refresh interval
+        for minutes in [5, 10, 15] {
             let futureDate = currentDate.addingTimeInterval(Double(minutes * 60))
             entries.append(TrioWatchComplicationEntry(date: futureDate, data: data))
         }

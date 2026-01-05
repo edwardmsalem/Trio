@@ -70,12 +70,14 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 .eraseToAnyPublisher()
 
         // Observer for glucose and manual glucose
+        // Note: We don't check isReachable here because we want to send complication
+        // updates via transferUserInfo/applicationContext even when watch is in background
         glucoseStorage.updatePublisher
             .receive(on: DispatchQueue.global(qos: .background))
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 // Skip if no watch is paired or app not installed
-                guard let session = self.session, session.isPaired, session.isReachable,
+                guard let session = self.session, session.isPaired,
                       session.isWatchAppInstalled else { return }
                 Task {
                     let state = await self.setupWatchState()
@@ -99,10 +101,11 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     }
 
     private func registerHandlers() {
+        // Note: We don't check isReachable in these handlers because we want to send
+        // complication updates via transferUserInfo/applicationContext even when watch is in background
         coreDataPublisher?.filteredByEntityName("OrefDetermination").sink { [weak self] _ in
             guard let self = self else { return }
-            // Skip if no watch is paired or app not installed
-            guard let session = self.session, session.isPaired, session.isReachable, session.isWatchAppInstalled else { return }
+            guard let session = self.session, session.isPaired, session.isWatchAppInstalled else { return }
             Task {
                 let state = await self.setupWatchState()
                 await self.sendDataToWatch(state)
@@ -112,8 +115,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         // Due to the Batch insert this only is used for observing Deletion of Glucose entries
         coreDataPublisher?.filteredByEntityName("GlucoseStored").sink { [weak self] _ in
             guard let self = self else { return }
-            // Skip if no watch is paired or app not installed
-            guard let session = self.session, session.isPaired, session.isReachable, session.isWatchAppInstalled else { return }
+            guard let session = self.session, session.isPaired, session.isWatchAppInstalled else { return }
             Task {
                 let state = await self.setupWatchState()
                 await self.sendDataToWatch(state)
@@ -129,8 +131,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
         coreDataPublisher?.filteredByEntityName("OverrideStored").sink { [weak self] _ in
             guard let self = self else { return }
-            // Skip if no watch is paired or app not installed
-            guard let session = self.session, session.isPaired, session.isReachable, session.isWatchAppInstalled else { return }
+            guard let session = self.session, session.isPaired, session.isWatchAppInstalled else { return }
             Task {
                 let state = await self.setupWatchState()
                 await self.sendDataToWatch(state)
@@ -139,8 +140,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
         coreDataPublisher?.filteredByEntityName("TempTargetStored").sink { [weak self] _ in
             guard let self = self else { return }
-            // Skip if no watch is paired or app not installed
-            guard let session = self.session, session.isPaired, session.isReachable, session.isWatchAppInstalled else { return }
+            guard let session = self.session, session.isPaired, session.isWatchAppInstalled else { return }
             Task {
                 let state = await self.setupWatchState()
                 await self.sendDataToWatch(state)

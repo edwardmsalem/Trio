@@ -412,6 +412,56 @@ Text("@ \(data.timeString)") // e.g., "@ 10:45"
 - Use staleness colors to indicate data age
 - Show timestamp so user can calculate freshness
 
+### Attempt 6: Background Refresh Checking WCSession Before Activation
+
+**What we tried:**
+```swift
+func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
+    // Check activation BEFORE accessing WatchState.shared
+    if WCSession.default.activationState == .activated {
+        let context = WCSession.default.receivedApplicationContext
+        // ...
+    }
+    WatchState.shared.requestWatchStateUpdate()
+}
+```
+
+**Why it failed:**
+- WCSession activation happens in `WatchState.shared`'s init
+- We checked activation status BEFORE accessing `WatchState.shared`
+- Session was never activated → context was never read
+- When Watch app was killed, background refresh couldn't get data
+
+**Fix:**
+```swift
+func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
+    // Access WatchState.shared FIRST to trigger session activation
+    let watchState = WatchState.shared
+
+    // Give session time to activate
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        if WCSession.default.activationState == .activated {
+            let context = WCSession.default.receivedApplicationContext
+            if context["complicationUpdate"] as? Bool == true {
+                watchState.updateComplicationFromContext(context)
+            }
+        }
+        watchState.requestWatchStateUpdate()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+    }
+
+    Self.scheduleBackgroundRefresh()
+
+    // Mark complete after async work finishes
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        backgroundTask.setTaskCompletedWithSnapshot(false)
+    }
+}
+```
+
 ---
 
 ## The Working Solution
@@ -473,25 +523,36 @@ private func handleComplicationUpdate(_ data: [String: Any]) {
 func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
     for task in backgroundTasks {
         if let backgroundTask = task as? WKApplicationRefreshBackgroundTask {
-            // Check applicationContext for pending data
-            if WCSession.default.activationState == .activated {
-                let context = WCSession.default.receivedApplicationContext
-                if context["complicationUpdate"] as? Bool == true {
-                    WatchState.shared.updateComplicationFromContext(context)
+            // IMPORTANT: Access WatchState.shared FIRST to trigger WCSession activation
+            // The session activation happens in WatchState's init
+            let watchState = WatchState.shared
+
+            // Give session a moment to activate
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // Check applicationContext for pending data (sent while app was killed)
+                if WCSession.default.activationState == .activated {
+                    let context = WCSession.default.receivedApplicationContext
+                    if context["complicationUpdate"] as? Bool == true {
+                        watchState.updateComplicationFromContext(context)
+                    }
+                }
+
+                // Request fresh data from iPhone
+                watchState.requestWatchStateUpdate()
+
+                // Reload complications
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    WidgetCenter.shared.reloadAllTimelines()
                 }
             }
 
-            // Request fresh data
-            WatchState.shared.requestWatchStateUpdate()
-
-            // Reload complications
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                WidgetCenter.shared.reloadAllTimelines()
-            }
-
-            // Schedule next refresh
+            // Schedule next refresh (immediately, not in delayed block)
             Self.scheduleBackgroundRefresh()
-            backgroundTask.setTaskCompletedWithSnapshot(false)
+
+            // Mark task complete after giving time for async work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                backgroundTask.setTaskCompletedWithSnapshot(false)
+            }
         }
     }
 }
@@ -557,6 +618,30 @@ AG:...app-group D:true V:false
 2. Accept that watchOS may skip refreshes to save battery
 3. Verify WKApplicationDelegate is properly set up
 
+### Watch App Killed = Complication Stops Updating
+
+**Possible causes:**
+1. Background refresh checking WCSession before it's activated
+2. WCSession activation happens in WatchState's init, but we check before accessing it
+
+**Solutions:**
+1. Access `WatchState.shared` FIRST to trigger session activation
+2. Add 0.5s delay before checking `receivedApplicationContext`
+3. Mark task complete after 1.0s to allow async work to finish
+
+**Critical code order:**
+```swift
+// WRONG - session never activates
+if WCSession.default.activationState == .activated { ... }
+WatchState.shared.requestWatchStateUpdate()
+
+// RIGHT - access WatchState first, then wait
+let watchState = WatchState.shared  // triggers activation
+DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+    if WCSession.default.activationState == .activated { ... }
+}
+```
+
 ---
 
 ## Future Considerations
@@ -605,6 +690,8 @@ Key commits on this feature branch:
 8. Added debug info to complication
 9. Added background refresh to check `applicationContext`
 10. Aligned timeline to 15-min intervals
+11. Fixed background refresh not activating WCSession before checking context
+12. Added comprehensive CLAUDE.md documentation
 
 ---
 

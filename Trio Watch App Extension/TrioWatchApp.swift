@@ -78,32 +78,46 @@ class WatchAppDelegate: NSObject, WKApplicationDelegate {
                     await WatchLogger.shared.log("🔄 Background refresh triggered")
                 }
 
-                // Check applicationContext for any pending complication data
-                // This data was sent by iPhone while the app was killed
-                if WCSession.default.activationState == .activated {
-                    let context = WCSession.default.receivedApplicationContext
-                    if context["complicationUpdate"] as? Bool == true {
-                        Task {
-                            await WatchLogger.shared.log("📥 Found complication data in applicationContext during background refresh")
+                // IMPORTANT: Access WatchState.shared FIRST to trigger WCSession activation
+                // The session activation happens in WatchState's init
+                let watchState = WatchState.shared
+
+                // Give session a moment to activate
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // Check applicationContext for any pending complication data
+                    // This data was sent by iPhone while the app was killed
+                    if WCSession.default.activationState == .activated {
+                        let context = WCSession.default.receivedApplicationContext
+                        if context["complicationUpdate"] as? Bool == true {
+                            Task {
+                                await WatchLogger.shared.log("📥 Found complication data in applicationContext during background refresh")
+                            }
+                            // Update complication data from context
+                            watchState.updateComplicationFromContext(context)
                         }
-                        // Update complication data from context
-                        WatchState.shared.updateComplicationFromContext(context)
+                    } else {
+                        Task {
+                            await WatchLogger.shared.log("⚠️ WCSession not activated during background refresh")
+                        }
+                    }
+
+                    // Request fresh data from iPhone
+                    watchState.requestWatchStateUpdate()
+
+                    // Reload complications to show current data or staleness
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        WidgetCenter.shared.reloadAllTimelines()
                     }
                 }
 
-                // Request fresh data from iPhone
-                WatchState.shared.requestWatchStateUpdate()
-
-                // Reload complications to show current data or staleness
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    WidgetCenter.shared.reloadAllTimelines()
-                }
-
-                // Schedule next refresh
+                // Schedule next refresh (do this immediately, not in the delayed block)
                 Self.scheduleBackgroundRefresh()
 
-                // Mark task complete
-                backgroundTask.setTaskCompletedWithSnapshot(false)
+                // Mark task complete after giving time for async work
+                // Background tasks have ~15 seconds, our work takes ~1 second
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    backgroundTask.setTaskCompletedWithSnapshot(false)
+                }
 
             default:
                 task.setTaskCompletedWithSnapshot(false)

@@ -490,15 +490,28 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
 
         guard session.isWatchAppInstalled else {
-            debug(.watchManager, "⌚️❌ Trio Watch app is")
+            debug(.watchManager, "⌚️❌ Trio Watch app is not installed")
             return
         }
 
-        guard session.activationState == .activated else {
-            let activationStateString = "\(session.activationState)"
-            debug(.watchManager, "⌚️ Watch session activationState = \(activationStateString). Reactivating...")
+        // Ensure session is activated - wait up to 1 second if needed
+        if session.activationState != .activated {
+            debug(.watchManager, "⌚️ Watch session not activated, activating and waiting...")
             session.activate()
-            return
+
+            // Wait up to 1 second for activation (check every 0.1s)
+            for _ in 0..<10 {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                if session.activationState == .activated {
+                    break
+                }
+            }
+
+            // If still not activated after 1s, log but continue anyway
+            // transferUserInfo and updateApplicationContext may still work
+            if session.activationState != .activated {
+                debug(.watchManager, "⌚️ Warning: Session still not activated after 1s, attempting to send anyway")
+            }
         }
 
         let message: [String: Any] = watchStateToDictionary(from: state)

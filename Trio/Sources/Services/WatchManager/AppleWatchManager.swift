@@ -183,10 +183,13 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             return WatchState(date: Date())
         }
 
-        // Skip if watch session is not activated
-        guard session.activationState == .activated else {
-            debug(.watchManager, "⌚️❌ Skipping setupWatchState - Watch session not activated")
-            return WatchState(date: Date())
+        // Ensure session is activated - if not, activate and continue anyway
+        // We still want to build state for transferUserInfo/applicationContext
+        if session.activationState != .activated {
+            debug(.watchManager, "⌚️ Watch session not activated, activating now...")
+            session.activate()
+            // Give it a moment to activate
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
         }
         do {
             // Get NSManagedObjectIDs

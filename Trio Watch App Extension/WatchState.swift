@@ -324,6 +324,10 @@ var sharedUserDefaults: UserDefaults? {
     /// Handles complication updates from iPhone
     /// This is called when the iPhone sends data via transferUserInfo
     private func handleComplicationUpdate(_ userInfo: [String: Any]) {
+        Task {
+            await WatchLogger.shared.log("📥 handleComplicationUpdate called with keys: \(userInfo.keys.joined(separator: ", "))")
+        }
+
         let glucose = userInfo[WatchMessageKeys.currentGlucose] as? String ?? "--"
         let trend = userInfo[WatchMessageKeys.trend] as? String ?? ""
         let delta = userInfo[WatchMessageKeys.delta] as? String ?? "--"
@@ -331,6 +335,10 @@ var sharedUserDefaults: UserDefaults? {
         let cob = userInfo[WatchMessageKeys.cob] as? String
         let colorString = userInfo[WatchMessageKeys.currentGlucoseColorString] as? String ?? "#ffffff"
         let timestamp = userInfo[WatchMessageKeys.date] as? TimeInterval
+
+        Task {
+            await WatchLogger.shared.log("📥 Parsed: glucose=\(glucose), trend=\(trend), delta=\(delta), timestamp=\(timestamp ?? 0)")
+        }
 
         // Determine if urgent based on color
         let isUrgent = !isGlucoseColorInRange(colorString)
@@ -759,10 +767,18 @@ struct GlucoseComplicationData: Codable {
     func save() {
         if let encoded = try? JSONEncoder().encode(self) {
             // Use shared App Group UserDefaults so complications can read it
+            let appGroup = getAppGroupSuiteName()
             if let shared = sharedUserDefaults {
                 shared.set(encoded, forKey: Self.key)
                 shared.set(Date(), forKey: "lastUpdate")
                 shared.synchronize() // Force immediate write for WidgetKit
+                Task {
+                    await WatchLogger.shared.log("💾 Saved complication data to App Group: \(appGroup ?? "nil")")
+                }
+            } else {
+                Task {
+                    await WatchLogger.shared.log("⚠️ sharedUserDefaults is nil! App Group: \(appGroup ?? "nil")")
+                }
             }
             // Also save to standard for backwards compatibility
             UserDefaults.standard.set(encoded, forKey: Self.key)

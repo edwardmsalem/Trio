@@ -52,6 +52,7 @@ var sharedUserDefaults: UserDefaults? {
     var maxYAxisValue: Decimal = 200
     var cob: String? = "--"
     var iob: String? = "--"
+    var tdd: String? = nil  // Total Daily Dose
     var lastLoopTime: String? = "--"
     var overridePresets: [OverridePresetWatch] = []
     var tempTargetPresets: [TempTargetPresetWatch] = []
@@ -600,6 +601,10 @@ var sharedUserDefaults: UserDefaults? {
 
         if let cob = message[WatchMessageKeys.cob] as? String {
             self.cob = cob
+        }
+
+        if let tdd = message[WatchMessageKeys.tdd] as? String {
+            self.tdd = tdd
         }
 
         if let lastLoopTime = message[WatchMessageKeys.lastLoopTime] as? String {

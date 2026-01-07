@@ -210,11 +210,17 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             let tempTargetPresetObjects: [TempTargetStored] = try await CoreDataStack.shared
                 .getNSManagedObject(with: tempTargetPresetIds, context: backgroundContext)
 
-            // Fetch TDD (Total Daily Dose)
+            // Fetch TDD (Total Daily Dose) - from midnight EST to now
+            // Calculate start of today in EST timezone
+            var estCalendar = Calendar.current
+            estCalendar.timeZone = TimeZone(identifier: "America/New_York") ?? TimeZone.current
+            let startOfTodayEST = estCalendar.startOfDay(for: Date())
+            let tddPredicate = NSPredicate(format: "date >= %@", startOfTodayEST as NSDate)
+
             let tddResults = try await CoreDataStack.shared.fetchEntitiesAsync(
                 ofType: TDDStored.self,
                 onContext: backgroundContext,
-                predicate: NSPredicate.predicateFor30MinAgo,
+                predicate: tddPredicate,
                 key: "date",
                 ascending: false,
                 fetchLimit: 1,

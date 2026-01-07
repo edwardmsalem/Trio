@@ -261,7 +261,11 @@ struct AccessoryCornerView: View {
                 .foregroundColor(data.stalenessColor)
                 .widgetCurvesContent()
                 .widgetLabel {
-                    Text("\(data.trend) @\(data.timeString)")
+                    if let tdd = data.tdd, !tdd.isEmpty {
+                        Text("\(data.timeString) \(tdd)U")
+                    } else {
+                        Text(data.timeString)
+                    }
                 }
                 .widgetBackground(backgroundView: Color.clear)
         } else {
@@ -300,7 +304,7 @@ struct AccessoryRectangularView: View {
 
                 // Bottom row: Timestamp and TDD
                 HStack(spacing: 8) {
-                    Text("@ \(data.timeString)")
+                    Text(data.timeString)
                         .font(.system(size: 11))
                         .foregroundColor(data.stalenessColor)
                     if let tdd = data.tdd, !tdd.isEmpty {
@@ -340,9 +344,9 @@ struct AccessoryInlineView: View {
     var body: some View {
         if let data = entry.data {
             if let tdd = data.tdd, !tdd.isEmpty {
-                Text("\(data.glucose) \(data.trend) @\(data.timeString) \(tdd)U")
+                Text("\(data.glucose) \(data.trend) \(data.timeString) \(tdd)U")
             } else {
-                Text("\(data.glucose) \(data.trend) @\(data.timeString)")
+                Text("\(data.glucose) \(data.trend) \(data.timeString)")
             }
         } else {
             Text("Trio: no data")

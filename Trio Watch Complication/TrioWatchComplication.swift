@@ -304,7 +304,7 @@ struct AccessoryRectangularView: View {
                         .font(.system(size: 11))
                         .foregroundColor(data.stalenessColor)
                     if let tdd = data.tdd, !tdd.isEmpty {
-                        Text("TDD: \(tdd)U")
+                        Text("\(tdd)U")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     }
@@ -339,7 +339,11 @@ struct AccessoryInlineView: View {
 
     var body: some View {
         if let data = entry.data {
-            Text("\(data.glucose) \(data.trend) @\(data.timeString)")
+            if let tdd = data.tdd, !tdd.isEmpty {
+                Text("\(data.glucose) \(data.trend) @\(data.timeString) \(tdd)U")
+            } else {
+                Text("\(data.glucose) \(data.trend) @\(data.timeString)")
+            }
         } else {
             Text("Trio: no data")
         }

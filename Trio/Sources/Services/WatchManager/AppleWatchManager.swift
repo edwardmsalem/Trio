@@ -210,6 +210,17 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             let tempTargetPresetObjects: [TempTargetStored] = try await CoreDataStack.shared
                 .getNSManagedObject(with: tempTargetPresetIds, context: backgroundContext)
 
+            // Fetch TDD (Total Daily Dose)
+            let tddResults = try await CoreDataStack.shared.fetchEntitiesAsync(
+                ofType: TDDStored.self,
+                onContext: backgroundContext,
+                predicate: NSPredicate.predicateFor30MinAgo,
+                key: "date",
+                ascending: false,
+                fetchLimit: 1,
+                propertiesToFetch: ["total"]
+            )
+
             return await backgroundContext.perform {
                 var watchState = WatchState(date: Date())
 
@@ -228,6 +239,13 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 if let latestDetermination = determinationObjects.first {
                     let cob = NSNumber(value: latestDetermination.cob)
                     watchState.cob = Formatter.integerFormatter.string(from: cob)
+                }
+
+                // Set TDD (Total Daily Dose)
+                if let tddDict = (tddResults as? [[String: Any]])?.first,
+                   let tddValue = (tddDict["total"] as? NSDecimalNumber)?.decimalValue,
+                   tddValue > 0 {
+                    watchState.tdd = Formatter.decimalFormatterWithOneFractionDigit.string(from: tddValue as NSNumber)
                 }
 
                 // Set override presets with their enabled status
@@ -447,6 +465,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchMessageKeys.delta: state.delta ?? "",
             WatchMessageKeys.iob: state.iob ?? "",
             WatchMessageKeys.cob: state.cob ?? "",
+            WatchMessageKeys.tdd: state.tdd ?? "",
             WatchMessageKeys.lastLoopTime: state.lastLoopTime ?? "",
             WatchMessageKeys.glucoseValues: state.glucoseValues.map { value in
                 [
@@ -537,6 +556,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchMessageKeys.delta: state.delta ?? "",
             WatchMessageKeys.iob: state.iob ?? "",
             WatchMessageKeys.cob: state.cob ?? "",
+            WatchMessageKeys.tdd: state.tdd ?? "",
             WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
             WatchMessageKeys.date: state.date.timeIntervalSince1970
         ]

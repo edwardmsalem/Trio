@@ -40,13 +40,14 @@ struct GlucoseComplicationData: Codable {
     let delta: String
     let iob: String?
     let cob: String?
+    let tdd: String?  // Total Daily Dose
     let glucoseDate: Date?
     let lastLoopDate: Date?
     let isUrgent: Bool  // true when glucose is out of range (high/low)
 
     static let key = "complicationData"
 
-    // For backwards compatibility with data saved without isUrgent
+    // For backwards compatibility with data saved without newer fields
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         glucose = try container.decode(String.self, forKey: .glucose)
@@ -54,17 +55,19 @@ struct GlucoseComplicationData: Codable {
         delta = try container.decode(String.self, forKey: .delta)
         iob = try container.decodeIfPresent(String.self, forKey: .iob)
         cob = try container.decodeIfPresent(String.self, forKey: .cob)
+        tdd = try container.decodeIfPresent(String.self, forKey: .tdd)
         glucoseDate = try container.decodeIfPresent(Date.self, forKey: .glucoseDate)
         lastLoopDate = try container.decodeIfPresent(Date.self, forKey: .lastLoopDate)
         isUrgent = try container.decodeIfPresent(Bool.self, forKey: .isUrgent) ?? false
     }
 
-    init(glucose: String, trend: String, delta: String, iob: String?, cob: String?, glucoseDate: Date?, lastLoopDate: Date?, isUrgent: Bool = false) {
+    init(glucose: String, trend: String, delta: String, iob: String?, cob: String?, tdd: String? = nil, glucoseDate: Date?, lastLoopDate: Date?, isUrgent: Bool = false) {
         self.glucose = glucose
         self.trend = trend
         self.delta = delta
         self.iob = iob
         self.cob = cob
+        self.tdd = tdd
         self.glucoseDate = glucoseDate
         self.lastLoopDate = lastLoopDate
         self.isUrgent = isUrgent
@@ -295,11 +298,16 @@ struct AccessoryRectangularView: View {
                     Spacer()
                 }
 
-                // Bottom row: Timestamp of reading
+                // Bottom row: Timestamp and TDD
                 HStack(spacing: 8) {
                     Text("@ \(data.timeString)")
                         .font(.system(size: 11))
                         .foregroundColor(data.stalenessColor)
+                    if let tdd = data.tdd, !tdd.isEmpty {
+                        Text("TDD: \(tdd)U")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                 }
             }

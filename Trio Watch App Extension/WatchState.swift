@@ -333,11 +333,12 @@ var sharedUserDefaults: UserDefaults? {
         let delta = userInfo[WatchMessageKeys.delta] as? String ?? "--"
         let iob = userInfo[WatchMessageKeys.iob] as? String
         let cob = userInfo[WatchMessageKeys.cob] as? String
+        let tdd = userInfo[WatchMessageKeys.tdd] as? String
         let colorString = userInfo[WatchMessageKeys.currentGlucoseColorString] as? String ?? "#ffffff"
         let timestamp = userInfo[WatchMessageKeys.date] as? TimeInterval
 
         Task {
-            await WatchLogger.shared.log("📥 Parsed: glucose=\(glucose), trend=\(trend), delta=\(delta), timestamp=\(timestamp ?? 0)")
+            await WatchLogger.shared.log("📥 Parsed: glucose=\(glucose), trend=\(trend), delta=\(delta), tdd=\(tdd ?? "nil"), timestamp=\(timestamp ?? 0)")
         }
 
         // Determine if urgent based on color
@@ -350,6 +351,7 @@ var sharedUserDefaults: UserDefaults? {
             delta: delta,
             iob: iob,
             cob: cob,
+            tdd: tdd,
             glucoseDate: timestamp.map { Date(timeIntervalSince1970: $0) },
             lastLoopDate: timestamp.map { Date(timeIntervalSince1970: $0) },
             isUrgent: isUrgent
@@ -709,6 +711,7 @@ var sharedUserDefaults: UserDefaults? {
             delta: delta ?? "--",
             iob: iob,
             cob: cob,
+            tdd: tdd,
             glucoseDate: glucoseDate,
             lastLoopDate: lastWatchStateUpdate.map { Date(timeIntervalSince1970: $0) },
             isUrgent: isUrgent
@@ -746,18 +749,20 @@ struct GlucoseComplicationData: Codable {
     let delta: String
     let iob: String?
     let cob: String?
+    let tdd: String?  // Total Daily Dose
     let glucoseDate: Date?
     let lastLoopDate: Date?
     let isUrgent: Bool  // true when glucose is out of range (high/low)
 
     static let key = "complicationData"
 
-    init(glucose: String, trend: String, delta: String, iob: String?, cob: String?, glucoseDate: Date?, lastLoopDate: Date?, isUrgent: Bool = false) {
+    init(glucose: String, trend: String, delta: String, iob: String?, cob: String?, tdd: String? = nil, glucoseDate: Date?, lastLoopDate: Date?, isUrgent: Bool = false) {
         self.glucose = glucose
         self.trend = trend
         self.delta = delta
         self.iob = iob
         self.cob = cob
+        self.tdd = tdd
         self.glucoseDate = glucoseDate
         self.lastLoopDate = lastLoopDate
         self.isUrgent = isUrgent

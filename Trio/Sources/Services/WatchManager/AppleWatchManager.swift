@@ -210,21 +210,34 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             let tempTargetPresetObjects: [TempTargetStored] = try await CoreDataStack.shared
                 .getNSManagedObject(with: tempTargetPresetIds, context: backgroundContext)
 
-            // Fetch TDD (Total Daily Dose) - from midnight EST to now
-            // Calculate start of today in EST timezone
-            var estCalendar = Calendar.current
-            estCalendar.timeZone = TimeZone(identifier: "America/New_York") ?? TimeZone.current
-            let startOfTodayEST = estCalendar.startOfDay(for: Date())
-            let tddPredicate = NSPredicate(format: "date >= %@", startOfTodayEST as NSDate)
+            // Fetch actual insulin taken today (from midnight local time to now)
+            // This matches the "Insulin" stats view when set to "Day"
+            let startOfToday = Calendar.current.startOfDay(for: Date())
+            let now = Date()
 
-            let tddResults = try await CoreDataStack.shared.fetchEntitiesAsync(
-                ofType: TDDStored.self,
+            // Predicate for pump events from midnight today to now
+            let todayPredicate = NSPredicate(
+                format: "pumpEvent.timestamp >= %@ AND pumpEvent.timestamp <= %@",
+                startOfToday as NSDate,
+                now as NSDate
+            )
+
+            // Fetch bolus records for today
+            let bolusResults = try await CoreDataStack.shared.fetchEntitiesAsync(
+                ofType: BolusStored.self,
                 onContext: backgroundContext,
-                predicate: tddPredicate,
-                key: "date",
-                ascending: false,
-                fetchLimit: 1,
-                propertiesToFetch: ["total"]
+                predicate: todayPredicate,
+                key: "pumpEvent.timestamp",
+                ascending: true
+            )
+
+            // Fetch temp basal records for today
+            let tempBasalResults = try await CoreDataStack.shared.fetchEntitiesAsync(
+                ofType: TempBasalStored.self,
+                onContext: backgroundContext,
+                predicate: todayPredicate,
+                key: "pumpEvent.timestamp",
+                ascending: true
             )
 
             return await backgroundContext.perform {
@@ -247,11 +260,52 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                     watchState.cob = Formatter.integerFormatter.string(from: cob)
                 }
 
-                // Set TDD (Total Daily Dose)
-                if let tddDict = (tddResults as? [[String: Any]])?.first,
-                   let tddValue = (tddDict["total"] as? NSDecimalNumber)?.decimalValue,
-                   tddValue > 0 {
-                    watchState.tdd = Formatter.decimalFormatterWithOneFractionDigit.string(from: tddValue as NSNumber)
+                // Calculate actual insulin taken today from boluses and temp basals
+                // This matches the "Insulin" stats view when set to "Day"
+                var totalInsulinToday: Double = 0
+
+                // Sum bolus insulin
+                if let boluses = bolusResults as? [BolusStored] {
+                    for bolus in boluses {
+                        if let amount = bolus.amount?.doubleValue {
+                            totalInsulinToday += amount
+                        }
+                    }
+                }
+
+                // Sum temp basal insulin (rate * duration in hours)
+                if let tempBasals = tempBasalResults as? [TempBasalStored] {
+                    let sortedTempBasals = tempBasals.sorted {
+                        ($0.pumpEvent?.timestamp ?? Date.distantPast) < ($1.pumpEvent?.timestamp ?? Date.distantPast)
+                    }
+
+                    for (index, tempBasal) in sortedTempBasals.enumerated() {
+                        guard let timestamp = tempBasal.pumpEvent?.timestamp,
+                              let rate = tempBasal.rate?.doubleValue
+                        else { continue }
+
+                        // Calculate actual duration based on next temp basal or current time
+                        var actualDurationMinutes: Double
+                        if index < sortedTempBasals.count - 1,
+                           let nextTimestamp = sortedTempBasals[index + 1].pumpEvent?.timestamp
+                        {
+                            actualDurationMinutes = nextTimestamp.timeIntervalSince(timestamp) / 60.0
+                        } else {
+                            // For the last temp basal, use time until now or planned duration
+                            let plannedEnd = timestamp.addingTimeInterval(Double(tempBasal.duration) * 60)
+                            let effectiveEnd = min(plannedEnd, now)
+                            actualDurationMinutes = effectiveEnd.timeIntervalSince(timestamp) / 60.0
+                        }
+
+                        // Convert to hours and calculate insulin
+                        let durationHours = actualDurationMinutes / 60.0
+                        totalInsulinToday += rate * durationHours
+                    }
+                }
+
+                // Set TDD (insulin taken today)
+                if totalInsulinToday > 0 {
+                    watchState.tdd = Formatter.decimalFormatterWithOneFractionDigit.string(from: totalInsulinToday as NSNumber)
                 }
 
                 // Set override presets with their enabled status

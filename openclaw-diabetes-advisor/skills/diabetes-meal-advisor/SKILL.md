@@ -4,20 +4,13 @@ description: >
   Full Type 1 Diabetes management copilot. Triggers when the user sends a food
   photo, asks about carbs, mentions bolusing, correction doses, blood sugar,
   glucose, insulin, ratios, IOB, exercise, sick days, pump settings, or any
-  diabetes management topic. Analyzes meal photos with FatSecret + vision.
+  diabetes management topic. Analyzes meal photos with vision AI.
   Calculates bolus doses using the user's actual pump ratios, ISF, and targets.
   Advises on corrections, exercise, overrides, hypo treatment, and situational
   insulin strategy. Knows the user's full pump configuration.
-version: 3.0.0
+version: 4.0.0
 metadata:
   openclaw:
-    requires:
-      env:
-        - FATSECRET_CLIENT_ID
-        - FATSECRET_CLIENT_SECRET
-      bins:
-        - python3
-    primaryEnv: FATSECRET_CLIENT_ID
     emoji: "🩸"
 ---
 
@@ -330,24 +323,11 @@ The `sy_food_database.json` has a `clarification_required: true` flag and `clari
 
 When the user sends a photo of food:
 
-1. **Run FatSecret scan first:**
-   ```bash
-   python3 skills/diabetes-meal-advisor/scripts/analyze_photo.py "<path_to_image>"
-   ```
-
-2. **Review the photo yourself** with vision. Compare what you see vs FatSecret results.
-
-3. **Synthesize** — combine visual analysis with FatSecret data following the rules below.
-
-4. **Calculate the bolus** — using the carb result + their current ratio.
-
-If the script fails, proceed with vision-only analysis. FatSecret is helpful, not required.
-
-## INTERPRETING FATSECRET DATA
-
-- `food_type: "Brand"` — label-accurate macros, verify portion only
-- `food_type: "Generic"` — database averages, verify everything
-- **SY cuisine override** — if you recognize SY dishes, discard FatSecret and calculate from scratch using the reference table
+1. **Analyze the photo with vision.** Identify every food item visible.
+2. **Look up each item in `sy_food_database.json` first.** If the dish is there, use the validated carb values — not general knowledge.
+3. **For non-SY foods**, estimate from your nutrition knowledge. Use the ingredient carb rates table below.
+4. **Estimate portions** from visual cues: plate size (dinner = 10-11", salad = 7-8"), utensils, hands for scale.
+5. **Calculate the bolus** using the carb result + their current ratio.
 
 ## SY DISH REFERENCE
 

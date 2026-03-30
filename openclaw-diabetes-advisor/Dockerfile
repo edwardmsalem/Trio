@@ -1,10 +1,5 @@
 FROM node:22-slim
 
-# Install Python3 + Pillow for FatSecret image analysis script
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 python3-pip python3-pil && \
-    rm -rf /var/lib/apt/lists/*
-
 # Install OpenClaw globally
 RUN npm install -g openclaw@latest
 

@@ -1,5 +1,10 @@
 FROM node:22-slim
 
+# Install git and other tools OpenClaw needs
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install OpenClaw globally
 RUN npm install -g openclaw@latest
 

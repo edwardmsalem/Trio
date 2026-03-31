@@ -16,5 +16,5 @@ COPY skills/ skills/
 # Gateway default port
 EXPOSE 18789
 
-# Start the gateway
-CMD ["openclaw", "gateway", "run", "--allow-unconfigured"]
+# Fix config issues and start the gateway
+CMD sh -c 'openclaw doctor --fix 2>/dev/null; openclaw gateway run --allow-unconfigured'

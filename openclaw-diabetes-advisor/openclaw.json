@@ -10,8 +10,13 @@
   "systemPrompt": "You are a Type 1 Diabetes management copilot. You help with meal analysis, bolus calculations, correction doses, exercise planning, and all aspects of diabetes management. You know the user's exact pump settings, ratios, and targets. Always provide specific numbers. Be concise — this is WhatsApp.",
   "channels": {
     "whatsapp": {
-      "enabled": true,
+      "enabled": false,
       "phoneNumber": "",
+      "autoReply": true,
+      "groupMentionOnly": true
+    },
+    "telegram": {
+      "enabled": true,
       "autoReply": true,
       "groupMentionOnly": true
     }

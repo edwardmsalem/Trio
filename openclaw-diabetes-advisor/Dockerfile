@@ -24,5 +24,8 @@ CMD sh -c '\
   mkdir -p /root/.openclaw/workspace/skills && \
   cp -r /app/skills-source/* /root/.openclaw/workspace/skills/ && \
   cp /app/AGENTS.md /root/.openclaw/workspace/AGENTS.md 2>/dev/null; \
+  if [ -f /root/.openclaw/openclaw.json ]; then \
+    node -e "const fs=require(\"fs\"); const c=JSON.parse(fs.readFileSync(\"/root/.openclaw/openclaw.json\")); if(c.channels&&c.channels.whatsapp){c.channels.whatsapp.enabled=false;} fs.writeFileSync(\"/root/.openclaw/openclaw.json\", JSON.stringify(c,null,2)); console.log(\"WhatsApp disabled in runtime config\");" 2>/dev/null; \
+  fi; \
   openclaw doctor --fix 2>/dev/null; \
   openclaw gateway run --allow-unconfigured'

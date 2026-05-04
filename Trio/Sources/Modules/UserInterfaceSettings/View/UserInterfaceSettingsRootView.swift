@@ -376,6 +376,48 @@ extension UserInterfaceSettings {
                     }.padding(.bottom)
                 }.listRowBackground(Color.chart)
 
+                Section {
+                    VStack {
+                        Picker(
+                            selection: $state.bolusDisplayThreshold,
+                            label: Text("Bolus Display Threshold")
+                        ) {
+                            ForEach(BolusDisplayThreshold.allCases) { selection in
+                                Text(selection.displayName).tag(selection)
+                            }
+                        }.padding(.top)
+
+                        HStack(alignment: .center) {
+                            Text(
+                                "Choose to hide small bolus amounts. See hint for more details."
+                            )
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .lineLimit(nil)
+                            Spacer()
+                            Button(
+                                action: {
+                                    hintLabel = String(localized: "Bolus Display Threshold")
+                                    selectedVerboseHint =
+                                        AnyView(
+                                            VStack(alignment: .leading) {
+                                                Text(
+                                                    "This setting controls which bolus amount labels are shown on Trio’s main chart. Boluses appear as blue upside-down triangles, with a number showing the amount. Depending on the option you choose, only boluses at or above that amount will show a label. For example, if you choose ‘0.5 U and over’, only boluses of 0.5 U or more will show a label."
+                                                )
+                                            }
+                                        )
+                                    shouldDisplayHint.toggle()
+                                },
+                                label: {
+                                    HStack {
+                                        Image(systemName: "questionmark.circle")
+                                    }
+                                }
+                            ).buttonStyle(BorderlessButtonStyle())
+                        }.padding(.top)
+                    }.padding(.bottom)
+                }.listRowBackground(Color.chart)
+
                 Section(
                     header: Text("Trio Statistics"),
                     content: {
@@ -518,6 +560,29 @@ extension UserInterfaceSettings {
                         "Turning this on will show the grams of carbs needed to prevent a low as a notification badge on the Trio home screen located above the main icon.\n\nOnce enabled, set the Carbs Required Threshold to the lowest number of carbs you'd like to be recommended. A recommendation will not be given if carbs required is below this number.\n\nNote: The carbs suggested with this feature are to be used as a recommendation, not as a requirement. Depending on the current accuracy of your sensor and the accuracy of your settings, the suggested carbs can vary widely. Use your best judgement before injesting the suggested quanitity of carbs."
                     ),
                     headerText: String(localized: "Carbs Required Badge")
+                )
+
+                SettingInputSection(
+                    decimalValue: $decimalPlaceholder,
+                    booleanValue: $state.requireAdjustmentsConfirmation,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(localized: "Require Adjustments Confirmation")
+                        }
+                    ),
+                    units: state.units,
+                    type: .boolean,
+                    label: String(localized: "Require Adjustments Confirmation"),
+                    miniHint: String(
+                        localized: "If enabled, a confirmation dialog will be shown when activating adjustment presets."
+                    ),
+                    verboseHint: Text(
+                        "Turning this on will show a confirmation dialog when you activate an Override or Temporary Target preset. This is for users who would like avoid accidentally activating a preset by mistake."
+                    ),
+                    headerText: String(localized: "Adjustments")
                 )
             }
             .listSectionSpacing(sectionSpacing)

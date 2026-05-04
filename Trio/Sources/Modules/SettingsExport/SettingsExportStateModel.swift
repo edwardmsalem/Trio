@@ -396,7 +396,7 @@ extension SettingsExport {
                 addSetting(
                     category: algorithmCategory,
                     subcategory: smbSubcategory,
-                    name: String(localized: "Max. Allowed Glucose Rise for SMB"),
+                    name: String(localized: "Max Allowed Glucose Rise for SMB"),
                     value: String(format: "%.0f", (preferences.maxDeltaBGthreshold as NSDecimalNumber).doubleValue * 100),
                     unit: "%"
                 )
@@ -704,13 +704,6 @@ extension SettingsExport {
                 addSetting(
                     category: featuresCategory,
                     subcategory: mealSettingsSubcategory,
-                    name: String(localized: "Maximum Duration"),
-                    value: String(describing: trioSettings.timeCap),
-                    unit: String(localized: "hours")
-                )
-                addSetting(
-                    category: featuresCategory,
-                    subcategory: mealSettingsSubcategory,
                     name: String(localized: "Spread Interval"),
                     value: String(describing: trioSettings.minuteInterval),
                     unit: String(localized: "minutes")
@@ -815,6 +808,13 @@ extension SettingsExport {
                     subcategory: userInterfaceSubcategory,
                     name: String(localized: "Time in Range Type"),
                     value: trioSettings.timeInRangeType.rawValue
+                )
+                addSetting(
+                    category: featuresCategory,
+                    subcategory: userInterfaceSubcategory,
+                    name: String(localized: "Require Adjustments Confirmation"),
+                    value: trioSettings
+                        .requireAdjustmentsConfirmation ? String(localized: "Enabled") : String(localized: "Disabled")
                 )
 
                 // Appearance setting from UserDefaults

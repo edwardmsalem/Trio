@@ -114,13 +114,13 @@ enum SettingItems {
                 "Enable SMB With COB",
                 "Enable SMB With Temporary Target",
                 "Enable SMB After Carbs",
-                "Enable SMB With High BG",
-                "High BG Target",
+                "Enable SMB With High Glucose",
+                "High Glucose Target",
                 "Allow SMB With High Temporary Target",
                 "Enable UAM",
                 "Max SMB Basal Minutes",
                 "Max UAM SMB Basal Minutes",
-                "Max Delta-BG Threshold SMB"
+                "Max Allowed Glucose Rise for SMB"
             ],
             path: ["Algorithm", "Super Micro Bolus (SMB)"]
         ),
@@ -206,11 +206,10 @@ enum SettingItems {
                 "Max Meal Absorption Time",
                 "Max Fat",
                 "Max Protein",
-                "Display and Allow Fat and Protein Entries",
+                "Enable Fat and Protein Entries",
                 "Fat and Protein Delay",
-                "Maximum Duration (hours)",
-                "Spread Interval (minutes)",
-                "Fat and Protein Factor",
+                "Spread Interval",
+                "Fat and Protein Percentage",
                 "FPU"
             ],
             path: ["Features", "Meal Settings"]
@@ -241,6 +240,7 @@ enum SettingItems {
                 "Show Carbs Required Badge",
                 "Carbs Required Threshold",
                 "Forecast Display Type",
+                "Bolus Display Threshold",
                 "Cone",
                 "Lines",
                 "Dark Mode",
@@ -251,7 +251,8 @@ enum SettingItems {
                 "Glucose Color Scheme",
                 "Time in Range Type",
                 "Time in Tight Range (TITR)",
-                "Time in Normoglycemia (TING)"
+                "Time in Normoglycemia (TING)",
+                "Require Adjustments Confirmation"
             ],
             path: ["Features", "User Interface"]
         ),

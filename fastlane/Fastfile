@@ -82,7 +82,6 @@ platform :ios do
     match(
   type: "appstore",
   git_basic_authorization: Base64.strict_encode64("#{GITHUB_REPOSITORY_OWNER}:#{GH_PAT}"),
-  force_legacy_encryption: true,
   app_identifier: [
     "#{BUNDLE_ID}",
     "#{BUNDLE_ID}.watchkitapp",
@@ -227,7 +226,6 @@ current_build_number = previous_build_number + 1
       type: "appstore",
       force: false,
       verbose: true,
-      force_legacy_encryption: true,
       git_basic_authorization: Base64.strict_encode64("#{GITHUB_REPOSITORY_OWNER}:#{GH_PAT}"),
       app_identifier: [
         "#{BUNDLE_ID}",
@@ -256,12 +254,17 @@ current_build_number = previous_build_number + 1
 
     find_bundle_id("#{BUNDLE_ID}")
 
-    match(
-      type: "appstore",
-      force_legacy_encryption: true,
-      git_basic_authorization: Base64.strict_encode64("#{GITHUB_REPOSITORY_OWNER}:#{GH_PAT}"),
-      app_identifier: [],
-    )
+    # Skip match() validation when bootstrapping a fresh Match-Secrets repo.
+    # Set repo variable MATCH_BOOTSTRAP=true to skip; remove once certs exist.
+    if ENV["MATCH_BOOTSTRAP"] == "true"
+      UI.message("MATCH_BOOTSTRAP=true — skipping match() validation; repo will be populated by certs lane")
+    else
+      match(
+        type: "appstore",
+        git_basic_authorization: Base64.strict_encode64("#{GITHUB_REPOSITORY_OWNER}:#{GH_PAT}"),
+        app_identifier: [],
+      )
+    end
   end
 
   desc "Nuke Certs"
@@ -279,7 +282,6 @@ current_build_number = previous_build_number + 1
       type: "appstore",
       team_id: "#{TEAMID}",
       skip_confirmation: true,
-      force_legacy_encryption: true,
       git_basic_authorization: Base64.strict_encode64("#{GITHUB_REPOSITORY_OWNER}:#{GH_PAT}")
     )
   end

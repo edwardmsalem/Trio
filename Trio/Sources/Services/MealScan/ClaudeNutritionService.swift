@@ -21,12 +21,20 @@ struct NutritionLabelData {
     let netCarbs: Decimal
 }
 
-final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
-    private let apiKey: String
-    private let apiURL = URL(string: "https://api.anthropic.com/v1/messages")!
-    private let model = "claude-opus-4-6"
+// MARK: - Codex Proxy Implementation
+//
+// This used to call Anthropic directly. It now calls codex-proxy
+// (Mac-mini service backed by Eddie's ChatGPT subscription via the Codex SDK).
+// The class name is kept as BaseClaudeNutritionService for assembly-binding stability —
+// rename if/when the protocol is also renamed.
 
-    private var conversationHistory: [[String: Any]] = []
+final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
+    private let proxyURL: String
+    private let proxySecret: String
+
+    /// Codex thread ID for the active chat session. nil = no active session.
+    private var threadId: String?
+    private var systemPromptForFirstTurn: String?
 
     // swiftlint:disable line_length
     private let systemPrompt = """
@@ -184,160 +192,200 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     // swiftlint:enable line_length
 
     init() {
-        self.apiKey = MealScanDevKeys.claudeApiKey
+        self.proxyURL = MealScanDevKeys.codexProxyURL
+        self.proxySecret = MealScanDevKeys.codexProxySecret
     }
 
     // MARK: - Public
 
-    func startSession(image: UIImage, detectedFoods: [DetectedFood], customFoodNotes: [(dish: String, note: String)]) async throws -> AsyncStream<String> {
-        conversationHistory = []
-
-        let imageBase64 = prepareImageForClaude(image)
+    func startSession(
+        image: UIImage,
+        detectedFoods: [DetectedFood],
+        customFoodNotes: [(dish: String, note: String)]
+    ) async throws -> AsyncStream<String> {
         let foodSummary = formatDetectedFoods(detectedFoods)
         let customNotesText = Self.formatCustomNotes(customFoodNotes)
 
-        let userContent: [[String: Any]] = [
-            [
-                "type": "image",
-                "source": [
-                    "type": "base64",
-                    "media_type": "image/jpeg",
-                    "data": imageBase64
-                ]
-            ],
-            [
-                "type": "text",
-                "text": """
-                Current date/time: \(Self.formattedCurrentDate())
+        let userText = """
+        Current date/time: \(Self.formattedCurrentDate())
 
-                Initial food scan detected the following items:
+        Initial food scan detected the following items:
 
-                \(foodSummary)
-                \(customNotesText)
+        \(foodSummary)
+        \(customNotesText)
 
-                Please review the photo and the scan results. Let me know if anything looks off \
-                or if you notice foods that weren't detected. I'll tell you about any hidden \
-                ingredients or corrections.
-                """
-            ]
-        ]
+        Please review the photo and the scan results. Let me know if anything looks off \
+        or if you notice foods that weren't detected. I'll tell you about any hidden \
+        ingredients or corrections.
+        """
 
-        let userMessage: [String: Any] = ["role": "user", "content": userContent]
-        conversationHistory.append(userMessage)
+        // Start a fresh thread on the proxy
+        threadId = nil
+        systemPromptForFirstTurn = systemPrompt
 
-        return try await streamResponse()
+        return try await streamChat(
+            userText: userText,
+            image: image,
+            includeSystem: true
+        )
     }
 
     func sendMessage(_ text: String) async throws -> AsyncStream<String> {
-        let userMessage: [String: Any] = [
-            "role": "user",
-            "content": text
-        ]
-        conversationHistory.append(userMessage)
-
-        return try await streamResponse()
+        try await streamChat(userText: text, image: nil, includeSystem: false)
     }
 
     func resetSession() {
-        conversationHistory = []
+        threadId = nil
+        systemPromptForFirstTurn = nil
     }
 
     func parseNutritionLabel(image: UIImage) async throws -> NutritionLabelData {
-        let imageBase64 = prepareImageForClaude(image)
+        let imageBase64 = prepareImage(image)
 
-        let userContent: [[String: Any]] = [
-            [
-                "type": "image",
-                "source": [
-                    "type": "base64",
-                    "media_type": "image/jpeg",
-                    "data": imageBase64
-                ]
-            ],
-            [
-                "type": "text",
-                "text": Self.labelParsePrompt
-            ]
-        ]
-
-        let body: [String: Any] = [
-            "model": model,
-            "max_tokens": 1024,
-            "system": Self.labelParseSystemPrompt,
-            "messages": [["role": "user", "content": userContent]]
-        ]
-
-        var request = URLRequest(url: apiURL)
+        var request = URLRequest(url: try buildURL("/label-parse"))
         request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue("Bearer \(proxySecret)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
+
+        let body: [String: Any] = [
+            "image_base64": imageBase64,
+            "mime": "image/jpeg"
+        ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse, (200 ... 299).contains(httpResponse.statusCode) else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw ClaudeNutritionError.apiError(statusCode: statusCode)
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw ClaudeNutritionError.apiError(statusCode: code)
         }
 
-        guard let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let contentArray = payload["content"] as? [[String: Any]],
-              let firstText = contentArray.first(where: { ($0["type"] as? String) == "text" }),
-              let text = firstText["text"] as? String
-        else {
+        guard let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ClaudeNutritionError.parseError
         }
 
-        guard let parsed = Self.parseLabelBlock(from: text) else {
-            throw ClaudeNutritionError.parseError
-        }
+        let dish = (payload["dish"] as? String) ?? ""
+        guard !dish.isEmpty else { throw ClaudeNutritionError.parseError }
 
-        return parsed
+        return NutritionLabelData(
+            dish: String(dish.prefix(25)),
+            servingDescription: (payload["serving_description"] as? String) ?? "",
+            carbs: Self.decimal(payload["carbs"]),
+            fat: Self.decimal(payload["fat"]),
+            protein: Self.decimal(payload["protein"]),
+            calories: Self.decimal(payload["calories"]),
+            sugar: Self.decimal(payload["sugar"]),
+            fiber: Self.decimal(payload["fiber"]),
+            netCarbs: Self.decimal(payload["net_carbs"])
+        )
     }
 
     func startFreeFormChat(initialMessage: String, image: UIImage?) async throws -> AsyncStream<String> {
-        conversationHistory = []
+        threadId = nil
+        systemPromptForFirstTurn = systemPrompt
 
-        var userContent: [[String: Any]] = []
-
-        if let image {
-            let imageBase64 = prepareImageForClaude(image)
-            userContent.append([
-                "type": "image",
-                "source": [
-                    "type": "base64",
-                    "media_type": "image/jpeg",
-                    "data": imageBase64
-                ]
-            ])
-        }
-
-        let trimmed = initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let textBody = trimmed.isEmpty
+        let text = initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userText = text.isEmpty
             ? "Please analyze this meal photo. List what you see, ask any clarifying questions, and provide your best nutrition estimate."
-            : trimmed
+            : "Current date/time: \(Self.formattedCurrentDate())\n\n\(text)"
 
-        userContent.append([
-            "type": "text",
-            "text": """
-            Current date/time: \(Self.formattedCurrentDate())
-
-            \(textBody)
-            """
-        ])
-
-        let userMessage: [String: Any] = ["role": "user", "content": userContent]
-        conversationHistory.append(userMessage)
-
-        return try await streamResponse()
+        return try await streamChat(
+            userText: userText,
+            image: image,
+            includeSystem: true
+        )
     }
 
-    // MARK: - Private
+    // MARK: - Streaming core
 
-    private func prepareImageForClaude(_ image: UIImage) -> String {
-        // Claude handles up to 1568px on longest side
+    private func streamChat(userText: String, image: UIImage?, includeSystem: Bool) async throws -> AsyncStream<String> {
+        var request = URLRequest(url: try buildURL("/chat"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(proxySecret)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120
+
+        var body: [String: Any] = [
+            "messages": [["role": "user", "content": userText]]
+        ]
+        if includeSystem, let sys = systemPromptForFirstTurn {
+            body["system"] = sys
+        }
+        if let tid = threadId {
+            body["thread_id"] = tid
+        }
+        if let image {
+            body["image_base64"] = prepareImage(image)
+            body["mime"] = "image/jpeg"
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200 ... 299).contains(httpResponse.statusCode) else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw ClaudeNutritionError.apiError(statusCode: code)
+        }
+
+        return AsyncStream { continuation in
+            Task {
+                do {
+                    for try await line in bytes.lines {
+                        guard line.hasPrefix("data: ") else { continue }
+                        let jsonString = String(line.dropFirst(6))
+                        guard let jsonData = jsonString.data(using: .utf8),
+                              let event = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+                        else { continue }
+
+                        let type = event["type"] as? String ?? ""
+
+                        switch type {
+                        case "text_delta":
+                            if let text = event["text"] as? String, !text.isEmpty {
+                                continuation.yield(text)
+                            }
+                        case "item_completed":
+                            if let text = event["text"] as? String, !text.isEmpty {
+                                continuation.yield(text)
+                            }
+                        case "done":
+                            if let tid = event["thread_id"] as? String {
+                                await MainActor.run { self.threadId = tid }
+                            }
+                            await MainActor.run { self.systemPromptForFirstTurn = nil }
+                            continuation.finish()
+                            return
+                        case "error":
+                            let msg = event["message"] as? String ?? "stream error"
+                            debug(.default, "[codex-proxy] error: \(msg)")
+                            continuation.finish()
+                            return
+                        default:
+                            continue
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    debug(.default, "[codex-proxy] stream failed: \(error.localizedDescription)")
+                    continuation.finish()
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func buildURL(_ path: String) throws -> URL {
+        let base = proxyURL.hasSuffix("/") ? String(proxyURL.dropLast()) : proxyURL
+        guard let url = URL(string: base + path) else {
+            throw ClaudeNutritionError.apiError(statusCode: -1)
+        }
+        return url
+    }
+
+    private func prepareImage(_ image: UIImage) -> String {
         let maxDimension: CGFloat = 1568
         let scale = min(maxDimension / image.size.width, maxDimension / image.size.height, 1.0)
         let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
@@ -385,183 +433,23 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         return "\nUser-provided food notes (apply when these foods are identified):\n\(formatted)"
     }
 
-    private func streamResponse() async throws -> AsyncStream<String> {
-        var request = URLRequest(url: apiURL)
-        request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 120
-
-        let requestBody: [String: Any] = [
-            "model": model,
-            "max_tokens": 4096,
-            "thinking": [
-                "type": "enabled",
-                "budget_tokens": 16000
-            ],
-            "tools": [
-                [
-                    "type": "web_search_20260209",
-                    "name": "web_search",
-                    "max_uses": 3
-                ]
-            ],
-            "stream": true,
-            "system": systemPrompt,
-            "messages": conversationHistory
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, (200 ... 299).contains(httpResponse.statusCode) else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw ClaudeNutritionError.apiError(statusCode: statusCode)
+    private static func decimal(_ any: Any?) -> Decimal {
+        if let n = any as? NSNumber {
+            return n.decimalValue
         }
-
-        return AsyncStream { continuation in
-            Task {
-                var fullResponse = ""
-                for try await line in bytes.lines {
-                    guard line.hasPrefix("data: ") else { continue }
-                    let jsonString = String(line.dropFirst(6))
-
-                    guard jsonString != "[DONE]" else { break }
-                    guard let jsonData = jsonString.data(using: .utf8),
-                          let event = try? JSONDecoder().decode(StreamEvent.self, from: jsonData)
-                    else { continue }
-
-                    if event.type == "content_block_delta",
-                       let delta = event.delta,
-                       delta.type == "text_delta",
-                       let text = delta.text
-                    {
-                        fullResponse += text
-                        continuation.yield(text)
-                    }
-
-                    if event.type == "message_stop" {
-                        break
-                    }
-                }
-
-                // Store assistant response in conversation history
-                let assistantMessage: [String: Any] = [
-                    "role": "assistant",
-                    "content": fullResponse
-                ]
-                self.conversationHistory.append(assistantMessage)
-
-                continuation.finish()
-            }
+        if let s = any as? String, let d = Decimal(string: s) {
+            return d
         }
-    }
-}
-
-// MARK: - Label Parsing
-
-extension BaseClaudeNutritionService {
-    // swiftlint:disable line_length
-    static let labelParseSystemPrompt = """
-    You are extracting structured nutrition data from a photograph of a packaged-food nutrition facts label or ingredient panel.
-
-    Return only the values printed for ONE SERVING — not the per-container values. If the label only shows per-container values and the serving size differs, divide proportionally and round to one decimal.
-
-    DISH name should be the product name as it appears on the package (brand + product), max 25 characters. Examples: "RXBAR Peanut Butter", "Chobani Greek 0%", "Quest Choc Chip Cookie". If brand is unclear, use the product type only ("Almond Butter Bar").
-
-    SERVING_SIZE should be the literal serving description from the label: e.g. "1 bar (40g)", "2/3 cup (55g)", "1 cup (240mL)", "3 pieces (28g)". Include the gram or mL weight in parentheses if shown.
-
-    If you cannot read a value clearly, estimate from context but set CONFIDENCE accordingly. Never refuse to give a number.
-
-    Net carbs = total carbs minus fiber.
-    """
-    // swiftlint:enable line_length
-
-    static let labelParsePrompt = """
-    Extract the per-serving nutrition values from this label. Respond ONLY with the structured block — no preamble, no commentary, no text after the block.
-
-    ```label
-    DISH: <brand + product, max 25 chars>
-    SERVING_SIZE: <literal serving description from label>
-    CARBS: <number>g
-    FAT: <number>g
-    PROTEIN: <number>g
-    CALORIES: <number>
-    SUGAR: <number>g
-    FIBER: <number>g
-    NET_CARBS: <number>g
-    ```
-    """
-
-    static func parseLabelBlock(from text: String) -> NutritionLabelData? {
-        guard let range = text.range(of: "```label\n", options: .backwards) ??
-            text.range(of: "```label\r\n", options: .backwards) ??
-            text.range(of: "```label", options: .backwards)
-        else { return nil }
-        let afterFence = range.upperBound
-        guard let endRange = text.range(of: "```", options: [], range: afterFence ..< text.endIndex)
-        else { return nil }
-
-        let block = String(text[afterFence ..< endRange.lowerBound])
-
-        var dish = ""
-        var serving = ""
-        var carbs: Decimal = 0
-        var fat: Decimal = 0
-        var protein: Decimal = 0
-        var calories: Decimal = 0
-        var sugar: Decimal = 0
-        var fiber: Decimal = 0
-        var netCarbs: Decimal = 0
-
-        for line in block.components(separatedBy: "\n") {
-            let parts = line.split(separator: ":", maxSplits: 1)
-            guard parts.count == 2 else { continue }
-            let key = parts[0].trimmingCharacters(in: .whitespaces).uppercased()
-            let rawValue = parts[1].trimmingCharacters(in: .whitespaces)
-            let numericValue = Decimal(string: rawValue.trimmingCharacters(in: .letters)) ?? 0
-
-            switch key {
-            case "DISH": dish = String(rawValue.prefix(25))
-            case "SERVING_SIZE", "SERVING": serving = rawValue
-            case "CARBS": carbs = numericValue
-            case "FAT": fat = numericValue
-            case "PROTEIN": protein = numericValue
-            case "CALORIES": calories = numericValue
-            case "SUGAR": sugar = numericValue
-            case "FIBER": fiber = numericValue
-            case "NET_CARBS": netCarbs = numericValue
-            default: break
-            }
-        }
-
-        if netCarbs == 0, carbs > 0 {
-            netCarbs = max(carbs - fiber, 0)
-        }
-
-        guard !dish.isEmpty else { return nil }
-
-        return NutritionLabelData(
-            dish: dish,
-            servingDescription: serving,
-            carbs: carbs,
-            fat: fat,
-            protein: protein,
-            calories: calories,
-            sugar: sugar,
-            fiber: fiber,
-            netCarbs: netCarbs
-        )
+        return 0
     }
 }
 
 // MARK: - Totals Parsing
+// (parseTotals is consumed by StandaloneChatView/MealScanStateModel to extract
+//  the structured nutrition block out of streaming assistant text. Unchanged.)
 
 extension BaseClaudeNutritionService {
     static func parseTotals(from text: String) -> NutritionTotals? {
-        // Look for the structured nutrition block
         guard let range = text.range(of: "```nutrition\n", options: .backwards),
               let endRange = text.range(of: "```", options: .backwards, range: range.upperBound ..< text.endIndex)
         else {
@@ -588,8 +476,6 @@ extension BaseClaudeNutritionService {
             guard parts.count == 2 else { continue }
             let key = parts[0].trimmingCharacters(in: .whitespaces).uppercased()
             let rawValue = parts[1].trimmingCharacters(in: .whitespaces)
-
-            // Strip trailing unit letters (g, kcal, etc.) for numeric fields
             let numericValue = Decimal(string: rawValue.trimmingCharacters(in: .letters))
 
             switch key {
@@ -637,17 +523,14 @@ extension BaseClaudeNutritionService {
         )
     }
 
-    /// Parses "4.2 (absorption: 3h)" into fpu value + absorption hours
     private static func parseFPU(_ raw: String) -> (fpu: Decimal, absorptionHours: Decimal) {
         let trimmed = raw.trimmingCharacters(in: .whitespaces)
 
         if let parenStart = trimmed.firstIndex(of: "(") {
-            // Extract FPU number before the parenthetical
             let fpuString = String(trimmed[trimmed.startIndex ..< parenStart])
                 .trimmingCharacters(in: .whitespaces)
             let fpuValue = Decimal(string: fpuString) ?? 0
 
-            // Extract hours from "absorption: 3h" or "absorption: 3.5h"
             let parenContent = String(trimmed[parenStart...])
             var hoursString = ""
             var foundDigit = false
@@ -663,13 +546,11 @@ extension BaseClaudeNutritionService {
 
             return (fpuValue, hours)
         } else {
-            // No parenthetical — just a number, possibly with trailing letters
             let fpuValue = Decimal(string: trimmed.trimmingCharacters(in: .letters)) ?? 0
             return (fpuValue, 0)
         }
     }
 
-    /// Parses "YES (challah + honey = fast spike)" into recommendation + reason
     private static func parseSuperBolus(_ raw: String) -> (recommendation: SuperBolusRecommendation, reason: String) {
         let trimmed = raw.trimmingCharacters(in: .whitespaces)
 
@@ -707,21 +588,9 @@ enum ClaudeNutritionError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .apiError(let code): return "Claude API error (code: \(code))"
-        case .streamingFailed: return "Failed to stream response from Claude"
+        case .apiError(let code): return "Codex proxy error (code: \(code))"
+        case .streamingFailed: return "Failed to stream response from Codex proxy"
         case .parseError: return "Couldn't read the nutrition label clearly. Try again with better lighting or a closer shot."
         }
     }
-}
-
-// MARK: - Streaming Response Models
-
-private struct StreamEvent: Decodable {
-    let type: String
-    let delta: StreamDelta?
-}
-
-private struct StreamDelta: Decodable {
-    let type: String?
-    let text: String?
 }

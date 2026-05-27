@@ -239,12 +239,16 @@ jobs:
               static let fatSecretClientId = "${FATSECRET_CLIENT_ID}"
               static let fatSecretClientSecret = "${FATSECRET_CLIENT_SECRET}"
               static let claudeApiKey = "${CLAUDE_API_KEY}"
+              static let codexProxyURL = "${CODEX_PROXY_URL}"
+              static let codexProxySecret = "${CODEX_PROXY_SECRET}"
           }
           SWIFT
         env:
           FATSECRET_CLIENT_ID: ${{ secrets.FATSECRET_CLIENT_ID }}
           FATSECRET_CLIENT_SECRET: ${{ secrets.FATSECRET_CLIENT_SECRET }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          CODEX_PROXY_URL: ${{ secrets.CODEX_PROXY_URL }}
+          CODEX_PROXY_SECRET: ${{ secrets.CODEX_PROXY_SECRET }}
 
       # Build signed Trio IPA file
       - name: Fastlane Build & Archive

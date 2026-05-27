@@ -1242,7 +1242,7 @@
 		715120D12D3C2B84005D9FB6 /* GlucoseNotificationsOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseNotificationsOption.swift; sourceTree = "<group>"; };
 		71D44AAA2CA5F5EA0036EE9E /* AlertPermissionsChecker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlertPermissionsChecker.swift; sourceTree = "<group>"; };
 		7479FD69935D10D57258B6F6 /* BolusDisplayThreshold.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BolusDisplayThreshold.swift; sourceTree = "<group>"; };
-		76D615468B2096C3E6B503D1 /* StandaloneChatView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StandaloneChatView.swift; sourceTree = "<group>"; };
+		76D615468B2096C3E6B503D1 /* StandaloneChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StandaloneChatView.swift; path = Trio/Sources/Modules/MealScan/View/StandaloneChatView.swift; sourceTree = SOURCE_ROOT; };
 		78D45EC43E70692E78E43673 /* NotificationIdentifiers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationIdentifiers.swift; sourceTree = "<group>"; };
 		79BDA519C9B890FD9A5DFCF3 /* ISFEditorDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorDataFlow.swift; sourceTree = "<group>"; };
 		7CF64F61A012FC68A6EE5921 /* MealScanModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealScanModels.swift; path = Trio/Sources/Models/MealScanModels.swift; sourceTree = SOURCE_ROOT; };
@@ -1262,7 +1262,7 @@
 		9C8D5F457B5AFF763F8CF3DF /* CarbRatioEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CarbRatioEditorProvider.swift; sourceTree = "<group>"; };
 		9F9F137F126D9F8DEB799F26 /* ISFEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorProvider.swift; sourceTree = "<group>"; };
 		A0A48AE3AC813A49A517846A /* NightscoutConfigStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightscoutConfigStateModel.swift; sourceTree = "<group>"; };
-		A2ECA983263C402EFDDAFF76 /* NutritionLabelScanView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NutritionLabelScanView.swift; sourceTree = "<group>"; };
+		A2ECA983263C402EFDDAFF76 /* NutritionLabelScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NutritionLabelScanView.swift; path = Trio/Sources/Modules/MealScan/View/NutritionLabelScanView.swift; sourceTree = SOURCE_ROOT; };
 		A401509D21F7F35D4E109EDA /* HistoryDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryDataFlow.swift; sourceTree = "<group>"; };
 		A662B7966DC48D9C293D2FD8 /* HistoryStateModel+Glucose.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryStateModel+Glucose.swift"; sourceTree = "<group>"; };
 		A8630D58BDAD6D9C650B9B39 /* PumpConfigProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PumpConfigProvider.swift; sourceTree = "<group>"; };

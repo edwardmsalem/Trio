@@ -28,6 +28,27 @@ extension MealScan {
             claudeService.resetSession()
         }
 
+        func parseNutritionLabel(image: UIImage) async throws -> NutritionLabelData {
+            try await claudeService.parseNutritionLabel(image: image)
+        }
+
+        func startFreeFormChat(initialMessage: String, image: UIImage?) async throws -> AsyncStream<String> {
+            try await claudeService.startFreeFormChat(initialMessage: initialMessage, image: image)
+        }
+
+        func savePreset(from label: NutritionLabelData) {
+            let context = CoreDataStack.shared.persistentContainer.viewContext
+            let preset = MealPresetStored(context: context)
+            preset.dish = label.dish
+            preset.carbs = label.carbs as NSDecimalNumber
+            preset.fat = label.fat as NSDecimalNumber
+            preset.protein = label.protein as NSDecimalNumber
+            if !label.servingDescription.isEmpty {
+                preset.customFoodNote = "Per serving: \(label.servingDescription)"
+            }
+            try? context.save()
+        }
+
         // MARK: - Eaten Foods Storage
 
         func fetchStoredFoodIds() -> [String] {

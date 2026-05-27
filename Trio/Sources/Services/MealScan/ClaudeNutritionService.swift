@@ -5,6 +5,20 @@ protocol ClaudeNutritionService {
     func startSession(image: UIImage, detectedFoods: [DetectedFood], customFoodNotes: [(dish: String, note: String)]) async throws -> AsyncStream<String>
     func sendMessage(_ text: String) async throws -> AsyncStream<String>
     func resetSession()
+    func parseNutritionLabel(image: UIImage) async throws -> NutritionLabelData
+    func startFreeFormChat(initialMessage: String, image: UIImage?) async throws -> AsyncStream<String>
+}
+
+struct NutritionLabelData {
+    let dish: String
+    let servingDescription: String
+    let carbs: Decimal
+    let fat: Decimal
+    let protein: Decimal
+    let calories: Decimal
+    let sugar: Decimal
+    let fiber: Decimal
+    let netCarbs: Decimal
 }
 
 final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
@@ -228,6 +242,98 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         conversationHistory = []
     }
 
+    func parseNutritionLabel(image: UIImage) async throws -> NutritionLabelData {
+        let imageBase64 = prepareImageForClaude(image)
+
+        let userContent: [[String: Any]] = [
+            [
+                "type": "image",
+                "source": [
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": imageBase64
+                ]
+            ],
+            [
+                "type": "text",
+                "text": Self.labelParsePrompt
+            ]
+        ]
+
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": 1024,
+            "system": Self.labelParseSystemPrompt,
+            "messages": [["role": "user", "content": userContent]]
+        ]
+
+        var request = URLRequest(url: apiURL)
+        request.httpMethod = "POST"
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200 ... 299).contains(httpResponse.statusCode) else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw ClaudeNutritionError.apiError(statusCode: statusCode)
+        }
+
+        guard let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let contentArray = payload["content"] as? [[String: Any]],
+              let firstText = contentArray.first(where: { ($0["type"] as? String) == "text" }),
+              let text = firstText["text"] as? String
+        else {
+            throw ClaudeNutritionError.parseError
+        }
+
+        guard let parsed = Self.parseLabelBlock(from: text) else {
+            throw ClaudeNutritionError.parseError
+        }
+
+        return parsed
+    }
+
+    func startFreeFormChat(initialMessage: String, image: UIImage?) async throws -> AsyncStream<String> {
+        conversationHistory = []
+
+        var userContent: [[String: Any]] = []
+
+        if let image {
+            let imageBase64 = prepareImageForClaude(image)
+            userContent.append([
+                "type": "image",
+                "source": [
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": imageBase64
+                ]
+            ])
+        }
+
+        let trimmed = initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let textBody = trimmed.isEmpty
+            ? "Please analyze this meal photo. List what you see, ask any clarifying questions, and provide your best nutrition estimate."
+            : trimmed
+
+        userContent.append([
+            "type": "text",
+            "text": """
+            Current date/time: \(Self.formattedCurrentDate())
+
+            \(textBody)
+            """
+        ])
+
+        let userMessage: [String: Any] = ["role": "user", "content": userContent]
+        conversationHistory.append(userMessage)
+
+        return try await streamResponse()
+    }
+
     // MARK: - Private
 
     private func prepareImageForClaude(_ image: UIImage) -> String {
@@ -351,6 +457,103 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
                 continuation.finish()
             }
         }
+    }
+}
+
+// MARK: - Label Parsing
+
+extension BaseClaudeNutritionService {
+    // swiftlint:disable line_length
+    static let labelParseSystemPrompt = """
+    You are extracting structured nutrition data from a photograph of a packaged-food nutrition facts label or ingredient panel.
+
+    Return only the values printed for ONE SERVING — not the per-container values. If the label only shows per-container values and the serving size differs, divide proportionally and round to one decimal.
+
+    DISH name should be the product name as it appears on the package (brand + product), max 25 characters. Examples: "RXBAR Peanut Butter", "Chobani Greek 0%", "Quest Choc Chip Cookie". If brand is unclear, use the product type only ("Almond Butter Bar").
+
+    SERVING_SIZE should be the literal serving description from the label: e.g. "1 bar (40g)", "2/3 cup (55g)", "1 cup (240mL)", "3 pieces (28g)". Include the gram or mL weight in parentheses if shown.
+
+    If you cannot read a value clearly, estimate from context but set CONFIDENCE accordingly. Never refuse to give a number.
+
+    Net carbs = total carbs minus fiber.
+    """
+    // swiftlint:enable line_length
+
+    static let labelParsePrompt = """
+    Extract the per-serving nutrition values from this label. Respond ONLY with the structured block — no preamble, no commentary, no text after the block.
+
+    ```label
+    DISH: <brand + product, max 25 chars>
+    SERVING_SIZE: <literal serving description from label>
+    CARBS: <number>g
+    FAT: <number>g
+    PROTEIN: <number>g
+    CALORIES: <number>
+    SUGAR: <number>g
+    FIBER: <number>g
+    NET_CARBS: <number>g
+    ```
+    """
+
+    static func parseLabelBlock(from text: String) -> NutritionLabelData? {
+        guard let range = text.range(of: "```label\n", options: .backwards) ??
+            text.range(of: "```label\r\n", options: .backwards) ??
+            text.range(of: "```label", options: .backwards)
+        else { return nil }
+        let afterFence = range.upperBound
+        guard let endRange = text.range(of: "```", options: [], range: afterFence ..< text.endIndex)
+        else { return nil }
+
+        let block = String(text[afterFence ..< endRange.lowerBound])
+
+        var dish = ""
+        var serving = ""
+        var carbs: Decimal = 0
+        var fat: Decimal = 0
+        var protein: Decimal = 0
+        var calories: Decimal = 0
+        var sugar: Decimal = 0
+        var fiber: Decimal = 0
+        var netCarbs: Decimal = 0
+
+        for line in block.components(separatedBy: "\n") {
+            let parts = line.split(separator: ":", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            let key = parts[0].trimmingCharacters(in: .whitespaces).uppercased()
+            let rawValue = parts[1].trimmingCharacters(in: .whitespaces)
+            let numericValue = Decimal(string: rawValue.trimmingCharacters(in: .letters)) ?? 0
+
+            switch key {
+            case "DISH": dish = String(rawValue.prefix(25))
+            case "SERVING_SIZE", "SERVING": serving = rawValue
+            case "CARBS": carbs = numericValue
+            case "FAT": fat = numericValue
+            case "PROTEIN": protein = numericValue
+            case "CALORIES": calories = numericValue
+            case "SUGAR": sugar = numericValue
+            case "FIBER": fiber = numericValue
+            case "NET_CARBS": netCarbs = numericValue
+            default: break
+            }
+        }
+
+        if netCarbs == 0, carbs > 0 {
+            netCarbs = max(carbs - fiber, 0)
+        }
+
+        guard !dish.isEmpty else { return nil }
+
+        return NutritionLabelData(
+            dish: dish,
+            servingDescription: serving,
+            carbs: carbs,
+            fat: fat,
+            protein: protein,
+            calories: calories,
+            sugar: sugar,
+            fiber: fiber,
+            netCarbs: netCarbs
+        )
     }
 }
 
@@ -500,11 +703,13 @@ extension BaseClaudeNutritionService {
 enum ClaudeNutritionError: LocalizedError {
     case apiError(statusCode: Int)
     case streamingFailed
+    case parseError
 
     var errorDescription: String? {
         switch self {
         case .apiError(let code): return "Claude API error (code: \(code))"
         case .streamingFailed: return "Failed to stream response from Claude"
+        case .parseError: return "Couldn't read the nutrition label clearly. Try again with better lighting or a closer shot."
         }
     }
 }

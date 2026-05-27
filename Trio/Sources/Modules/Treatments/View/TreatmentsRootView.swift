@@ -26,6 +26,15 @@ extension Treatments {
         @State private var debounce: DispatchWorkItem?
         @State private var showFatProteinOrderBanner = false
         @State private var showMealScan = false
+        @State private var showLabelScan = false
+        @State private var showStandaloneChat = false
+        @State private var quickPresetSelection: MealPresetStored?
+        @State private var quickPresetServings: Decimal = 1
+
+        @FetchRequest(
+            entity: MealPresetStored.entity(),
+            sortDescriptors: [NSSortDescriptor(key: "dish", ascending: true)]
+        ) private var allPresets: FetchedResults<MealPresetStored>
 
         private enum Config {
             static let dividerHeight: CGFloat = 2
@@ -138,17 +147,29 @@ extension Treatments {
         }
 
         @ViewBuilder private func carbsTextField() -> some View {
-            HStack {
+            HStack(spacing: 8) {
                 Text("Carbs")
                 Button {
-                    showMealScan = true
+                    showLabelScan = true
                 } label: {
-                    Image(systemName: "camera.fill")
+                    Image(systemName: "barcode.viewfinder")
                         .foregroundStyle(.blue)
                 }
                 .buttonStyle(.borderless)
-                .sheet(isPresented: $showMealScan) {
-                    MealScan.RootView(resolver: resolver, onConfirm: { totals in
+                .sheet(isPresented: $showLabelScan) {
+                    MealScan.NutritionLabelScanView(resolver: resolver, onSaved: { _ in
+                        // Preset list refreshes automatically via @FetchRequest
+                    })
+                }
+                Button {
+                    showStandaloneChat = true
+                } label: {
+                    Image(systemName: "bubble.left.and.text.bubble.right")
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.borderless)
+                .sheet(isPresented: $showStandaloneChat) {
+                    MealScan.StandaloneChatView(resolver: resolver, onConfirm: { totals in
                         state.carbs = totals.carbs
                         state.fat = totals.fat
                         state.protein = totals.protein
@@ -176,6 +197,92 @@ extension Treatments {
                     handleDebouncedInput()
                 }
             }
+        }
+
+        @ViewBuilder private func quickPresetSection() -> some View {
+            if !allPresets.isEmpty {
+                Section("Preset") {
+                    HStack {
+                        Picker("Preset", selection: $quickPresetSelection) {
+                            Text("Choose...").tag(nil as MealPresetStored?)
+                            ForEach(allPresets, id: \.self) { preset in
+                                Text(preset.dish ?? "").tag(preset as MealPresetStored?)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+
+                    if quickPresetSelection != nil {
+                        HStack {
+                            Text("Servings")
+                            Spacer()
+                            Button {
+                                if quickPresetServings > 0.5 {
+                                    quickPresetServings -= 0.5
+                                    applyQuickPreset()
+                                }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.title3)
+                            }
+                            .buttonStyle(.borderless)
+                            .tint(.blue)
+
+                            Text("\(quickPresetServings as NSDecimalNumber, formatter: servingsFormatter)")
+                                .frame(minWidth: 40)
+                                .multilineTextAlignment(.center)
+
+                            Button {
+                                quickPresetServings += 0.5
+                                applyQuickPreset()
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title3)
+                            }
+                            .buttonStyle(.borderless)
+                            .tint(.blue)
+                        }
+                        .onChange(of: quickPresetSelection) { _, _ in
+                            quickPresetServings = 1
+                            applyQuickPreset()
+                        }
+
+                        Button {
+                            applyQuickPreset()
+                            handleDebouncedInput()
+                        } label: {
+                            Text("Use \(quickPresetServings as NSDecimalNumber, formatter: servingsFormatter) × \(quickPresetSelection?.dish ?? "")")
+                                .font(.subheadline)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .listRowBackground(Color.blue)
+                    }
+                }
+                .listRowBackground(Color.chart)
+            }
+        }
+
+        private var servingsFormatter: NumberFormatter {
+            let f = NumberFormatter()
+            f.numberStyle = .decimal
+            f.minimumFractionDigits = 0
+            f.maximumFractionDigits = 1
+            return f
+        }
+
+        private func applyQuickPreset() {
+            guard let preset = quickPresetSelection else { return }
+            let presetCarbs = ((preset.carbs ?? 0) as NSDecimalNumber) as Decimal
+            let presetFat = ((preset.fat ?? 0) as NSDecimalNumber) as Decimal
+            let presetProtein = ((preset.protein ?? 0) as NSDecimalNumber) as Decimal
+
+            state.carbs = presetCarbs * quickPresetServings
+            if state.useFPUconversion {
+                state.fat = presetFat * quickPresetServings
+                state.protein = presetProtein * quickPresetServings
+            }
+            handleDebouncedInput()
         }
 
         /// Determines the next field to focus on based on the current focused field.
@@ -231,6 +338,8 @@ extension Treatments {
                             ForecastChart(state: state)
                                 .padding(.vertical)
                         }.listRowBackground(Color.chart)
+
+                        quickPresetSection()
 
                         Section {
                             carbsTextField()

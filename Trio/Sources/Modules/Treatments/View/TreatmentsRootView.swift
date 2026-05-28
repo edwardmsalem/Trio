@@ -28,6 +28,7 @@ extension Treatments {
         @State private var showMealScan = false
         @State private var showLabelScan = false
         @State private var showStandaloneChat = false
+        @State private var showPlateScan = false
         @State private var quickPresetSelection: MealPresetStored?
         @State private var quickPresetServings: Decimal = 1
 
@@ -150,6 +151,18 @@ extension Treatments {
             HStack(spacing: 8) {
                 Text("Carbs")
                 Button {
+                    showPlateScan = true
+                } label: {
+                    Image(systemName: "fork.knife")
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.borderless)
+                .sheet(isPresented: $showPlateScan) {
+                    MealScan.PlateScanView(resolver: resolver, onConfirm: { totals in
+                        applyMealTotals(totals)
+                    })
+                }
+                Button {
                     showLabelScan = true
                 } label: {
                     Image(systemName: "barcode.viewfinder")
@@ -170,15 +183,7 @@ extension Treatments {
                 .buttonStyle(.borderless)
                 .sheet(isPresented: $showStandaloneChat) {
                     MealScan.StandaloneChatView(resolver: resolver, onConfirm: { totals in
-                        state.carbs = totals.carbs
-                        state.fat = totals.fat
-                        state.protein = totals.protein
-                        state.note = MealScan.photoScanNote
-                        state.mealSpeed = totals.speed
-                        if totals.superBolusRecommendation == .yes {
-                            state.useSuperBolus = true
-                        }
-                        handleDebouncedInput()
+                        applyMealTotals(totals)
                     })
                 }
                 Spacer()
@@ -197,6 +202,19 @@ extension Treatments {
                     handleDebouncedInput()
                 }
             }
+        }
+
+        /// Applies AI-derived meal totals (from plate scan or chat) to the bolus form.
+        private func applyMealTotals(_ totals: NutritionTotals) {
+            state.carbs = totals.carbs
+            state.fat = totals.fat
+            state.protein = totals.protein
+            state.note = MealScan.photoScanNote
+            state.mealSpeed = totals.speed
+            if totals.superBolusRecommendation == .yes {
+                state.useSuperBolus = true
+            }
+            handleDebouncedInput()
         }
 
         @ViewBuilder private func quickPresetSection() -> some View {

@@ -24,7 +24,7 @@ final class MealChatSession {
     /// attached-photo strip) but never persisted to disk.
     var pendingImage: UIImage?
 
-    @ObservationIgnored private var provider: MealScanProvider?
+    @ObservationIgnored private var provider: MealScan.MealScanProvider?
     @ObservationIgnored private var threadId: String?
 
     private let defaults = UserDefaults.standard
@@ -40,7 +40,7 @@ final class MealChatSession {
     /// provider and the restored thread id is reattached to a fresh service.
     func configure(resolver: Resolver) {
         if provider == nil {
-            provider = MealScanProvider(resolver: resolver)
+            provider = MealScan.MealScanProvider(resolver: resolver)
         }
         provider?.chatThreadId = threadId
     }

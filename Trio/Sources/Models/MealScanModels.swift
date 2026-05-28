@@ -87,7 +87,7 @@ struct ServingOption: Identifiable {
 
 // MARK: - Super Bolus Recommendation
 
-enum SuperBolusRecommendation: String {
+enum SuperBolusRecommendation: String, Codable {
     case yes
     case consider
     case no
@@ -95,7 +95,7 @@ enum SuperBolusRecommendation: String {
 
 // MARK: - Meal Speed
 
-enum MealSpeed: String {
+enum MealSpeed: String, Codable {
     case fast
     case medium
     case slow
@@ -104,7 +104,7 @@ enum MealSpeed: String {
 
 // MARK: - Confidence Level
 
-enum ConfidenceLevel: String {
+enum ConfidenceLevel: String, Codable {
     case high
     case medium
     case low
@@ -112,7 +112,7 @@ enum ConfidenceLevel: String {
 
 // MARK: - Nutrition Totals
 
-struct NutritionTotals {
+struct NutritionTotals: Codable {
     var carbs: Decimal
     var fat: Decimal
     var protein: Decimal
@@ -156,12 +156,12 @@ struct NutritionTotals {
 
 // MARK: - Chat Message
 
-enum ChatRole: String {
+enum ChatRole: String, Codable {
     case user
     case assistant
 }
 
-struct ChatMessage: Identifiable {
+struct ChatMessage: Identifiable, Codable {
     let id: UUID
     let role: ChatRole
     var text: String

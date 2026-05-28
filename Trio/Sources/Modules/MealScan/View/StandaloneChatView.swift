@@ -8,114 +8,213 @@ extension MealScan {
         let resolver: Resolver
 
         @Environment(\.dismiss) var dismiss
+        @Environment(\.colorScheme) private var colorScheme
 
-        @State private var provider: MealScanProvider?
-        @State private var messages: [ChatMessage] = []
-        @State private var userInput: String = ""
-        @State private var isStreaming: Bool = false
-        @State private var attachedImage: UIImage?
+        @State private var session = MealChatSession.shared
         @State private var photoPickerItem: PhotosPickerItem?
-        @State private var hasStarted: Bool = false
-        @State private var errorMessage: String?
-        @State private var showError = false
-        @State private var runningTotals: NutritionTotals?
+        @State private var revealedTimestampID: UUID?
+        @State private var showResetConfirm = false
 
         var onConfirm: ((NutritionTotals) -> Void)?
 
         var body: some View {
             NavigationStack {
                 VStack(spacing: 0) {
-                    if let totals = runningTotals {
+                    if let totals = session.runningTotals {
                         totalsBar(totals)
+                        Divider()
                     }
 
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 12) {
-                                if !hasStarted {
-                                    emptyStateView
-                                }
+                    messageList
 
-                                if let img = attachedImage, !hasStarted {
-                                    Image(uiImage: img)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(maxHeight: 200)
-                                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                                        .padding(.horizontal)
-                                }
-
-                                ForEach(messages) { message in
-                                    chatBubble(for: message)
-                                        .id(message.id)
-                                }
-
-                                if isStreaming {
-                                    HStack {
-                                        ProgressView().scaleEffect(0.8)
-                                        Text("Thinking...")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding(.horizontal)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                        .onChange(of: messages.count) {
-                            if let last = messages.last {
-                                withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-                            }
-                        }
-                    }
-
-                    Divider()
-
-                    inputBar
-
-                    if runningTotals != nil {
+                    if session.runningTotals != nil {
                         confirmButton
                     }
+
+                    inputBar
                 }
+                .background(Color(.systemBackground))
                 .navigationTitle("AI Meal Advisor")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Close") { dismiss() }
                     }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showResetConfirm = true
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                        }
+                        .disabled(!session.hasConversation || session.isStreaming)
+                    }
                 }
-                .alert("Error", isPresented: $showError) {
-                    Button("OK") { showError = false }
+                .confirmationDialog(
+                    "Start a new conversation?",
+                    isPresented: $showResetConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("New Chat", role: .destructive) { session.reset() }
+                    Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text(errorMessage ?? "Something went wrong")
+                    Text("This clears the current chat.")
                 }
                 .onChange(of: photoPickerItem) { _, newValue in
                     Task { await loadPickedImage(newValue) }
                 }
             }
-            .onAppear {
-                if provider == nil {
-                    provider = MealScanProvider(resolver: resolver)
+            .onAppear { session.configure(resolver: resolver) }
+        }
+
+        // MARK: - Message list
+
+        private var messageList: some View {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        if !session.hasConversation {
+                            emptyState
+                        }
+
+                        ForEach(Array(session.messages.enumerated()), id: \.element.id) { index, message in
+                            messageRow(message, isLastInRun: isLastInRun(at: index))
+                                .id(message.id)
+                        }
+
+                        if session.isStreaming, session.messages.last?.text.isEmpty ?? false {
+                            typingIndicator
+                                .id("typing")
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: session.messages.last?.text) {
+                    if let last = session.messages.last {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
                 }
             }
         }
 
-        private var emptyStateView: some View {
+        private var emptyState: some View {
             VStack(spacing: 12) {
-                Image(systemName: "bubble.left.and.text.bubble.right")
-                    .font(.system(size: 50))
-                    .foregroundStyle(.blue)
-                Text("Discuss your meal with AI")
+                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                    .font(.system(size: 46))
+                    .foregroundStyle(.blue.gradient)
+                Text("AI Meal Advisor")
                     .font(.headline)
-                Text("Send a message, attach a photo, or both. Ask anything about carbs, fat, protein, or insulin timing.")
+                Text("Send a message, attach a photo, or both. Ask about carbs, fat, protein, or insulin timing.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                    .padding(.horizontal, 24)
             }
-            .padding(.vertical, 40)
+            .padding(.vertical, 60)
             .frame(maxWidth: .infinity)
         }
+
+        // MARK: - Message row
+
+        @ViewBuilder
+        private func messageRow(_ message: ChatMessage, isLastInRun: Bool) -> some View {
+            let isUser = message.role == .user
+
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 2) {
+                if revealedTimestampID == message.id {
+                    Text(message.timestamp, format: .dateTime.hour().minute())
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 2)
+                }
+
+                HStack {
+                    if isUser { Spacer(minLength: 50) }
+
+                    bubble(message, isUser: isUser, isLastInRun: isLastInRun)
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                revealedTimestampID = revealedTimestampID == message.id ? nil : message.id
+                            }
+                        }
+
+                    if !isUser { Spacer(minLength: 50) }
+                }
+
+                if let totals = message.updatedTotals, !isUser {
+                    macroChips(totals)
+                        .padding(.leading, 6)
+                        .padding(.top, 2)
+                }
+            }
+            .padding(.top, isLastInRun ? 4 : 1)
+        }
+
+        @ViewBuilder
+        private func bubble(_ message: ChatMessage, isUser: Bool, isLastInRun: Bool) -> some View {
+            let textColor: Color = isUser ? .white : .primary
+            let bubbleColor: Color = isUser
+                ? Color(red: 0.0, green: 0.48, blue: 1.0)
+                : Color(.systemGray5)
+
+            Text(message.text.isEmpty ? " " : message.text)
+                .font(.body)
+                .foregroundStyle(textColor)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(
+                    Group {
+                        if isLastInRun {
+                            ChatBubbleShape(direction: isUser ? .right : .left)
+                                .fill(bubbleColor)
+                        } else {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(bubbleColor)
+                        }
+                    }
+                )
+                .textSelection(.enabled)
+        }
+
+        private func macroChips(_ totals: NutritionTotals) -> some View {
+            HStack(spacing: 6) {
+                macroChip("C", value: totals.carbs, color: .blue)
+                macroChip("F", value: totals.fat, color: .orange)
+                macroChip("P", value: totals.protein, color: .red)
+            }
+        }
+
+        private func macroChip(_ label: String, value: Decimal, color: Color) -> some View {
+            Text("\(label) \(NSDecimalNumber(decimal: value).intValue)g")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(color.opacity(0.12), in: Capsule())
+        }
+
+        private var typingIndicator: some View {
+            HStack {
+                HStack(spacing: 4) {
+                    ForEach(0 ..< 3) { _ in
+                        Circle()
+                            .fill(.secondary)
+                            .frame(width: 7, height: 7)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+                .background(ChatBubbleShape(direction: .left).fill(Color(.systemGray5)))
+                Spacer(minLength: 50)
+            }
+            .padding(.top, 4)
+        }
+
+        // MARK: - Totals bar
 
         private func totalsBar(_ totals: NutritionTotals) -> some View {
             HStack(spacing: 16) {
@@ -138,91 +237,11 @@ extension MealScan {
             .frame(maxWidth: .infinity)
         }
 
-        private func chatBubble(for message: ChatMessage) -> some View {
-            HStack {
-                if message.role == .user { Spacer(minLength: 60) }
-
-                VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                    Text(message.text)
-                        .font(.subheadline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(message.role == .user ? Color.blue.opacity(0.15) : Color(.systemGray5))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                    if let totals = message.updatedTotals {
-                        HStack(spacing: 8) {
-                            Text("Updated:").font(.caption2).foregroundStyle(.secondary)
-                            Text("C: \(NSDecimalNumber(decimal: totals.carbs).intValue)g").foregroundStyle(.blue)
-                            Text("F: \(NSDecimalNumber(decimal: totals.fat).intValue)g").foregroundStyle(.orange)
-                            Text("P: \(NSDecimalNumber(decimal: totals.protein).intValue)g").foregroundStyle(.red)
-                        }
-                        .font(.caption)
-                    }
-                }
-
-                if message.role == .assistant { Spacer(minLength: 60) }
-            }
-            .padding(.horizontal)
-        }
-
-        private var inputBar: some View {
-            VStack(spacing: 8) {
-                if let img = attachedImage, hasStarted {
-                    HStack {
-                        Image(uiImage: img)
-                            .resizable().scaledToFill()
-                            .frame(width: 40, height: 40)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                        Text("Photo attached")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button {
-                            attachedImage = nil
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-
-                HStack(spacing: 8) {
-                    PhotosPicker(selection: $photoPickerItem, matching: .images) {
-                        Image(systemName: attachedImage == nil ? "photo.badge.plus" : "photo.fill")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                    }
-                    .disabled(isStreaming)
-
-                    TextField("Ask the AI...", text: $userInput, axis: .vertical)
-                        .textFieldStyle(.plain)
-                        .lineLimit(1 ... 4)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-
-                    Button {
-                        Task { await sendMessage() }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                    }
-                    .disabled(sendDisabled)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            }
-        }
-
-        private var sendDisabled: Bool {
-            isStreaming || (userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachedImage == nil)
-        }
+        // MARK: - Confirm
 
         private var confirmButton: some View {
             Button {
-                if let totals = runningTotals {
+                if let totals = session.runningTotals {
                     onConfirm?(totals)
                     dismiss()
                 }
@@ -231,65 +250,86 @@ extension MealScan {
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Color.green)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.vertical, 13)
+                    .background(Color.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .disabled(isStreaming)
+            .disabled(session.isStreaming)
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.bottom, 6)
         }
 
-        @MainActor
-        private func sendMessage() async {
-            guard let provider else { return }
-            let text = userInput.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty || attachedImage != nil else { return }
+        // MARK: - Input bar
 
-            let imageForThisTurn = attachedImage
-            let userMsg = ChatMessage(role: .user, text: text.isEmpty ? "[Photo]" : text)
-            messages.append(userMsg)
-            userInput = ""
-            isStreaming = true
-
-            do {
-                let stream: AsyncStream<String>
-                if !hasStarted {
-                    stream = try await provider.startFreeFormChat(initialMessage: text, image: imageForThisTurn)
-                    hasStarted = true
-                    attachedImage = nil
-                } else {
-                    if imageForThisTurn != nil {
-                        // Subsequent message with photo not yet supported by Claude wrapper
-                        // Send as text only; user has been shown the image inline
-                        stream = try await provider.sendChatMessage(text)
-                        attachedImage = nil
-                    } else {
-                        stream = try await provider.sendChatMessage(text)
+        @ViewBuilder
+        private var inputBar: some View {
+            VStack(spacing: 6) {
+                if let img = session.pendingImage {
+                    HStack {
+                        Image(uiImage: img)
+                            .resizable().scaledToFill()
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        Text("Photo attached")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            session.pendingImage = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
                     }
+                    .padding(.horizontal)
+                    .transition(.opacity)
                 }
 
-                var assistantText = ""
-                var assistantMsg = ChatMessage(role: .assistant, text: "")
-                messages.append(assistantMsg)
-                let idx = messages.count - 1
+                HStack(spacing: 8) {
+                    PhotosPicker(selection: $photoPickerItem, matching: .images) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.blue)
+                    }
+                    .disabled(session.isStreaming)
 
-                for await chunk in stream {
-                    assistantText += chunk
-                    messages[idx].text = assistantText
+                    HStack(spacing: 6) {
+                        TextField("Message", text: $session.draftInput, axis: .vertical)
+                            .lineLimit(1 ... 5)
+                            .padding(.leading, 12)
+                            .padding(.vertical, 7)
+
+                        Button {
+                            Task { await session.send() }
+                        } label: {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(sendDisabled ? Color(.systemGray3) : Color(red: 0.0, green: 0.48, blue: 1.0))
+                        }
+                        .disabled(sendDisabled)
+                        .padding(.trailing, 3)
+                    }
+                    .overlay(
+                        Capsule().stroke(Color(.systemGray4), lineWidth: 1)
+                    )
+                    .clipShape(Capsule())
                 }
-
-                if let totals = BaseClaudeNutritionService.parseTotals(from: assistantText) {
-                    messages[idx].updatedTotals = totals
-                    runningTotals = totals
-                }
-
-                isStreaming = false
-            } catch {
-                isStreaming = false
-                errorMessage = error.localizedDescription
-                showError = true
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
             }
+            .background(.bar)
+        }
+
+        private var sendDisabled: Bool {
+            session.isStreaming ||
+                (session.draftInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && session.pendingImage == nil)
+        }
+
+        // MARK: - Helpers
+
+        private func isLastInRun(at index: Int) -> Bool {
+            let messages = session.messages
+            guard index < messages.count else { return true }
+            let next = index + 1
+            guard next < messages.count else { return true }
+            return messages[next].role != messages[index].role
         }
 
         @MainActor
@@ -298,8 +338,105 @@ extension MealScan {
             if let data = try? await item.loadTransferable(type: Data.self),
                let img = UIImage(data: data)
             {
-                attachedImage = img
+                withAnimation { session.pendingImage = img }
             }
+        }
+    }
+}
+
+// MARK: - iMessage bubble shape (with tail on the last bubble of a run)
+
+struct ChatBubbleShape: Shape {
+    enum Direction { case left, right }
+    let direction: Direction
+
+    func path(in rect: CGRect) -> Path {
+        direction == .left ? leftBubble(in: rect) : rightBubble(in: rect)
+    }
+
+    private func leftBubble(in rect: CGRect) -> Path {
+        let width = rect.width
+        let height = rect.height
+        return Path { p in
+            p.move(to: CGPoint(x: 25, y: height))
+            p.addLine(to: CGPoint(x: width - 20, y: height))
+            p.addCurve(
+                to: CGPoint(x: width, y: height - 20),
+                control1: CGPoint(x: width - 8, y: height),
+                control2: CGPoint(x: width, y: height - 8)
+            )
+            p.addLine(to: CGPoint(x: width, y: 20))
+            p.addCurve(
+                to: CGPoint(x: width - 20, y: 0),
+                control1: CGPoint(x: width, y: 8),
+                control2: CGPoint(x: width - 8, y: 0)
+            )
+            p.addLine(to: CGPoint(x: 21, y: 0))
+            p.addCurve(
+                to: CGPoint(x: 4, y: 20),
+                control1: CGPoint(x: 12, y: 0),
+                control2: CGPoint(x: 4, y: 8)
+            )
+            p.addLine(to: CGPoint(x: 4, y: height - 11))
+            p.addCurve(
+                to: CGPoint(x: 0, y: height),
+                control1: CGPoint(x: 4, y: height - 1),
+                control2: CGPoint(x: 0, y: height)
+            )
+            p.addLine(to: CGPoint(x: -0.05, y: height - 0.01))
+            p.addCurve(
+                to: CGPoint(x: 11.0, y: height - 4.0),
+                control1: CGPoint(x: 4.0, y: height + 0.5),
+                control2: CGPoint(x: 8, y: height - 1)
+            )
+            p.addCurve(
+                to: CGPoint(x: 25, y: height),
+                control1: CGPoint(x: 16, y: height),
+                control2: CGPoint(x: 20, y: height)
+            )
+        }
+    }
+
+    private func rightBubble(in rect: CGRect) -> Path {
+        let width = rect.width
+        let height = rect.height
+        return Path { p in
+            p.move(to: CGPoint(x: 25, y: height))
+            p.addLine(to: CGPoint(x: 20, y: height))
+            p.addCurve(
+                to: CGPoint(x: 0, y: height - 20),
+                control1: CGPoint(x: 8, y: height),
+                control2: CGPoint(x: 0, y: height - 8)
+            )
+            p.addLine(to: CGPoint(x: 0, y: 20))
+            p.addCurve(
+                to: CGPoint(x: 20, y: 0),
+                control1: CGPoint(x: 0, y: 8),
+                control2: CGPoint(x: 8, y: 0)
+            )
+            p.addLine(to: CGPoint(x: width - 21, y: 0))
+            p.addCurve(
+                to: CGPoint(x: width - 4, y: 20),
+                control1: CGPoint(x: width - 12, y: 0),
+                control2: CGPoint(x: width - 4, y: 8)
+            )
+            p.addLine(to: CGPoint(x: width - 4, y: height - 11))
+            p.addCurve(
+                to: CGPoint(x: width, y: height),
+                control1: CGPoint(x: width - 4, y: height - 1),
+                control2: CGPoint(x: width, y: height)
+            )
+            p.addLine(to: CGPoint(x: width + 0.05, y: height - 0.01))
+            p.addCurve(
+                to: CGPoint(x: width - 11, y: height - 4),
+                control1: CGPoint(x: width - 4, y: height + 0.5),
+                control2: CGPoint(x: width - 8, y: height - 1)
+            )
+            p.addCurve(
+                to: CGPoint(x: width - 25, y: height),
+                control1: CGPoint(x: width - 16, y: height),
+                control2: CGPoint(x: width - 20, y: height)
+            )
         }
     }
 }

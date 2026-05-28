@@ -2,6 +2,9 @@ import Foundation
 import UIKit
 
 protocol ClaudeNutritionService {
+    /// Codex thread id for the active chat. Persisted by MealChatSession so a
+    /// conversation can resume after the app is backgrounded or killed.
+    var activeThreadId: String? { get set }
     func startSession(image: UIImage, detectedFoods: [DetectedFood], customFoodNotes: [(dish: String, note: String)]) async throws -> AsyncStream<String>
     func sendMessage(_ text: String) async throws -> AsyncStream<String>
     func resetSession()
@@ -33,7 +36,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     private let proxySecret: String
 
     /// Codex thread ID for the active chat session. nil = no active session.
-    private var threadId: String?
+    var activeThreadId: String?
     private var systemPromptForFirstTurn: String?
 
     // swiftlint:disable line_length
@@ -220,7 +223,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         """
 
         // Start a fresh thread on the proxy
-        threadId = nil
+        activeThreadId = nil
         systemPromptForFirstTurn = systemPrompt
 
         return try await streamChat(
@@ -235,7 +238,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     }
 
     func resetSession() {
-        threadId = nil
+        activeThreadId = nil
         systemPromptForFirstTurn = nil
     }
 
@@ -282,7 +285,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     }
 
     func startFreeFormChat(initialMessage: String, image: UIImage?) async throws -> AsyncStream<String> {
-        threadId = nil
+        activeThreadId = nil
         systemPromptForFirstTurn = systemPrompt
 
         let text = initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -312,7 +315,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         if includeSystem, let sys = systemPromptForFirstTurn {
             body["system"] = sys
         }
-        if let tid = threadId {
+        if let tid = activeThreadId {
             body["thread_id"] = tid
         }
         if let image {
@@ -352,7 +355,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
                             }
                         case "done":
                             if let tid = event["thread_id"] as? String {
-                                await MainActor.run { self.threadId = tid }
+                                await MainActor.run { self.activeThreadId = tid }
                             }
                             await MainActor.run { self.systemPromptForFirstTurn = nil }
                             continuation.finish()

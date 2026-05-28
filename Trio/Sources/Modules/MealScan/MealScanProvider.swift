@@ -28,6 +28,12 @@ extension MealScan {
             claudeService.resetSession()
         }
 
+        /// Codex thread id, surfaced so MealChatSession can persist/restore it.
+        var chatThreadId: String? {
+            get { claudeService.activeThreadId }
+            set { claudeService.activeThreadId = newValue }
+        }
+
         func parseNutritionLabel(image: UIImage) async throws -> NutritionLabelData {
             try await claudeService.parseNutritionLabel(image: image)
         }

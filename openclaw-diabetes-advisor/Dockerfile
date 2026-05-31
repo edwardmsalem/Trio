@@ -25,7 +25,12 @@ CMD sh -c '\
   cp -r /app/skills-source/* /root/.openclaw/workspace/skills/ && \
   cp /app/AGENTS.md /root/.openclaw/workspace/AGENTS.md 2>/dev/null; \
   if [ -f /root/.openclaw/openclaw.json ]; then \
-    node -e "const fs=require(\"fs\"); const c=JSON.parse(fs.readFileSync(\"/root/.openclaw/openclaw.json\")); if(c.channels&&c.channels.whatsapp){c.channels.whatsapp.enabled=false;} fs.writeFileSync(\"/root/.openclaw/openclaw.json\", JSON.stringify(c,null,2)); console.log(\"WhatsApp disabled in runtime config\");" 2>/dev/null; \
+    node -e "const fs=require(\"fs\"); const c=JSON.parse(fs.readFileSync(\"/root/.openclaw/openclaw.json\")); \
+      if(c.channels&&c.channels.whatsapp){c.channels.whatsapp.enabled=false;} \
+      c.skills={load:{dirs:[\"skills\"]}}; \
+      c.memory={enabled:true,provider:\"local\",maxFacts:1000}; \
+      fs.writeFileSync(\"/root/.openclaw/openclaw.json\", JSON.stringify(c,null,2)); \
+      console.log(\"Config patched: WhatsApp off, skills+memory restored\");" 2>/dev/null; \
   fi; \
   openclaw doctor --fix 2>/dev/null; \
   openclaw gateway run --allow-unconfigured'

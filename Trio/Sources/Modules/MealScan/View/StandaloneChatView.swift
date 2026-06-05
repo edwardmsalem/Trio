@@ -19,6 +19,7 @@ extension MealScan {
         @State private var presetName = ""
 
         var onConfirm: ((NutritionTotals) -> Void)?
+        var mealContext: MealContext?
 
         var body: some View {
             NavigationStack {
@@ -75,7 +76,10 @@ extension MealScan {
                     Task { await loadPickedImage(newValue) }
                 }
             }
-            .onAppear { session.configure(resolver: resolver) }
+            .onAppear {
+                session.configure(resolver: resolver)
+                session.liveContextBlock = mealContext?.promptBlock
+            }
         }
 
         // MARK: - History

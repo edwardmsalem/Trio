@@ -29,6 +29,7 @@ extension MealScan {
 
         /// Returns the (possibly edited) totals to apply to the bolus form.
         var onConfirm: ((NutritionTotals) -> Void)?
+        var mealContext: MealContext?
 
         enum Phase {
             case camera
@@ -220,7 +221,8 @@ extension MealScan {
             do {
                 let stream = try await provider.startFreeFormChat(
                     initialMessage: "Analyze this plate of food and give your best single-shot nutrition estimate. State your portion assumptions briefly.",
-                    image: image
+                    image: image,
+                    contextBlock: mealContext?.promptBlock
                 )
                 var text = ""
                 for await chunk in stream {

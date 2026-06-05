@@ -55,6 +55,10 @@ final class MealChatSession {
     /// Image staged for the next outgoing message. Observed but not persisted.
     var pendingImage: UIImage?
 
+    /// Live physiology block (BG/IOB/COB/trend/ISF/CR), captured when the chat
+    /// opens from the bolus screen. Prepended to the first message only.
+    @ObservationIgnored var liveContextBlock: String?
+
     @ObservationIgnored private var provider: MealScan.MealScanProvider?
 
     private let defaults = UserDefaults.standard
@@ -132,7 +136,7 @@ final class MealChatSession {
 
         do {
             let stream: AsyncStream<String> = isFirstTurn
-                ? try await provider.startFreeFormChat(initialMessage: trimmed, image: image)
+                ? try await provider.startFreeFormChat(initialMessage: trimmed, image: image, contextBlock: liveContextBlock)
                 : try await provider.sendChatMessage(trimmed)
 
             current.messages.append(ChatMessage(role: .assistant, text: ""))

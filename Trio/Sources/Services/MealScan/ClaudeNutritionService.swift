@@ -9,7 +9,7 @@ protocol ClaudeNutritionService {
     func sendMessage(_ text: String) async throws -> AsyncStream<String>
     func resetSession()
     func parseNutritionLabel(image: UIImage) async throws -> NutritionLabelData
-    func startFreeFormChat(initialMessage: String, image: UIImage?) async throws -> AsyncStream<String>
+    func startFreeFormChat(initialMessage: String, image: UIImage?, contextBlock: String?) async throws -> AsyncStream<String>
 }
 
 struct NutritionLabelData {
@@ -191,6 +191,48 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     ```
 
     NET_CARBS = CARBS minus FIBER. This is the value most relevant for bolus calculation.
+
+    ## SYRIAN-JEWISH FOOD DATABASE (authoritative)
+    A structured SY food database is attached at the end of this prompt as JSON. For ANY Syrian-Jewish dish, use the database's carb values over general nutrition knowledge. Homemade SY dishes carry about 30% variability, so state your assumption and let the user correct. Prefer weight-based estimates; per-piece values are fallbacks.
+
+    ## MANDATORY CLARIFICATIONS
+    These dishes swing too much to guess. Ask before giving a carb count:
+
+    | Dish | Ask | Swing |
+    |------|-----|-------|
+    | Hamod soup | Broth only / rice in soup / over rice bed | 8g / 20g / 55g |
+    | Ka'ak | Cookie vs bread ring | 10g vs 55g |
+    | Atayef | Plain vs fried + syrup | 6g vs 30g |
+    | Fattoush | Light vs heavy pita chips | 8g vs 20g |
+    | Glazed meat | Which sauce? | +9 to 17g per tbsp |
+    | Any dish | Over rice? | +30 to 45g |
+
+    ## SUGGESTED DOSE (advisory only)
+    The user runs Trio, a closed-loop pump. Trio's own bolus calculator computes the dose that actually gets delivered. Your suggested dose is a second opinion for sanity-checking, never an instruction to inject on top of Trio.
+
+    When the CURRENT STATE block (glucose, IOB, ISF, CR, target) is present, compute an advisory dose and show your math in prose BEFORE the nutrition block:
+
+    1. Meal = net carbs / CR
+    2. Apply the ISF tier to ISF based on current glucose:
+       - BG under 70: ISF x 1.2 (gentler)
+       - BG 70 to 140: ISF x 1.0
+       - BG 140 to 200: ISF x 0.9
+       - BG 200 to 250: ISF x 0.8
+       - BG over 250: ISF x 0.7 (most aggressive)
+    3. Correction = (glucose - target) / tiered_ISF
+    4. Subtract IOB from the TOTAL (meal + correction), not just the correction
+    5. Note trend: if rising, the meal may need pre-bolusing sooner; if falling, be cautious
+
+    Present it like:
+    "Advisory dose (Trio decides the real number): meal 73/7 = 10.4u + correction (165-100)/31.5 = 2.1u - IOB 1.2u = ~11.3u. Heads up: above a 10u single bolus, consider splitting."
+
+    Flag automatically: stacking (recent insulin + more), bolusing while below target, and BG over 250 (check ketones).
+
+    ## PRE-BOLUS TIMING
+    - FAST / high-GI (challah, syrup, honey, juice, dates): pre-bolus 15 to 25 min, more if BG is already high
+    - MEDIUM (dough: sambousak, lachmagine): pre-bolus 10 to 15 min
+    - SLOW (bulgur kibbeh, lentils, chickpeas): little or no pre-bolus
+    - High fat delays everything: spread the dose or lean on FPU
     """
     // swiftlint:enable line_length
 
@@ -198,6 +240,16 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         self.proxyURL = MealScanDevKeys.codexProxyURL
         self.proxySecret = MealScanDevKeys.codexProxySecret
     }
+
+    /// Base prompt plus the bundled SY food database, loaded once.
+    private lazy var composedSystemPrompt: String = {
+        guard let url = Bundle.main.url(forResource: "sy_food_database", withExtension: "json"),
+              let json = try? String(contentsOf: url, encoding: .utf8)
+        else {
+            return systemPrompt
+        }
+        return systemPrompt + "\n\n## SY_FOOD_DATABASE (JSON)\n```json\n" + json + "\n```"
+    }()
 
     // MARK: - Public
 
@@ -224,7 +276,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
 
         // Start a fresh thread on the proxy
         activeThreadId = nil
-        systemPromptForFirstTurn = systemPrompt
+        systemPromptForFirstTurn = composedSystemPrompt
 
         return try await streamChat(
             userText: userText,
@@ -284,14 +336,20 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         )
     }
 
-    func startFreeFormChat(initialMessage: String, image: UIImage?) async throws -> AsyncStream<String> {
+    func startFreeFormChat(initialMessage: String, image: UIImage?, contextBlock: String?) async throws -> AsyncStream<String> {
         activeThreadId = nil
-        systemPromptForFirstTurn = systemPrompt
+        systemPromptForFirstTurn = composedSystemPrompt
 
         let text = initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let userText = text.isEmpty
+        let base = text.isEmpty
             ? "Please analyze this meal photo. List what you see, ask any clarifying questions, and provide your best nutrition estimate."
-            : "Current date/time: \(Self.formattedCurrentDate())\n\n\(text)"
+            : text
+
+        var userText = "Current date/time: \(Self.formattedCurrentDate())"
+        if let contextBlock, !contextBlock.isEmpty {
+            userText += "\n\n\(contextBlock)"
+        }
+        userText += "\n\n\(base)"
 
         return try await streamChat(
             userText: userText,

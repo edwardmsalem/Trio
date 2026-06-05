@@ -160,7 +160,7 @@ extension Treatments {
                 .sheet(isPresented: $showPlateScan) {
                     MealScan.PlateScanView(resolver: resolver, onConfirm: { totals in
                         applyMealTotals(totals)
-                    })
+                    }, mealContext: currentMealContext())
                 }
                 Button {
                     showLabelScan = true
@@ -184,7 +184,7 @@ extension Treatments {
                 .sheet(isPresented: $showStandaloneChat) {
                     MealScan.StandaloneChatView(resolver: resolver, onConfirm: { totals in
                         applyMealTotals(totals)
-                    })
+                    }, mealContext: currentMealContext())
                 }
                 Spacer()
                 TextFieldWithToolBar(
@@ -202,6 +202,19 @@ extension Treatments {
                     handleDebouncedInput()
                 }
             }
+        }
+
+        /// Snapshot of live physiology for the AI advisor.
+        private func currentMealContext() -> MealContext {
+            MealContext(
+                glucose: state.currentBG,
+                deltaBG: state.deltaBG,
+                iob: state.iob,
+                cob: state.cob,
+                isf: state.isf,
+                carbRatio: state.carbRatio,
+                target: state.currentBGTarget
+            )
         }
 
         /// Applies AI-derived meal totals (from plate scan or chat) to the bolus form.

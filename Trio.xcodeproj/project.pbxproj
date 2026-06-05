@@ -24,6 +24,7 @@
 		118DF76D2C5ECBC60067FEB7 /* OverridePresetEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118DF7672C5ECBC60067FEB7 /* OverridePresetEntity.swift */; };
 		118DF76E2C5ECBC60067FEB7 /* OverridePresetsIntentRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118DF7682C5ECBC60067FEB7 /* OverridePresetsIntentRequest.swift */; };
 		124421EDF0BE7FBDBEE961AE /* HistoryRootView+Confirmations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 303AF8DD7340429E4013C9CE /* HistoryRootView+Confirmations.swift */; };
+		1525AA71E417B8156D82C71A /* sy_food_database.json in Resources */ = {isa = PBXBuildFile; fileRef = 7E4363CB892CDA5EA367D922 /* sy_food_database.json */; };
 		17A9D0899046B45E87834820 /* CarbRatioEditorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C8D5F457B5AFF763F8CF3DF /* CarbRatioEditorProvider.swift */; };
 		19012CDC291D2CB900FB8210 /* LoopStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19012CDB291D2CB900FB8210 /* LoopStats.swift */; };
 		190D4F8099FAB4E64068F9AE /* MealScanProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39844B328AEDCC84871009CF /* MealScanProvider.swift */; };
@@ -1251,6 +1252,7 @@
 		7CF64F61A012FC68A6EE5921 /* MealScanModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealScanModels.swift; path = Trio/Sources/Models/MealScanModels.swift; sourceTree = SOURCE_ROOT; };
 		7D6EBB88CB65D271CA39C004 /* HistoryRootView+Glucose.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+Glucose.swift"; sourceTree = "<group>"; };
 		7E22146D3DF4853786C78132 /* CarbRatioEditorDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CarbRatioEditorDataFlow.swift; sourceTree = "<group>"; };
+		7E4363CB892CDA5EA367D922 /* sy_food_database.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = sy_food_database.json; path = Trio/Sources/Services/MealScan/Resources/sy_food_database.json; sourceTree = SOURCE_ROOT; };
 		7E7703462A6F050111327AE0 /* MockTDDStorage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MockTDDStorage.swift; sourceTree = "<group>"; };
 		81494DA1A7D009D0F102E222 /* MealScanRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealScanRootView.swift; path = Trio/Sources/Modules/MealScan/View/MealScanRootView.swift; sourceTree = SOURCE_ROOT; };
 		8782B44544F38F2B2D82C38E /* NightscoutConfigRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightscoutConfigRootView.swift; sourceTree = "<group>"; };
@@ -2502,6 +2504,7 @@
 				76D615468B2096C3E6B503D1 /* StandaloneChatView.swift */,
 				2336C97DA8B3118F38BECC9C /* MealChatSession.swift */,
 				98DD24C899767400682DBFD3 /* PlateScanView.swift */,
+				7E4363CB892CDA5EA367D922 /* sy_food_database.json */,
 			);
 			sourceTree = "<group>";
 		};
@@ -4313,6 +4316,7 @@
 				19DA48E829CD339B00EEA1E7 /* Assets.xcassets in Resources */,
 				8A91342A2D63D9A1007F8874 /* Localizable.xcstrings in Resources */,
 				388E596F25AD96040019842D /* javascript in Resources */,
+				1525AA71E417B8156D82C71A /* sy_food_database.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

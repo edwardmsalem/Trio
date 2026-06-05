@@ -110,6 +110,49 @@ enum ConfidenceLevel: String, Codable {
     case low
 }
 
+// MARK: - Meal Context (live physiology snapshot for the AI)
+
+/// A snapshot of the user's current state, captured when the meal advisor opens,
+/// so the AI can give dosing-aware advice instead of generic estimates.
+/// All glucose-derived values are mg/dL (Trio's internal canonical unit).
+struct MealContext {
+    var glucose: Decimal // mg/dL
+    var deltaBG: Decimal // mg/dL change over ~20 min
+    var iob: Decimal // units of insulin on board
+    var cob: Int16 // grams of carbs on board
+    var isf: Decimal // mg/dL drop per unit
+    var carbRatio: Decimal // grams covered per unit
+    var target: Decimal // mg/dL
+
+    private var trendPhrase: String {
+        switch deltaBG {
+        case let d where d >= 15: return "rising fast"
+        case let d where d >= 5: return "rising"
+        case let d where d <= -15: return "falling fast"
+        case let d where d <= -5: return "falling"
+        default: return "steady"
+        }
+    }
+
+    private static func num(_ d: Decimal) -> String {
+        NSDecimalNumber(decimal: d).doubleValue.formatted(.number.precision(.fractionLength(0 ... 1)))
+    }
+
+    /// A compact block prepended to the AI's first message. Empty if no live data.
+    var promptBlock: String {
+        guard glucose > 0 else { return "" }
+        var lines = ["## CURRENT STATE (live from the pump, factor this into your dosing guidance)"]
+        let sign = deltaBG >= 0 ? "+" : ""
+        lines.append("- Glucose: \(Self.num(glucose)) mg/dL, \(trendPhrase) (\(sign)\(Self.num(deltaBG)) mg/dL over ~20 min)")
+        lines.append("- Insulin on board (IOB): \(Self.num(iob)) U")
+        lines.append("- Carbs on board (COB): \(cob) g")
+        if isf > 0 { lines.append("- Insulin sensitivity (ISF): 1 U drops ~\(Self.num(isf)) mg/dL") }
+        if carbRatio > 0 { lines.append("- Carb ratio (CR): 1 U covers ~\(Self.num(carbRatio)) g carbs") }
+        if target > 0 { lines.append("- Target glucose: \(Self.num(target)) mg/dL") }
+        return lines.joined(separator: "\n")
+    }
+}
+
 // MARK: - Nutrition Totals
 
 struct NutritionTotals: Codable {

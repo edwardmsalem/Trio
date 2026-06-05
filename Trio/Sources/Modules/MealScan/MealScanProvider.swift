@@ -38,8 +38,8 @@ extension MealScan {
             try await claudeService.parseNutritionLabel(image: image)
         }
 
-        func startFreeFormChat(initialMessage: String, image: UIImage?) async throws -> AsyncStream<String> {
-            try await claudeService.startFreeFormChat(initialMessage: initialMessage, image: image)
+        func startFreeFormChat(initialMessage: String, image: UIImage?, contextBlock: String? = nil) async throws -> AsyncStream<String> {
+            try await claudeService.startFreeFormChat(initialMessage: initialMessage, image: image, contextBlock: contextBlock)
         }
 
         func savePreset(from label: NutritionLabelData) {

@@ -10,6 +10,7 @@ extension MealScan {
         let resolver: Resolver
 
         @Environment(\.dismiss) var dismiss
+        @Environment(\.managedObjectContext) private var moc
 
         @State private var provider: MealScanProvider?
         @State private var phase: Phase = .camera
@@ -22,6 +23,9 @@ extension MealScan {
         @State private var editableCarbs: Decimal = 0
         @State private var editableFat: Decimal = 0
         @State private var editableProtein: Decimal = 0
+
+        @State private var showSavePreset = false
+        @State private var presetName = ""
 
         /// Returns the (possibly edited) totals to apply to the bolus form.
         var onConfirm: ((NutritionTotals) -> Void)?
@@ -138,14 +142,44 @@ extension MealScan {
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
-                    .listRowBackground(editableCarbs == 0 && editableFat == 0 && editableProtein == 0
-                        ? Color(.systemGray3) : Color.green)
+                    .listRowBackground(noMacros ? Color(.systemGray3) : Color.green)
                     .foregroundStyle(.white)
-                    .disabled(editableCarbs == 0 && editableFat == 0 && editableProtein == 0)
+                    .disabled(noMacros)
+
+                    Button {
+                        presetName = ""
+                        showSavePreset = true
+                    } label: {
+                        Label("Save as Preset", systemImage: "bookmark")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(noMacros)
                 } footer: {
                     Text("Not quite right? Use the chat button on the bolus screen to discuss it with the AI.")
                 }
             }
+            .alert("Save as Preset", isPresented: $showSavePreset) {
+                TextField("Preset name", text: $presetName)
+                Button("Save") { savePreset() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Saves these macros as a reusable preset.")
+            }
+        }
+
+        private var noMacros: Bool {
+            editableCarbs == 0 && editableFat == 0 && editableProtein == 0
+        }
+
+        private func savePreset() {
+            let name = presetName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { return }
+            let preset = MealPresetStored(context: moc)
+            preset.dish = String(name.prefix(25))
+            preset.carbs = editableCarbs as NSDecimalNumber
+            preset.fat = editableFat as NSDecimalNumber
+            preset.protein = editableProtein as NSDecimalNumber
+            try? moc.save()
         }
 
         private func macroRow(_ label: String, value: Binding<Decimal>) -> some View {

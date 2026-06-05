@@ -9,26 +9,29 @@ extension MealScan {
 
         @Environment(\.dismiss) var dismiss
         @Environment(\.colorScheme) private var colorScheme
+        @Environment(\.managedObjectContext) private var moc
 
         @State private var session = MealChatSession.shared
         @State private var photoPickerItem: PhotosPickerItem?
         @State private var revealedTimestampID: UUID?
-        @State private var showResetConfirm = false
+        @State private var showHistory = false
+        @State private var showSavePreset = false
+        @State private var presetName = ""
 
         var onConfirm: ((NutritionTotals) -> Void)?
 
         var body: some View {
             NavigationStack {
                 VStack(spacing: 0) {
-                    if let totals = session.runningTotals {
+                    if let totals = session.current.runningTotals {
                         totalsBar(totals)
                         Divider()
                     }
 
                     messageList
 
-                    if session.runningTotals != nil {
-                        confirmButton
+                    if session.current.runningTotals != nil {
+                        actionButtons
                     }
 
                     inputBar
@@ -41,29 +44,78 @@ extension MealScan {
                         Button("Close") { dismiss() }
                     }
                     ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            showResetConfirm = true
-                        } label: {
-                            Image(systemName: "square.and.pencil")
+                        HStack(spacing: 16) {
+                            Button {
+                                showHistory = true
+                            } label: {
+                                Image(systemName: "clock.arrow.circlepath")
+                            }
+                            .disabled(session.history.isEmpty)
+
+                            Button {
+                                session.startNew()
+                            } label: {
+                                Image(systemName: "square.and.pencil")
+                            }
+                            .disabled(!session.hasConversation || session.isStreaming)
                         }
-                        .disabled(!session.hasConversation || session.isStreaming)
                     }
                 }
-                .confirmationDialog(
-                    "Start a new conversation?",
-                    isPresented: $showResetConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button("New Chat", role: .destructive) { session.reset() }
+                .sheet(isPresented: $showHistory) {
+                    historySheet
+                }
+                .alert("Save as Preset", isPresented: $showSavePreset) {
+                    TextField("Preset name", text: $presetName)
+                    Button("Save") { savePreset() }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("This clears the current chat.")
+                    Text("Saves the current carbs, fat, and protein as a reusable preset.")
                 }
                 .onChange(of: photoPickerItem) { _, newValue in
                     Task { await loadPickedImage(newValue) }
                 }
             }
             .onAppear { session.configure(resolver: resolver) }
+        }
+
+        // MARK: - History
+
+        private var historySheet: some View {
+            NavigationStack {
+                List {
+                    if session.history.isEmpty {
+                        Text("No past conversations yet.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(session.history) { convo in
+                            Button {
+                                session.resume(convo)
+                                showHistory = false
+                            } label: {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(convo.title)
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    Text(convo.updatedAt, format: .dateTime.month().day().hour().minute())
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .onDelete { offsets in
+                            for i in offsets { session.deleteHistory(session.history[i]) }
+                        }
+                    }
+                }
+                .navigationTitle("Past Chats")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showHistory = false }
+                    }
+                }
+            }
         }
 
         // MARK: - Message list
@@ -76,12 +128,12 @@ extension MealScan {
                             emptyState
                         }
 
-                        ForEach(Array(session.messages.enumerated()), id: \.element.id) { index, message in
+                        ForEach(Array(session.current.messages.enumerated()), id: \.element.id) { index, message in
                             messageRow(message, isLastInRun: isLastInRun(at: index))
                                 .id(message.id)
                         }
 
-                        if session.isStreaming, session.messages.last?.text.isEmpty ?? false {
+                        if session.isStreaming, session.current.messages.last?.text.isEmpty ?? false {
                             typingIndicator
                                 .id("typing")
                         }
@@ -90,8 +142,8 @@ extension MealScan {
                     .padding(.vertical, 8)
                 }
                 .scrollDismissesKeyboard(.interactively)
-                .onChange(of: session.messages.last?.text) {
-                    if let last = session.messages.last {
+                .onChange(of: session.current.messages.last?.text) {
+                    if let last = session.current.messages.last {
                         withAnimation(.easeOut(duration: 0.2)) {
                             proxy.scrollTo(last.id, anchor: .bottom)
                         }
@@ -239,23 +291,50 @@ extension MealScan {
 
         // MARK: - Confirm
 
-        private var confirmButton: some View {
-            Button {
-                if let totals = session.runningTotals {
-                    onConfirm?(totals)
-                    dismiss()
+        private var actionButtons: some View {
+            HStack(spacing: 10) {
+                Button {
+                    presetName = session.current.title
+                    showSavePreset = true
+                } label: {
+                    Label("Save Meal", systemImage: "bookmark")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-            } label: {
-                Text("Use These Numbers")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
-                    .background(Color.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .disabled(session.isStreaming)
+
+                Button {
+                    if let totals = session.current.runningTotals {
+                        onConfirm?(totals)
+                        dismiss()
+                    }
+                } label: {
+                    Text("Use These Numbers")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(Color.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .disabled(session.isStreaming)
             }
-            .disabled(session.isStreaming)
             .padding(.horizontal)
             .padding(.bottom, 6)
+        }
+
+        private func savePreset() {
+            guard let totals = session.current.runningTotals else { return }
+            let name = presetName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { return }
+            let preset = MealPresetStored(context: moc)
+            preset.dish = String(name.prefix(25))
+            preset.carbs = totals.carbs as NSDecimalNumber
+            preset.fat = totals.fat as NSDecimalNumber
+            preset.protein = totals.protein as NSDecimalNumber
+            try? moc.save()
         }
 
         // MARK: - Input bar
@@ -325,7 +404,7 @@ extension MealScan {
         // MARK: - Helpers
 
         private func isLastInRun(at index: Int) -> Bool {
-            let messages = session.messages
+            let messages = session.current.messages
             guard index < messages.count else { return true }
             let next = index + 1
             guard next < messages.count else { return true }

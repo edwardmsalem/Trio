@@ -3,46 +3,114 @@ import Observation
 import Swinject
 import UIKit
 
-/// Holds the AI Meal Advisor conversation so it survives the chat sheet being
-/// dismissed, the app being backgrounded, and a full app relaunch.
+/// One AI Meal Advisor conversation.
+struct MealConversation: Codable, Identifiable {
+    var id: UUID
+    var messages: [ChatMessage]
+    var runningTotals: NutritionTotals?
+    var threadId: String?
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(id: UUID = UUID(), messages: [ChatMessage] = [], runningTotals: NutritionTotals? = nil, threadId: String? = nil) {
+        self.id = id
+        self.messages = messages
+        self.runningTotals = runningTotals
+        self.threadId = threadId
+        let now = Date()
+        createdAt = now
+        updatedAt = now
+    }
+
+    var isEmpty: Bool { messages.isEmpty }
+
+    /// Short title from the first user message, for the history list.
+    var title: String {
+        if let firstUser = messages.first(where: { $0.role == .user }) {
+            let trimmed = firstUser.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed == "📷 Photo" { return "Photo chat" }
+            return trimmed.isEmpty ? "Photo chat" : String(trimmed.prefix(42))
+        }
+        return "New chat"
+    }
+}
+
+/// Holds the active AI Meal Advisor conversation plus a history of past ones.
 ///
-/// Minimize/restore is covered by this being a long-lived singleton (the
-/// conversation lives outside the transient SwiftUI view). App-kill is covered
-/// by persisting messages + the Codex thread id to UserDefaults; the Codex
-/// thread itself lives server-side (Mac-mini ~/.codex/sessions) so resuming by
-/// id replays full context.
+/// Opening the chat starts a fresh conversation by default; the previous one is
+/// archived to history and can be revisited. Everything is a long-lived
+/// singleton (survives the sheet closing and app backgrounding) and persists to
+/// UserDefaults (survives app relaunch). Codex threads live server-side on the
+/// Mac mini, so resuming by id replays full context.
 @Observable
 final class MealChatSession {
     static let shared = MealChatSession()
 
-    var messages: [ChatMessage] = []
-    var runningTotals: NutritionTotals?
+    var current = MealConversation()
+    var history: [MealConversation] = []
+
     var draftInput: String = ""
     var isStreaming: Bool = false
 
-    /// Image staged for the next outgoing message. Observed (drives the
-    /// attached-photo strip) but never persisted to disk.
+    /// Image staged for the next outgoing message. Observed but not persisted.
     var pendingImage: UIImage?
 
     @ObservationIgnored private var provider: MealScan.MealScanProvider?
-    @ObservationIgnored private var threadId: String?
 
     private let defaults = UserDefaults.standard
-    private let storeKey = "mealChatSession.v1"
+    private let storeKey = "mealChatStore.v2"
+    private let historyLimit = 30
 
-    var hasConversation: Bool { !messages.isEmpty }
+    var hasConversation: Bool { !current.isEmpty }
 
     private init() {
         load()
     }
 
-    /// Must be called when a view appears so the session has a resolver-backed
-    /// provider and the restored thread id is reattached to a fresh service.
+    /// Call when the chat sheet appears. Reattaches the provider and starts a
+    /// fresh conversation by default (archiving whatever was open).
     func configure(resolver: Resolver) {
         if provider == nil {
             provider = MealScan.MealScanProvider(resolver: resolver)
         }
-        provider?.chatThreadId = threadId
+        startNew()
+    }
+
+    /// Archive the current conversation (if it has messages) and begin a blank one.
+    func startNew() {
+        archiveCurrentIfNeeded()
+        current = MealConversation()
+        draftInput = ""
+        pendingImage = nil
+        provider?.chatThreadId = nil
+        provider?.resetChat()
+        save()
+    }
+
+    /// Load a past conversation back into the active slot.
+    func resume(_ conversation: MealConversation) {
+        archiveCurrentIfNeeded()
+        history.removeAll { $0.id == conversation.id }
+        current = conversation
+        draftInput = ""
+        pendingImage = nil
+        provider?.chatThreadId = conversation.threadId
+        provider?.resetChat()
+        save()
+    }
+
+    func deleteHistory(_ conversation: MealConversation) {
+        history.removeAll { $0.id == conversation.id }
+        save()
+    }
+
+    private func archiveCurrentIfNeeded() {
+        guard !current.isEmpty else { return }
+        history.removeAll { $0.id == current.id }
+        history.insert(current, at: 0)
+        if history.count > historyLimit {
+            history = Array(history.prefix(historyLimit))
+        }
     }
 
     @MainActor
@@ -53,9 +121,10 @@ final class MealChatSession {
         guard !trimmed.isEmpty || image != nil else { return }
         guard !isStreaming else { return }
 
-        let isFirstTurn = messages.isEmpty
+        let isFirstTurn = current.messages.isEmpty
 
-        messages.append(ChatMessage(role: .user, text: trimmed.isEmpty ? "📷 Photo" : trimmed))
+        current.messages.append(ChatMessage(role: .user, text: trimmed.isEmpty ? "📷 Photo" : trimmed))
+        current.updatedAt = Date()
         draftInput = ""
         pendingImage = nil
         isStreaming = true
@@ -66,75 +135,58 @@ final class MealChatSession {
                 ? try await provider.startFreeFormChat(initialMessage: trimmed, image: image)
                 : try await provider.sendChatMessage(trimmed)
 
-            messages.append(ChatMessage(role: .assistant, text: ""))
-            let idx = messages.count - 1
+            current.messages.append(ChatMessage(role: .assistant, text: ""))
+            let idx = current.messages.count - 1
             var assistantText = ""
 
             for await chunk in stream {
                 assistantText += chunk
-                messages[idx].text = assistantText
+                current.messages[idx].text = assistantText
             }
 
             if assistantText.isEmpty {
-                messages[idx].text = "I didn't get a response. Try again."
+                current.messages[idx].text = "I didn't get a response. Try again."
             } else if let totals = BaseClaudeNutritionService.parseTotals(from: assistantText) {
-                messages[idx].updatedTotals = totals
-                runningTotals = totals
+                current.messages[idx].updatedTotals = totals
+                current.runningTotals = totals
             }
 
-            threadId = provider.chatThreadId
+            current.threadId = provider.chatThreadId
+            current.updatedAt = Date()
             isStreaming = false
             save()
         } catch {
             isStreaming = false
-            if let last = messages.last, last.role == .assistant, last.text.isEmpty {
-                messages[messages.count - 1].text = "Something went wrong. Tap send to retry."
+            if let last = current.messages.last, last.role == .assistant, last.text.isEmpty {
+                current.messages[current.messages.count - 1].text = "Something went wrong. Tap send to retry."
             } else {
-                messages.append(ChatMessage(role: .assistant, text: "Something went wrong. Tap send to retry."))
+                current.messages.append(ChatMessage(role: .assistant, text: "Something went wrong. Tap send to retry."))
             }
             save()
         }
     }
 
-    func reset() {
-        messages = []
-        runningTotals = nil
-        draftInput = ""
-        pendingImage = nil
-        threadId = nil
-        provider?.chatThreadId = nil
-        provider?.resetChat()
-        defaults.removeObject(forKey: storeKey)
-    }
-
     // MARK: - Persistence
 
-    private struct Persisted: Codable {
-        var messages: [ChatMessage]
-        var runningTotals: NutritionTotals?
-        var threadId: String?
+    private struct Store: Codable {
+        var current: MealConversation
+        var history: [MealConversation]
         var draftInput: String
     }
 
     private func save() {
-        let snapshot = Persisted(
-            messages: messages,
-            runningTotals: runningTotals,
-            threadId: threadId,
-            draftInput: draftInput
-        )
-        if let data = try? JSONEncoder().encode(snapshot) {
+        let store = Store(current: current, history: history, draftInput: draftInput)
+        if let data = try? JSONEncoder().encode(store) {
             defaults.set(data, forKey: storeKey)
         }
     }
 
     private func load() {
         guard let data = defaults.data(forKey: storeKey),
-              let snapshot = try? JSONDecoder().decode(Persisted.self, from: data)
+              let store = try? JSONDecoder().decode(Store.self, from: data)
         else { return }
-        messages = snapshot.messages
-        runningTotals = snapshot.runningTotals
-        threadId = snapshot.threadId
-        draftInput = snapshot.draftInput
+        current = store.current
+        history = store.history
+        draftInput = store.draftInput
     }
 }

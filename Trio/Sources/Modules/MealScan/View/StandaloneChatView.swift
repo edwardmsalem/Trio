@@ -78,7 +78,10 @@ extension MealScan {
             }
             .onAppear {
                 session.configure(resolver: resolver)
-                session.liveContextBlock = mealContext?.promptBlock
+                session.liveContextBlock = [mealContext?.promptBlock, MealLog.shared.outcomesSummary()]
+                    .compactMap { $0 }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "\n\n")
             }
         }
 
@@ -312,6 +315,11 @@ extension MealScan {
 
                 Button {
                     if let totals = session.current.runningTotals {
+                        MealLog.shared.add(
+                            name: totals.name ?? session.current.title,
+                            carbs: totals.carbs, fat: totals.fat, protein: totals.protein,
+                            source: "chat"
+                        )
                         onConfirm?(totals)
                         dismiss()
                     }

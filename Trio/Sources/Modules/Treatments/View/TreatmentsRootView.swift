@@ -29,8 +29,10 @@ extension Treatments {
         @State private var showLabelScan = false
         @State private var showStandaloneChat = false
         @State private var showPlateScan = false
+        @State private var showBarcodeScan = false
         @State private var quickPresetSelection: MealPresetStored?
         @State private var quickPresetServings: Decimal = 1
+        @State private var mealLog = MealLog.shared
 
         @FetchRequest(
             entity: MealPresetStored.entity(),
@@ -165,13 +167,25 @@ extension Treatments {
                 Button {
                     showLabelScan = true
                 } label: {
-                    Image(systemName: "barcode.viewfinder")
+                    Image(systemName: "doc.text.viewfinder")
                         .foregroundStyle(.blue)
                 }
                 .buttonStyle(.borderless)
                 .sheet(isPresented: $showLabelScan) {
                     MealScan.NutritionLabelScanView(resolver: resolver, onSaved: { _ in
                         // Preset list refreshes automatically via @FetchRequest
+                    })
+                }
+                Button {
+                    showBarcodeScan = true
+                } label: {
+                    Image(systemName: "barcode")
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.borderless)
+                .sheet(isPresented: $showBarcodeScan) {
+                    MealScan.BarcodeScanView(resolver: resolver, onConfirm: { totals in
+                        applyMealTotals(totals)
                     })
                 }
                 Button {
@@ -280,6 +294,7 @@ extension Treatments {
 
                         Button {
                             applyQuickPreset()
+                            logPresetUse()
                             handleDebouncedInput()
                         } label: {
                             Text("Use \(quickPresetServings as NSDecimalNumber, formatter: servingsFormatter) × \(quickPresetSelection?.dish ?? "")")
@@ -292,6 +307,61 @@ extension Treatments {
                 }
                 .listRowBackground(Color.chart)
             }
+        }
+
+        private func logPresetUse() {
+            guard let preset = quickPresetSelection else { return }
+            let s = quickPresetServings
+            mealLog.add(
+                name: preset.dish ?? "Preset",
+                carbs: (((preset.carbs ?? 0) as NSDecimalNumber) as Decimal) * s,
+                fat: (((preset.fat ?? 0) as NSDecimalNumber) as Decimal) * s,
+                protein: (((preset.protein ?? 0) as NSDecimalNumber) as Decimal) * s,
+                source: "preset"
+            )
+        }
+
+        @ViewBuilder private func recentsSection() -> some View {
+            let recents = mealLog.recents(limit: 8)
+            if !recents.isEmpty {
+                Section("Recent Meals") {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(recents) { meal in
+                                Button {
+                                    applyRecent(meal)
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(meal.name)
+                                            .font(.caption.weight(.semibold))
+                                            .lineLimit(1)
+                                        Text("\(NSDecimalNumber(decimal: meal.carbs).intValue)g carbs")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                .listRowBackground(Color.chart)
+            }
+        }
+
+        private func applyRecent(_ meal: LoggedMeal) {
+            state.carbs = meal.carbs
+            if state.useFPUconversion {
+                state.fat = meal.fat
+                state.protein = meal.protein
+            }
+            state.note = meal.name
+            mealLog.add(name: meal.name, carbs: meal.carbs, fat: meal.fat, protein: meal.protein, source: "recent")
+            handleDebouncedInput()
         }
 
         private var servingsFormatter: NumberFormatter {
@@ -369,6 +439,8 @@ extension Treatments {
                             ForecastChart(state: state)
                                 .padding(.vertical)
                         }.listRowBackground(Color.chart)
+
+                        recentsSection()
 
                         quickPresetSection()
 
@@ -592,6 +664,8 @@ extension Treatments {
                         showFatProteinOrderBanner = true
                     }
                 }
+                // Score any meals whose post-meal window has elapsed (outcome learning).
+                MealOutcomeService.backfill()
             }
             .onDisappear {
                 state.isActive = false

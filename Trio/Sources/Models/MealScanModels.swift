@@ -169,6 +169,8 @@ struct NutritionTotals: Codable {
     var confidence: ConfidenceLevel
     var superBolusRecommendation: SuperBolusRecommendation
     var superBolusReason: String
+    /// Short dish name from the AI, for the meal log / recents. Optional, defaults nil.
+    var name: String? = nil
 
     static var zero: NutritionTotals {
         NutritionTotals(

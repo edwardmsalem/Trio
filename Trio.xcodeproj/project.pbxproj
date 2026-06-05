@@ -61,8 +61,11 @@
 		19F95FFA29F1102A00314DDC /* StatRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F95FF929F1102A00314DDC /* StatRootView.swift */; };
 		1BBB001DAD60F3B8CEA4B1C7 /* ISFEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505E09DC17A0C3D0AF4B66FE /* ISFEditorStateModel.swift */; };
 		1D845DF2E3324130E1D95E67 /* HistoryProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60744C3E9BB3652895C908CC /* HistoryProvider.swift */; };
+		21E469E5C3FC3523D6778F45 /* BarcodeScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0786154493A49D67476D5EE4 /* BarcodeScanView.swift */; };
 		23888883D4EA091C88480FF2 /* TreatmentsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C19984D62EFC0035A9E9644D /* TreatmentsProvider.swift */; };
+		2BD7F6AB58FA03DF4756A35A /* MealLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A9757FE91F4B523F53578D /* MealLog.swift */; };
 		2CF242E390669F8FFE5E29F0 /* MealScanStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC045F59C16F1161CB1E923 /* MealScanStateModel.swift */; };
+		2DD336B8E68B34FC1BB0884C /* MealOutcomeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BCD037D9551274EF63F7B3 /* MealOutcomeService.swift */; };
 		2E82416FB3530BFA1DA6C36B /* FatSecretService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A1A4D71BAD336F5928B9712 /* FatSecretService.swift */; };
 		2FC66BB355DD966015347F7D /* GarminWatchSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3B96EC798171FD0F9890DD /* GarminWatchSettings.swift */; };
 		3171D2818C7C72CD1584BB5E /* GlucoseNotificationSettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2C6489D29ECCCAD78E0721 /* GlucoseNotificationSettingsStateModel.swift */; };
@@ -910,6 +913,7 @@
 
 /* Begin PBXFileReference section */
 		02101290E4DA113C038E5FD3 /* HistoryDataFlow+Models.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryDataFlow+Models.swift"; sourceTree = "<group>"; };
+		0786154493A49D67476D5EE4 /* BarcodeScanView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BarcodeScanView.swift; path = Trio/Sources/Modules/MealScan/View/BarcodeScanView.swift; sourceTree = SOURCE_ROOT; };
 		08114F8784D1B6289FF1764A /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraCaptureView.swift; path = Trio/Sources/Modules/MealScan/View/CameraCaptureView.swift; sourceTree = SOURCE_ROOT; };
 		088248DAAE3F9B9660C156A2 /* ClaudeNutritionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClaudeNutritionService.swift; path = Trio/Sources/Services/MealScan/ClaudeNutritionService.swift; sourceTree = SOURCE_ROOT; };
 		0B8843A5B79BEBAED1697136 /* MealScanDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealScanDataFlow.swift; path = Trio/Sources/Modules/MealScan/MealScanDataFlow.swift; sourceTree = SOURCE_ROOT; };
@@ -1670,6 +1674,7 @@
 		E00EEC0227368630002FF094 /* NetworkAssembly.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NetworkAssembly.swift; sourceTree = "<group>"; };
 		E013D871273AC6FE0014109C /* GlucoseSimulatorSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSimulatorSource.swift; sourceTree = "<group>"; };
 		E06B9119275B5EEA003C04B6 /* Array+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+Extension.swift"; sourceTree = "<group>"; };
+		E0BCD037D9551274EF63F7B3 /* MealOutcomeService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealOutcomeService.swift; path = Trio/Sources/Modules/MealScan/MealOutcomeService.swift; sourceTree = SOURCE_ROOT; };
 		E0CC2C5B275B9DAE00A7BC71 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		E0D4F80427513ECF00BDF1FE /* HealthKitSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSample.swift; sourceTree = "<group>"; };
 		E26904AACA8D9C15D229D675 /* SnoozeStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SnoozeStateModel.swift; sourceTree = "<group>"; };
@@ -1679,6 +1684,7 @@
 		E592A3742CEEC038009A472C /* ContactImageProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImageProvider.swift; sourceTree = "<group>"; };
 		E592A3752CEEC038009A472C /* ContactImageStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImageStateModel.swift; sourceTree = "<group>"; };
 		E625985B47742D498CB1681A /* GlucoseNotificationSettingsProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlucoseNotificationSettingsProvider.swift; sourceTree = "<group>"; };
+		E7A9757FE91F4B523F53578D /* MealLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealLog.swift; path = Trio/Sources/Modules/MealScan/MealLog.swift; sourceTree = SOURCE_ROOT; };
 		F05E70DAC3CE0CD95982C170 /* AlgorithmGlucose.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AlgorithmGlucose.swift; sourceTree = "<group>"; };
 		F816825D28DB441200054060 /* HeartBeatManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HeartBeatManager.swift; sourceTree = "<group>"; };
 		F816825F28DB441800054060 /* BluetoothTransmitter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BluetoothTransmitter.swift; sourceTree = "<group>"; };
@@ -2505,6 +2511,9 @@
 				2336C97DA8B3118F38BECC9C /* MealChatSession.swift */,
 				98DD24C899767400682DBFD3 /* PlateScanView.swift */,
 				7E4363CB892CDA5EA367D922 /* sy_food_database.json */,
+				E7A9757FE91F4B523F53578D /* MealLog.swift */,
+				E0BCD037D9551274EF63F7B3 /* MealOutcomeService.swift */,
+				0786154493A49D67476D5EE4 /* BarcodeScanView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -5081,6 +5090,9 @@
 				19E0FFEB3D581B295582C6EF /* StandaloneChatView.swift in Sources */,
 				B3A8CB617D981EDC05EDFDAF /* MealChatSession.swift in Sources */,
 				4F1950A5CE26D0092B1D3F1A /* PlateScanView.swift in Sources */,
+				2BD7F6AB58FA03DF4756A35A /* MealLog.swift in Sources */,
+				2DD336B8E68B34FC1BB0884C /* MealOutcomeService.swift in Sources */,
+				21E469E5C3FC3523D6778F45 /* BarcodeScanView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

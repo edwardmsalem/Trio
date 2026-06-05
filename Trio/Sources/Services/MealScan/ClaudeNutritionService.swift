@@ -177,6 +177,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     The nutrition block is parsed programmatically and drives insulin dosing decisions directly. Every response must end with this block. No exceptions. No text after it. No format changes.
 
     ```nutrition
+    NAME: <short dish name, 2-4 words, e.g. "Kibbeh dinner" or "Chicken & rice">
     CARBS: <number>g
     FAT: <number>g
     PROTEIN: <number>g
@@ -531,6 +532,7 @@ extension BaseClaudeNutritionService {
         var confidence: ConfidenceLevel = .medium
         var superBolusRecommendation: SuperBolusRecommendation = .no
         var superBolusReason: String = ""
+        var name: String?
 
         for line in block.components(separatedBy: "\n") {
             let parts = line.split(separator: ":", maxSplits: 1)
@@ -540,6 +542,7 @@ extension BaseClaudeNutritionService {
             let numericValue = Decimal(string: rawValue.trimmingCharacters(in: .letters))
 
             switch key {
+            case "NAME": name = rawValue.isEmpty ? nil : String(rawValue.prefix(40))
             case "CARBS": carbs = numericValue
             case "FAT": fat = numericValue
             case "PROTEIN": protein = numericValue
@@ -580,7 +583,8 @@ extension BaseClaudeNutritionService {
             speed: speed,
             confidence: confidence,
             superBolusRecommendation: superBolusRecommendation,
-            superBolusReason: superBolusReason
+            superBolusReason: superBolusReason,
+            name: name
         )
     }
 

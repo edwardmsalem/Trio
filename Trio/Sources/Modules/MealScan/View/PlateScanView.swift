@@ -219,10 +219,14 @@ extension MealScan {
                 return
             }
             do {
+                let combinedContext = [mealContext?.promptBlock, MealLog.shared.outcomesSummary()]
+                    .compactMap { $0 }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "\n\n")
                 let stream = try await provider.startFreeFormChat(
                     initialMessage: "Analyze this plate of food and give your best single-shot nutrition estimate. State your portion assumptions briefly.",
                     image: image,
-                    contextBlock: mealContext?.promptBlock
+                    contextBlock: combinedContext.isEmpty ? nil : combinedContext
                 )
                 var text = ""
                 for await chunk in stream {
@@ -249,6 +253,11 @@ extension MealScan {
             result.carbs = editableCarbs
             result.fat = editableFat
             result.protein = editableProtein
+            MealLog.shared.add(
+                name: result.name ?? "Scanned meal",
+                carbs: editableCarbs, fat: editableFat, protein: editableProtein,
+                source: "plate"
+            )
             onConfirm?(result)
             dismiss()
         }

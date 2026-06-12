@@ -7,6 +7,7 @@ protocol ClaudeNutritionService {
     var activeThreadId: String? { get set }
     func startSession(image: UIImage, detectedFoods: [DetectedFood], customFoodNotes: [(dish: String, note: String)]) async throws -> AsyncStream<String>
     func sendMessage(_ text: String) async throws -> AsyncStream<String>
+    func sendMessage(_ text: String, image: UIImage?, contextBlock: String?) async throws -> AsyncStream<String>
     func resetSession()
     func parseNutritionLabel(image: UIImage) async throws -> NutritionLabelData
     func startFreeFormChat(initialMessage: String, image: UIImage?, contextBlock: String?) async throws -> AsyncStream<String>
@@ -189,6 +190,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     SPEED: <FAST/MEDIUM/SLOW/MIXED>
     SUPER_BOLUS: <YES/CONSIDER/NO> (<one sentence reason>)
     CONFIDENCE: <HIGH/MEDIUM/LOW>
+    ADVISORY_DOSE: <number>u — include ONLY when a CURRENT STATE block was provided; otherwise write N/A. Must equal your prose math exactly.
     ```
 
     NET_CARBS = CARBS minus FIBER. This is the value most relevant for bolus calculation.
@@ -288,6 +290,14 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
 
     func sendMessage(_ text: String) async throws -> AsyncStream<String> {
         try await streamChat(userText: text, image: nil, includeSystem: false)
+    }
+
+    func sendMessage(_ text: String, image: UIImage?, contextBlock: String?) async throws -> AsyncStream<String> {
+        var userText = text
+        if let contextBlock, !contextBlock.isEmpty {
+            userText = "\(contextBlock)\n\n\(text)"
+        }
+        return try await streamChat(userText: userText, image: image, includeSystem: false)
     }
 
     func resetSession() {
@@ -533,6 +543,7 @@ extension BaseClaudeNutritionService {
         var superBolusRecommendation: SuperBolusRecommendation = .no
         var superBolusReason: String = ""
         var name: String?
+        var advisoryDose: Decimal?
 
         for line in block.components(separatedBy: "\n") {
             let parts = line.split(separator: ":", maxSplits: 1)
@@ -543,6 +554,10 @@ extension BaseClaudeNutritionService {
 
             switch key {
             case "NAME": name = rawValue.isEmpty ? nil : String(rawValue.prefix(40))
+            case "ADVISORY_DOSE":
+                if rawValue.uppercased() != "N/A" {
+                    advisoryDose = Decimal(string: rawValue.trimmingCharacters(in: .letters.union(.whitespaces)))
+                }
             case "CARBS": carbs = numericValue
             case "FAT": fat = numericValue
             case "PROTEIN": protein = numericValue
@@ -584,7 +599,8 @@ extension BaseClaudeNutritionService {
             confidence: confidence,
             superBolusRecommendation: superBolusRecommendation,
             superBolusReason: superBolusReason,
-            name: name
+            name: name,
+            advisoryDose: advisoryDose
         )
     }
 

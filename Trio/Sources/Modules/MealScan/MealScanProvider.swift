@@ -24,6 +24,10 @@ extension MealScan {
             try await claudeService.sendMessage(text)
         }
 
+        func sendChatMessage(_ text: String, image: UIImage?, contextBlock: String?) async throws -> AsyncStream<String> {
+            try await claudeService.sendMessage(text, image: image, contextBlock: contextBlock)
+        }
+
         func resetChat() {
             claudeService.resetSession()
         }

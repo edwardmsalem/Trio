@@ -771,6 +771,7 @@
 		E0D4F80527513ECF00BDF1FE /* HealthKitSample.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4F80427513ECF00BDF1FE /* HealthKitSample.swift */; };
 		E13B7DAB2A435F57066AF02E /* TargetsEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F58DDD71F0E795464FA3F0 /* TargetsEditorStateModel.swift */; };
 		E14D9426D37501CA2B6780AF /* HistoryDeletionTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C8083DC4D677AD3850B1F9 /* HistoryDeletionTarget.swift */; };
+		E1508EC09A307C84D36F45D2 /* MealScanParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C9343694B749BAF51B26F30 /* MealScanParsingTests.swift */; };
 		E23F704DDF432DFA0FC8E61A /* HistoryRootView+AddGlucose.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9C8529F71EA2A1F9B3E053 /* HistoryRootView+AddGlucose.swift */; };
 		E39E418C56A5A46B61D960EE /* ConfigEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D5B4F8B4194BB7E260EF251 /* ConfigEditorStateModel.swift */; };
 		E3A08AAE59538BC8A8ABE477 /* GlucoseNotificationSettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3260468377DA9DB4DEE9AF6D /* GlucoseNotificationSettingsDataFlow.swift */; };
@@ -1270,6 +1271,7 @@
 		96653287EDB276A111288305 /* ManualTempBasalDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ManualTempBasalDataFlow.swift; sourceTree = "<group>"; };
 		98DD24C899767400682DBFD3 /* PlateScanView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlateScanView.swift; path = Trio/Sources/Modules/MealScan/View/PlateScanView.swift; sourceTree = SOURCE_ROOT; };
 		9C8D5F457B5AFF763F8CF3DF /* CarbRatioEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CarbRatioEditorProvider.swift; sourceTree = "<group>"; };
+		9C9343694B749BAF51B26F30 /* MealScanParsingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealScanParsingTests.swift; path = TrioTests/MealScanParsingTests.swift; sourceTree = SOURCE_ROOT; };
 		9F9F137F126D9F8DEB799F26 /* ISFEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorProvider.swift; sourceTree = "<group>"; };
 		A0A48AE3AC813A49A517846A /* NightscoutConfigStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightscoutConfigStateModel.swift; sourceTree = "<group>"; };
 		A2ECA983263C402EFDDAFF76 /* NutritionLabelScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NutritionLabelScanView.swift; path = Trio/Sources/Modules/MealScan/View/NutritionLabelScanView.swift; sourceTree = SOURCE_ROOT; };
@@ -2814,6 +2816,7 @@
 				890A39FE37E5FAA23A28DC3F /* GlucoseSmoothingTests.swift */,
 				BD8FC0702D661B0000B95AED /* TidepoolTherapySettingsTests.swift */,
 				D1CBA5184EB5DA9B3E37773C /* Mocks */,
+				9C9343694B749BAF51B26F30 /* MealScanParsingTests.swift */,
 			);
 			path = TrioTests;
 			sourceTree = "<group>";
@@ -5120,6 +5123,7 @@
 				41740E936552456AAC0EDAC3 /* SettingsSearchTests.swift in Sources */,
 				B015AFE52E500000000D7351 /* BolusSafetyValidatorTests.swift in Sources */,
 				BD8FC0712D661B0000B95AED /* TidepoolTherapySettingsTests.swift in Sources */,
+				E1508EC09A307C84D36F45D2 /* MealScanParsingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

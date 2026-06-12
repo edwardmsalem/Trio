@@ -55,9 +55,10 @@ final class MealChatSession {
     /// Image staged for the next outgoing message. Observed but not persisted.
     var pendingImage: UIImage?
 
-    /// Live physiology block (BG/IOB/COB/trend/ISF/CR), captured when the chat
-    /// opens from the bolus screen. Prepended to the first message only.
-    @ObservationIgnored var liveContextBlock: String?
+    /// Returns a FRESH physiology snapshot (BG/IOB/COB/trend/ISF/CR). Re-evaluated
+    /// on every send so the AI never reasons from stale numbers, and reused to
+    /// sanity-check the AI's advisory dose arithmetic.
+    @ObservationIgnored var mealContextProvider: (() -> MealContext?)?
 
     @ObservationIgnored private var provider: MealScan.MealScanProvider?
 
@@ -126,6 +127,7 @@ final class MealChatSession {
         guard !isStreaming else { return }
 
         let isFirstTurn = current.messages.isEmpty
+        let context = mealContextProvider?()
 
         current.messages.append(ChatMessage(role: .user, text: trimmed.isEmpty ? "📷 Photo" : trimmed))
         current.updatedAt = Date()
@@ -135,9 +137,18 @@ final class MealChatSession {
         save()
 
         do {
+            // Fresh live numbers on every turn; meal-outcome history only on the first.
+            var contextParts: [String] = []
+            if let block = context?.promptBlock, !block.isEmpty { contextParts.append(block) }
+            if isFirstTurn {
+                let outcomes = MealLog.shared.outcomesSummary()
+                if !outcomes.isEmpty { contextParts.append(outcomes) }
+            }
+            let contextBlock = contextParts.isEmpty ? nil : contextParts.joined(separator: "\n\n")
+
             let stream: AsyncStream<String> = isFirstTurn
-                ? try await provider.startFreeFormChat(initialMessage: trimmed, image: image, contextBlock: liveContextBlock)
-                : try await provider.sendChatMessage(trimmed)
+                ? try await provider.startFreeFormChat(initialMessage: trimmed, image: image, contextBlock: contextBlock)
+                : try await provider.sendChatMessage(trimmed, image: image, contextBlock: contextBlock)
 
             current.messages.append(ChatMessage(role: .assistant, text: ""))
             let idx = current.messages.count - 1
@@ -153,6 +164,23 @@ final class MealChatSession {
             } else if let totals = BaseClaudeNutritionService.parseTotals(from: assistantText) {
                 current.messages[idx].updatedTotals = totals
                 current.runningTotals = totals
+
+                // Cross-check the AI's dose arithmetic against the same formula in Swift.
+                if let aiDose = totals.advisoryDose, let ctx = context {
+                    let netCarbs = totals.netCarbs > 0 ? totals.netCarbs : totals.carbs
+                    if let swiftDose = ctx.advisoryDose(netCarbs: netCarbs) {
+                        let diff = abs(NSDecimalNumber(decimal: aiDose - swiftDose).doubleValue)
+                        if diff > 0.5 {
+                            let fmt = { (d: Decimal) in
+                                NSDecimalNumber(decimal: d).doubleValue.formatted(.number.precision(.fractionLength(1)))
+                            }
+                            current.messages.append(ChatMessage(
+                                role: .assistant,
+                                text: "⚠️ Dose check: my math says \(fmt(aiDose))u but the formula gives \(fmt(swiftDose))u with the same numbers. Trust Trio's own calculator over both."
+                            ))
+                        }
+                    }
+                }
             }
 
             current.threadId = provider.chatThreadId

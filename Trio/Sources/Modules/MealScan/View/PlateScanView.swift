@@ -240,6 +240,19 @@ extension MealScan {
                     editableProtein = parsed.protein
                 }
                 analysisText = Self.stripNutritionBlock(text)
+
+                // Cross-check the AI's dose arithmetic against the same formula in Swift.
+                if let parsed = totals, let aiDose = parsed.advisoryDose, let ctx = mealContext {
+                    let netCarbs = parsed.netCarbs > 0 ? parsed.netCarbs : parsed.carbs
+                    if let swiftDose = ctx.advisoryDose(netCarbs: netCarbs),
+                       abs(NSDecimalNumber(decimal: aiDose - swiftDose).doubleValue) > 0.5
+                    {
+                        let fmt = { (d: Decimal) in
+                            NSDecimalNumber(decimal: d).doubleValue.formatted(.number.precision(.fractionLength(1)))
+                        }
+                        analysisText = "⚠️ Dose check: AI said \(fmt(aiDose))u, formula gives \(fmt(swiftDose))u. Trust Trio's calculator.\n\n" + analysisText
+                    }
+                }
                 phase = .review
             } catch {
                 errorMessage = error.localizedDescription

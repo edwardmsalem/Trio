@@ -541,6 +541,13 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             }
         }
 
+        // Stamp the snapshot with send time. Each push gets a strictly newer
+        // `date` than the previous one, which is what the watch's monotonicity
+        // dedup relies on — including watch-requested re-pushes when no CGM
+        // tick has bumped the build-time date.
+        var state = state
+        state.date = Date()
+
         let message: [String: Any] = watchStateToDictionary(from: state)
 
         // if session is reachable, it means watch App is in the foreground -> send watchState as message
@@ -553,7 +560,6 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             session.transferUserInfo([WatchMessageKeys.watchState: message])
             debug(.watchManager, "📤 Transferred new WatchState snapshot via userInfo")
         }
-
         // Send complication data via transferUserInfo (NOT transferCurrentComplicationUserInfo)
         // transferCurrentComplicationUserInfo is ClockKit-era and doesn't work with WidgetKit
         #if os(iOS)
@@ -583,6 +589,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         WidgetCenter.shared.reloadTimelines(ofKind: "TrioWatchComplication")
         debug(.watchManager, "⌚️✅ Triggered watch complication refresh")
         #endif
+
+        WatchStateSnapshot.saveLatestDateToDisk(state.date)
     }
 
     func sendAcknowledgment(toWatch success: Bool, message: String = "", ackCode: AcknowledgmentCode) {

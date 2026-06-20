@@ -198,7 +198,7 @@ extension Treatments {
                 .sheet(isPresented: $showStandaloneChat) {
                     MealScan.StandaloneChatView(resolver: resolver, onConfirm: { totals in
                         applyMealTotals(totals)
-                    }, mealContext: currentMealContext())
+                    }, mealContextProvider: { currentMealContext() })
                 }
                 Spacer()
                 TextFieldWithToolBar(

@@ -78,14 +78,27 @@ final class MealLog {
         return meal
     }
 
-    /// Most recent meals, de-duplicated by name (keeps the newest of each).
+    /// Lowercase, strip punctuation, collapse whitespace — so "Kibbeh Dinner!"
+    /// and "kibbeh  dinner" dedupe together.
+    static func normalizedName(_ name: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(.whitespaces)
+        let cleaned = name.lowercased().unicodeScalars.filter { allowed.contains($0) }
+        return String(String.UnicodeScalarView(cleaned))
+            .split(separator: " ")
+            .joined(separator: " ")
+    }
+
+    /// Most recent meals, fuzzy-deduplicated by name (keeps the newest of each).
+    /// Two names are duplicates when their normalized forms match or one
+    /// contains the other ("kibbeh dinner" vs "kibbeh dinner with challah").
     func recents(limit: Int = 8) -> [LoggedMeal] {
-        var seen = Set<String>()
+        var seenKeys: [String] = []
         var out: [LoggedMeal] = []
         for meal in meals {
-            let key = meal.name.lowercased()
-            if seen.contains(key) { continue }
-            seen.insert(key)
+            let key = Self.normalizedName(meal.name)
+            guard !key.isEmpty else { continue }
+            if seenKeys.contains(where: { $0 == key || $0.contains(key) || key.contains($0) }) { continue }
+            seenKeys.append(key)
             out.append(meal)
             if out.count >= limit { break }
         }

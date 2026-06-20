@@ -19,25 +19,32 @@ extension MealScan {
         @State private var presetName = ""
 
         var onConfirm: ((NutritionTotals) -> Void)?
-        var mealContext: MealContext?
+        /// Re-evaluated on every message so dosing advice always uses live numbers.
+        var mealContextProvider: (() -> MealContext?)?
 
         var body: some View {
             NavigationStack {
-                VStack(spacing: 0) {
-                    if let totals = session.current.runningTotals {
-                        totalsBar(totals)
-                        Divider()
+                messageList
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        if let totals = session.current.runningTotals {
+                            VStack(spacing: 0) {
+                                totalsBar(totals)
+                                Divider()
+                            }
+                        }
                     }
-
-                    messageList
-
-                    if session.current.runningTotals != nil {
-                        actionButtons
+                    // Bottom bar lives in a safe-area inset so the keyboard
+                    // pushes it up instead of covering it (fixes invisible typing).
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        VStack(spacing: 0) {
+                            if session.current.runningTotals != nil {
+                                actionButtons
+                            }
+                            inputBar
+                        }
+                        .background(.bar)
                     }
-
-                    inputBar
-                }
-                .background(Color(.systemBackground))
+                    .background(Color(.systemBackground))
                 .navigationTitle("AI Meal Advisor")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -78,10 +85,7 @@ extension MealScan {
             }
             .onAppear {
                 session.configure(resolver: resolver)
-                session.liveContextBlock = [mealContext?.promptBlock, MealLog.shared.outcomesSummary()]
-                    .compactMap { $0 }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: "\n\n")
+                session.mealContextProvider = mealContextProvider
             }
         }
 

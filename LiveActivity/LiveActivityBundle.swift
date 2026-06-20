@@ -5,5 +5,7 @@ import WidgetKit
     var body: some Widget {
         LiveActivity()
         MealScanWidget()
+        TrioGlucoseLockWidget()
+        TrioGlucoseHomeWidget()
     }
 }

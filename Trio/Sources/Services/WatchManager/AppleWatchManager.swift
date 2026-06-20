@@ -588,6 +588,20 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         // Trigger complication refresh
         WidgetCenter.shared.reloadTimelines(ofKind: "TrioWatchComplication")
         debug(.watchManager, "⌚️✅ Triggered watch complication refresh")
+
+        // Mirror the same glucose snapshot to the iPhone home/lock-screen widgets
+        // via the App Group, then refresh their timelines.
+        GlucoseWidgetData(
+            glucose: state.currentGlucose ?? "--",
+            trend: state.trend ?? "",
+            delta: state.delta ?? "",
+            iob: state.iob,
+            cob: state.cob,
+            colorString: state.currentGlucoseColorString ?? "#ffffff",
+            date: state.date
+        ).save()
+        WidgetCenter.shared.reloadTimelines(ofKind: "TrioGlucoseLockWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "TrioGlucoseHomeWidget")
         #endif
 
         WatchStateSnapshot.saveLatestDateToDisk(state.date)

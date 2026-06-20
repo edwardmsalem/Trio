@@ -317,6 +317,8 @@
 		5A2325582BFCC168003518CA /* NightscoutConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A2325572BFCC168003518CA /* NightscoutConnectView.swift */; };
 		5D16287A969E64D18CE40E44 /* PumpConfigStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F60E97100041040446F44E7 /* PumpConfigStateModel.swift */; };
 		5DD3F569367C281267BFD6B5 /* HistoryDataFlow+Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02101290E4DA113C038E5FD3 /* HistoryDataFlow+Models.swift */; };
+		60C2DD3FA0183D18EA9CBEA3 /* GlucoseWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048796E0FB0CB80D4A4D27E1 /* GlucoseWidgetData.swift */; };
+		61A7D479F5FAD8023415E84B /* GlucoseWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3BD5B1AE779812D7F0B4124 /* GlucoseWidget.swift */; };
 		63E890B4D951EAA91C071D5C /* BasalProfileEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFF91130F2FCCC7EBBA11AD /* BasalProfileEditorStateModel.swift */; };
 		642F76A05A4FF530463A9FD0 /* NightscoutConfigRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8782B44544F38F2B2D82C38E /* NightscoutConfigRootView.swift */; };
 		64B7EE806F34ED40B2C85F47 /* HistoryRootView+Adjustments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A2A0602319DFD78ED0673BE /* HistoryRootView+Adjustments.swift */; };
@@ -567,6 +569,7 @@
 		D95148FFFA303175CCFA5B57 /* HistoryRootView+Meals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168903A076C5CC4581A31432 /* HistoryRootView+Meals.swift */; };
 		DABD45A0AC0C3F1E0AF3DD9F /* MealScanRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81494DA1A7D009D0F102E222 /* MealScanRootView.swift */; };
 		DBA5254DBB2586C98F61220C /* ISFEditorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F9F137F126D9F8DEB799F26 /* ISFEditorProvider.swift */; };
+		DBFD89E66DD343150036EF67 /* GlucoseWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048796E0FB0CB80D4A4D27E1 /* GlucoseWidgetData.swift */; };
 		DD09D47B2C5986D1003FEA5D /* CalendarEventSettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D47A2C5986D1003FEA5D /* CalendarEventSettingsDataFlow.swift */; };
 		DD09D47D2C5986DA003FEA5D /* CalendarEventSettingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D47C2C5986DA003FEA5D /* CalendarEventSettingsProvider.swift */; };
 		DD09D47F2C5986E5003FEA5D /* CalendarEventSettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D47E2C5986E5003FEA5D /* CalendarEventSettingsStateModel.swift */; };
@@ -910,6 +913,7 @@
 
 /* Begin PBXFileReference section */
 		02101290E4DA113C038E5FD3 /* HistoryDataFlow+Models.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryDataFlow+Models.swift"; sourceTree = "<group>"; };
+		048796E0FB0CB80D4A4D27E1 /* GlucoseWidgetData.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlucoseWidgetData.swift; path = LiveActivity/Shared/GlucoseWidgetData.swift; sourceTree = SOURCE_ROOT; };
 		0786154493A49D67476D5EE4 /* BarcodeScanView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BarcodeScanView.swift; path = Trio/Sources/Modules/MealScan/View/BarcodeScanView.swift; sourceTree = SOURCE_ROOT; };
 		08114F8784D1B6289FF1764A /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraCaptureView.swift; path = Trio/Sources/Modules/MealScan/View/CameraCaptureView.swift; sourceTree = SOURCE_ROOT; };
 		088248DAAE3F9B9660C156A2 /* ClaudeNutritionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClaudeNutritionService.swift; path = Trio/Sources/Services/MealScan/ClaudeNutritionService.swift; sourceTree = SOURCE_ROOT; };
@@ -1183,6 +1187,7 @@
 		4DD795BA46B193644D48138C /* TargetsEditorRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TargetsEditorRootView.swift; sourceTree = "<group>"; };
 		4EC54D4D9D8B84E99492EB93 /* MealScanWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealScanWidget.swift; path = LiveActivity/MealScanWidget.swift; sourceTree = SOURCE_ROOT; };
 		505E09DC17A0C3D0AF4B66FE /* ISFEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorStateModel.swift; sourceTree = "<group>"; };
+		54FCA8985AFD7BA7B5EB071E /* LiveActivityExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = LiveActivityExtension.entitlements; path = LiveActivity/LiveActivityExtension.entitlements; sourceTree = SOURCE_ROOT; };
 		581516A32BCED84A00BF67D7 /* DebuggingIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebuggingIdentifiers.swift; sourceTree = "<group>"; };
 		581516A82BCEEDF800BF67D7 /* NSPredicates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSPredicates.swift; sourceTree = "<group>"; };
 		581AC4382BE22ED10038760C /* JSONConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONConverter.swift; sourceTree = "<group>"; };
@@ -1268,6 +1273,7 @@
 		9F9F137F126D9F8DEB799F26 /* ISFEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorProvider.swift; sourceTree = "<group>"; };
 		A0A48AE3AC813A49A517846A /* NightscoutConfigStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightscoutConfigStateModel.swift; sourceTree = "<group>"; };
 		A2ECA983263C402EFDDAFF76 /* NutritionLabelScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NutritionLabelScanView.swift; path = Trio/Sources/Modules/MealScan/View/NutritionLabelScanView.swift; sourceTree = SOURCE_ROOT; };
+		A3BD5B1AE779812D7F0B4124 /* GlucoseWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlucoseWidget.swift; path = LiveActivity/GlucoseWidget.swift; sourceTree = SOURCE_ROOT; };
 		A401509D21F7F35D4E109EDA /* HistoryDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryDataFlow.swift; sourceTree = "<group>"; };
 		A662B7966DC48D9C293D2FD8 /* HistoryStateModel+Glucose.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryStateModel+Glucose.swift"; sourceTree = "<group>"; };
 		A8630D58BDAD6D9C650B9B39 /* PumpConfigProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PumpConfigProvider.swift; sourceTree = "<group>"; };
@@ -2963,6 +2969,9 @@
 				6B1A8D232B14D91700E76752 /* Assets.xcassets */,
 				6B1A8D252B14D91700E76752 /* Info.plist */,
 				DDCEBF5A2CC1B76400DF4C36 /* LiveActivity+Helper.swift */,
+				048796E0FB0CB80D4A4D27E1 /* GlucoseWidgetData.swift */,
+				A3BD5B1AE779812D7F0B4124 /* GlucoseWidget.swift */,
+				54FCA8985AFD7BA7B5EB071E /* LiveActivityExtension.entitlements */,
 			);
 			path = LiveActivity;
 			sourceTree = "<group>";
@@ -5081,6 +5090,7 @@
 				2BD7F6AB58FA03DF4756A35A /* MealLog.swift in Sources */,
 				2DD336B8E68B34FC1BB0884C /* MealOutcomeService.swift in Sources */,
 				21E469E5C3FC3523D6778F45 /* BarcodeScanView.swift in Sources */,
+				DBFD89E66DD343150036EF67 /* GlucoseWidgetData.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5122,6 +5132,8 @@
 				6B1A8D1E2B14D91600E76752 /* LiveActivityBundle.swift in Sources */,
 				6B1A8D202B14D91600E76752 /* LiveActivity.swift in Sources */,
 				BD9C475B8C373F983E5DAAA2 /* MealScanWidget.swift in Sources */,
+				60C2DD3FA0183D18EA9CBEA3 /* GlucoseWidgetData.swift in Sources */,
+				61A7D479F5FAD8023415E84B /* GlucoseWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5498,6 +5510,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = LiveActivity/LiveActivityExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(APP_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = "$(DEVELOPER_TEAM)";
@@ -5539,6 +5552,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = LiveActivity/LiveActivityExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(APP_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = "$(DEVELOPER_TEAM)";

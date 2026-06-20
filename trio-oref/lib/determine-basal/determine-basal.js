@@ -207,6 +207,41 @@ var determine_basal = function determine_basal(glucose_status, currenttemp, iob_
         }
     }
 
+    // Apply DAMPED carb-ratio tier (optional, requires ISF tiers enabled).
+    // Mirrors the ISF tier but is intentionally gentler because meal insulin is
+    // a noisier signal than corrections. Hard safety rails baked in here:
+    //   - never below BG 140 (CARB_TIER_BG_FLOOR), so in-range meals are untouched
+    //   - only for aggressive tiers (ISF multiplier < 1)
+    //   - damper: crAggression = (1/isfMult - 1)/2 + 1, capped at CARB_TIER_MAX_AGGR
+    // A smaller carbRatio = more insulin per gram. Keeping ISF and CR scaling
+    // proportional (via the damper) keeps CSF = ISF/CR physically sane.
+    var carbTierLog = "";
+    var CARB_TIER_BG_FLOOR = 140;
+    var CARB_TIER_MAX_AGGR = 1.3;
+    if (trio_custom_variables.carbTierEnabled && trio_custom_variables.isfTiersEnabled
+        && trio_custom_variables.isfTiers && trio_custom_variables.isfTiers.length > 0) {
+        var carbTierBG = glucose_status.glucose;
+        if (carbTierBG >= CARB_TIER_BG_FLOOR) {
+            var carbTiers = trio_custom_variables.isfTiers;
+            for (var ct = 0; ct < carbTiers.length; ct++) {
+                var cTier = carbTiers[ct];
+                var cMin = cTier.bg_min !== undefined ? cTier.bg_min : cTier.bgMin;
+                var cMax = cTier.bg_max !== undefined ? cTier.bg_max : cTier.bgMax;
+                var cMult = cTier.isf_multiplier !== undefined ? cTier.isf_multiplier : cTier.isfMultiplier;
+                if (carbTierBG >= cMin && carbTierBG < cMax && cMult > 0 && cMult < 1) {
+                    var isfAggression = 1 / cMult;                       // e.g. 0.7 -> ~1.43
+                    var crAggression = (isfAggression - 1) / 2 + 1;      // damped -> ~1.21
+                    if (crAggression > CARB_TIER_MAX_AGGR) { crAggression = CARB_TIER_MAX_AGGR; }
+                    var preTierCR = carbRatio;
+                    carbRatio = carbRatio / crAggression;
+                    carbTierLog = "Carb tier: BG " + carbTierBG + " in [" + cMin + "-" + cMax + "], CR " + round(preTierCR,1) + " / " + round(crAggression,2) + " = " + round(carbRatio,1) + " (damped). ";
+                    console.error(carbTierLog);
+                    break;
+                }
+            }
+        }
+    }
+
     // In case the autosens.min/max limits are reversed:
     const minLimitChris = Math.min(profile.autosens_min, profile.autosens_max);
     const maxLimitChris = Math.max(profile.autosens_min, profile.autosens_max);

@@ -56,6 +56,7 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         case bolusFailedNotification = "Trio.bolusFailedNotification"
         case pumpNotification = "Trio.pumpNotification"
         case alertMessageNotification = "Trio.alertMessageNotification"
+        case overnightLowNotification = "Trio.overnightLowNotification"
     }
 
     @Injected() var alertPermissionsChecker: AlertPermissionsChecker!
@@ -71,6 +72,8 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
     // The glucose notification observers below (Core Data saves and the storage publisher) can fire for the same
     // reading, so we persist the last alert token to avoid enqueueing identical high/low notifications multiple times.
     @Persisted(key: "UserNotificationsManager.lastGlucoseAlertToken") private var lastGlucoseAlertToken: String = ""
+    // One overnight-low pre-warning per night; keyed by the night's date.
+    @Persisted(key: "UserNotificationsManager.lastOvernightLowToken") private var lastOvernightLowToken: String = ""
 
     private let notificationCenter = UNUserNotificationCenter.current()
     private var lifetime = Lifetime()
@@ -198,7 +201,7 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         if snoozeUntilDate > Date() {
             return
         }
-        content.sound = .default
+        applySound(to: content, severity: .routine)
 
         titles.append(String(format: String(localized: "Carbs required: %d g", comment: "Carbs required"), carbs))
 
@@ -221,12 +224,12 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         let firstContent = UNMutableNotificationContent()
         firstContent.title = title
         firstContent.body = String(format: body, firstInterval)
-        firstContent.sound = .default
+        applySound(to: firstContent, severity: .error)
 
         let secondContent = UNMutableNotificationContent()
         secondContent.title = title
         secondContent.body = String(format: body, secondInterval)
-        secondContent.sound = .default
+        applySound(to: secondContent, severity: .error)
 
         let firstTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 60 * TimeInterval(firstInterval), repeats: false)
         let secondTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 60 * TimeInterval(secondInterval), repeats: false)
@@ -259,7 +262,7 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = .default
+        applySound(to: content, severity: .error)
 
         addRequest(
             identifier: .noLoopFirstNotification,
@@ -351,7 +354,7 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
                 content.body = body
 
                 if notificationAlarm {
-                    content.sound = .default
+                    applySound(to: content, severity: .urgent)
                     content.userInfo[NotificationAction.key] = NotificationAction.snooze.rawValue
                     content.categoryIdentifier = NotificationCategoryIdentifier.trioAlert.rawValue
                 }
@@ -529,6 +532,37 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         }
     }
 
+    /// How loud/intrusive a notification should be. Drives both the sound and the
+    /// iOS interruption level so urgent lows/highs cut through more than routine pings.
+    private enum NotificationSeverity {
+        case urgent // low/high glucose alarm
+        case error // no-loop, bolus failed, pump fault
+        case warning // pump warning
+        case routine // carbs required, generic info
+    }
+
+    private func applySound(to content: UNMutableNotificationContent, severity: NotificationSeverity) {
+        switch severity {
+        case .urgent:
+            if settingsManager.settings.urgentGlucoseUsesCriticalSound {
+                content.sound = .defaultCritical
+                content.interruptionLevel = .critical
+            } else {
+                content.sound = .default
+                content.interruptionLevel = .timeSensitive
+            }
+        case .error:
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+        case .warning:
+            content.sound = .default
+            content.interruptionLevel = .active
+        case .routine:
+            content.sound = .default
+            content.interruptionLevel = .active
+        }
+    }
+
     private var glucoseFormatter: NumberFormatter {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -599,7 +633,13 @@ extension BaseUserNotificationsManager: alertMessageNotificationObserver {
         }
 
         content.body = String(localized: "\(message.content)", comment: "Info message")
-        content.sound = .default
+        let severity: NotificationSeverity
+        switch message.type {
+        case .error: severity = .error
+        case .warning: severity = .warning
+        default: severity = .routine
+        }
+        applySound(to: content, severity: severity)
         addRequest(
             identifier: identifier,
             content: content,
@@ -626,7 +666,7 @@ extension BaseUserNotificationsManager: pumpNotificationObserver {
         }
         content.title = alert.contentTitle ?? "Unknown"
         content.body = alert.contentBody ?? "Unknown"
-        content.sound = .default
+        applySound(to: content, severity: typeMessage == .error ? .error : .warning)
         addRequest(
             identifier: .pumpNotification,
             content: content,
@@ -657,8 +697,62 @@ extension BaseUserNotificationsManager: pumpNotificationObserver {
 
 extension BaseUserNotificationsManager: DeterminationObserver {
     func determinationDidUpdate(_ determination: Determination) {
-        guard let carndRequired = determination.carbsReq else { return }
-        notifyCarbsRequired(Int(carndRequired))
+        if let carndRequired = determination.carbsReq {
+            notifyCarbsRequired(Int(carndRequired))
+        }
+        checkOvernightLow(determination)
+    }
+
+    /// At bedtime, if the loop's own safety prediction (minGuardBG) dips below the
+    /// low limit, send one pre-emptive advisory for the night. Reuses the loop's
+    /// forecast — no new modeling — and never doses.
+    private func checkOvernightLow(_ determination: Determination) {
+        let hour = Calendar.current.component(.hour, from: Date())
+        guard hour >= 21 || hour < 1 else { return } // bedtime window
+        guard snoozeUntilDate <= Date() else { return }
+
+        let lowLimit = settingsManager.settings.low
+        guard let guardBG = determination.minGuardBG ?? determination.minPredBG,
+              guardBG > 0, guardBG < lowLimit else { return }
+
+        // Only one overnight-low warning per night.
+        let token = overnightTokenString()
+        guard token != lastOvernightLowToken else { return }
+        lastOvernightLowToken = token
+
+        let units = settingsManager.settings.units
+        let value = Int(truncating: guardBG as NSNumber).formatted(withUnits: units)
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Heading low overnight", comment: "Overnight low pre-warning title")
+        content.body = String(
+            format: String(
+                localized: "Trio predicts your glucose could reach %@ in the next few hours. A small snack now may prevent an overnight low.",
+                comment: "Overnight low pre-warning body"
+            ),
+            value
+        )
+        applySound(to: content, severity: .urgent)
+        content.userInfo[NotificationAction.key] = NotificationAction.snooze.rawValue
+        content.categoryIdentifier = NotificationCategoryIdentifier.trioAlert.rawValue
+
+        addRequest(
+            identifier: .overnightLowNotification,
+            content: content,
+            deleteOld: true,
+            messageType: .warning,
+            messageSubtype: .glucose,
+            action: .snooze
+        )
+    }
+
+    /// A per-night key: shifting back 6 hours maps post-midnight readings onto the
+    /// prior calendar day, so the whole 21:00–06:00 window shares one token.
+    private func overnightTokenString() -> String {
+        let anchor = Date().addingTimeInterval(-6 * 3600)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: anchor)
     }
 }
 

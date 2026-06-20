@@ -52,7 +52,7 @@ struct AddMealPresetView: View {
 
                 Section {
                     TextField("e.g. no rice, seaweed wraps only", text: $customFoodNote, axis: .vertical)
-                        .lineLimit(2...4)
+                        .lineLimit(2 ... 4)
                 } header: {
                     Text("Note for AI Meal Advisor (optional)")
                 }

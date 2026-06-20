@@ -66,7 +66,7 @@ extension InsulinSensitivityTiers: Decodable {
 }
 
 struct InsulinSensitivityTier: JSON, Equatable, Identifiable {
-    var id: UUID = UUID()
+    var id = UUID()
     /// Lower bound of BG range in mg/dL
     var bgMin: Decimal
     /// Upper bound of BG range in mg/dL

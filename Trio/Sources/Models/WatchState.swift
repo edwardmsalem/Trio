@@ -13,7 +13,7 @@ struct WatchState: Hashable, Equatable, Sendable, Encodable, Decodable {
     var units: GlucoseUnits = .mgdL
     var iob: String?
     var cob: String?
-    var tdd: String?  // Total Daily Dose
+    var tdd: String? // Total Daily Dose
     var lastLoopTime: String?
     var overridePresets: [OverridePresetWatch] = []
     var tempTargetPresets: [TempTargetPresetWatch] = []

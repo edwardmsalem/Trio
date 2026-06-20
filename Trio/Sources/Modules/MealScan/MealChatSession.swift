@@ -42,8 +42,7 @@ struct MealConversation: Codable, Identifiable {
 /// singleton (survives the sheet closing and app backgrounding) and persists to
 /// UserDefaults (survives app relaunch). Codex threads live server-side on the
 /// Mac mini, so resuming by id replays full context.
-@Observable
-final class MealChatSession {
+@Observable final class MealChatSession {
     static let shared = MealChatSession()
 
     var current = MealConversation()
@@ -118,8 +117,7 @@ final class MealChatSession {
         }
     }
 
-    @MainActor
-    func send() async {
+    @MainActor func send() async {
         guard let provider else { return }
         let trimmed = draftInput.trimmingCharacters(in: .whitespacesAndNewlines)
         let image = pendingImage

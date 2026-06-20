@@ -24,8 +24,7 @@ struct OpenBolusControlIntent: AppIntent {
     static var description = IntentDescription("Opens Trio's carb/bolus entry screen.")
     static var openAppWhenRun: Bool = true
 
-    @MainActor
-    func perform() async throws -> some IntentResult & OpensIntent {
+    @MainActor func perform() async throws -> some IntentResult & OpensIntent {
         .result(opensIntent: OpenURLIntent(URL(string: "Trio://treatments")!))
     }
 }
@@ -48,8 +47,7 @@ struct OpenMealControlIntent: AppIntent {
     static var description = IntentDescription("Opens Trio's AI meal scanner.")
     static var openAppWhenRun: Bool = true
 
-    @MainActor
-    func perform() async throws -> some IntentResult & OpensIntent {
+    @MainActor func perform() async throws -> some IntentResult & OpensIntent {
         .result(opensIntent: OpenURLIntent(URL(string: "Trio://mealScan")!))
     }
 }

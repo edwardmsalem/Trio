@@ -48,7 +48,7 @@ struct DetectedFood: Identifiable {
         fiber: Decimal = 0,
         alternativeServings: [ServingOption] = []
     ) {
-        self.id = UUID()
+        id = UUID()
         self.foodId = foodId
         self.name = name
         self.foodType = foodType
@@ -64,8 +64,8 @@ struct DetectedFood: Identifiable {
         self.sugar = sugar
         self.fiber = fiber
         self.alternativeServings = alternativeServings
-        self.isRemoved = false
-        self.isUserAdjusted = false
+        isRemoved = false
+        isUserAdjusted = false
     }
 }
 
@@ -238,10 +238,10 @@ struct ChatMessage: Identifiable, Codable {
     var updatedTotals: NutritionTotals?
 
     init(role: ChatRole, text: String, updatedTotals: NutritionTotals? = nil) {
-        self.id = UUID()
+        id = UUID()
         self.role = role
         self.text = text
-        self.timestamp = Date()
+        timestamp = Date()
         self.updatedTotals = updatedTotals
     }
 }

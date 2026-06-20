@@ -5,7 +5,11 @@ protocol ClaudeNutritionService {
     /// Codex thread id for the active chat. Persisted by MealChatSession so a
     /// conversation can resume after the app is backgrounded or killed.
     var activeThreadId: String? { get set }
-    func startSession(image: UIImage, detectedFoods: [DetectedFood], customFoodNotes: [(dish: String, note: String)]) async throws -> AsyncStream<String>
+    func startSession(
+        image: UIImage,
+        detectedFoods: [DetectedFood],
+        customFoodNotes: [(dish: String, note: String)]
+    ) async throws -> AsyncStream<String>
     func sendMessage(_ text: String) async throws -> AsyncStream<String>
     func sendMessage(_ text: String, image: UIImage?, contextBlock: String?) async throws -> AsyncStream<String>
     func resetSession()
@@ -26,6 +30,7 @@ struct NutritionLabelData {
 }
 
 // MARK: - Codex Proxy Implementation
+
 //
 // This used to call Anthropic directly. It now calls codex-proxy
 // (Mac-mini service backed by Eddie's ChatGPT subscription via the Codex SDK).
@@ -240,8 +245,8 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     // swiftlint:enable line_length
 
     init() {
-        self.proxyURL = MealScanDevKeys.codexProxyURL
-        self.proxySecret = MealScanDevKeys.codexProxySecret
+        proxyURL = MealScanDevKeys.codexProxyURL
+        proxySecret = MealScanDevKeys.codexProxySecret
     }
 
     /// Base prompt plus the bundled SY food database, loaded once.
@@ -353,7 +358,8 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
 
         let text = initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         let base = text.isEmpty
-            ? "Please analyze this meal photo. List what you see, ask any clarifying questions, and provide your best nutrition estimate."
+            ?
+            "Please analyze this meal photo. List what you see, ask any clarifying questions, and provide your best nutrition estimate."
             : text
 
         var userText = "Current date/time: \(Self.formattedCurrentDate())"
@@ -517,6 +523,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
 }
 
 // MARK: - Totals Parsing
+
 // (parseTotals is consumed by StandaloneChatView/MealScanStateModel to extract
 //  the structured nutrition block out of streaming assistant text. Unchanged.)
 
@@ -669,7 +676,7 @@ enum ClaudeNutritionError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .apiError(let code): return "Codex proxy error (code: \(code))"
+        case let .apiError(code): return "Codex proxy error (code: \(code))"
         case .streamingFailed: return "Failed to stream response from Codex proxy"
         case .parseError: return "Couldn't read the nutrition label clearly. Try again with better lighting or a closer shot."
         }

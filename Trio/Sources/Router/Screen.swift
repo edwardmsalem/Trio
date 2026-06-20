@@ -56,6 +56,7 @@ enum Screen: Identifiable, Hashable {
     case mealHistory
     case insights
     case settingsBackup
+    case coachChat
 
     var id: Int { String(reflecting: self).hashValue }
 }
@@ -188,6 +189,8 @@ extension Screen {
             )
         case .settingsBackup:
             SettingsBackupView(resolver: resolver)
+        case .coachChat:
+            Coach.CoachView(resolver: resolver)
         }
     }
 

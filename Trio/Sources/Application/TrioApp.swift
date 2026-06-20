@@ -374,6 +374,10 @@ extension Notification.Name {
                 }
                 if initState.complete {
                     performCleanupIfNecessary()
+                    // Pull any new advisory notes when the app foregrounds. (The
+                    // settings auto-push + notes feed land in Phase 2 with the
+                    // Railway-co-located bridge; this is a safe no-op until then.)
+                    Task { await CoachInbox.shared.refreshNotes() }
                 }
                 presentTelemetryMigrationSheetIfNeeded()
             }
@@ -502,7 +506,9 @@ extension Notification.Name {
             resolver.resolve(NotificationCenter.self)!.post(name: .openFromGarminConnect, object: url)
         case "mealScan":
             showMealScanFromDeepLink = true
-        case "treatments", "bolus", "addCarbs":
+        case "addCarbs",
+             "bolus",
+             "treatments":
             showTreatmentsFromDeepLink = true
         default: break
         }

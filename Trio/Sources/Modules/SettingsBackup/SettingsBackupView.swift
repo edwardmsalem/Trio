@@ -206,12 +206,15 @@ struct SettingsBackupView: View {
 
         var lines: [String] = []
         if !result.applied.isEmpty {
-            lines.append(String(localized: "Applied:"))
+            lines.append(String(localized: "Restore complete. Applied:"))
             lines.append(contentsOf: result.applied.map { "• \($0)" })
         }
         if !result.warnings.isEmpty {
             lines.append("")
-            lines.append(contentsOf: result.warnings.map { "⚠️ \($0)" })
+            // Framed as a next step, not an error — these are expected when the
+            // pump isn't connected on a fresh phone.
+            lines.append(String(localized: "Still to finish (not an error):"))
+            lines.append(contentsOf: result.warnings.map { "• \($0)" })
         }
         if lines.isEmpty {
             lines.append(String(localized: "Nothing was applied."))

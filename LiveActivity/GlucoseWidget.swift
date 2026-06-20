@@ -79,8 +79,7 @@ private struct ShortcutButtons: View {
         }
     }
 
-    @ViewBuilder
-    private func label(systemImage: String, text: String, tint: Color) -> some View {
+    @ViewBuilder private func label(systemImage: String, text: String, tint: Color) -> some View {
         if compact {
             Image(systemName: systemImage)
                 .font(.system(size: 13, weight: .semibold))
@@ -113,7 +112,8 @@ private struct AccessoryCircularGlucose: View {
                 }
             }
         } else {
-            ZStack { AccessoryWidgetBackground(); Text("--").font(.headline) }
+            ZStack { AccessoryWidgetBackground()
+                Text("--").font(.headline) }
         }
     }
 }

@@ -56,6 +56,49 @@ private struct NoDataView: View {
     }
 }
 
+/// Deep links into the app. "Meal" opens the AI meal scanner; "Bolus" opens the
+/// carb/bolus entry screen. They never dose from the widget — dosing always
+/// requires in-app confirmation.
+private enum WidgetShortcut {
+    static let meal = URL(string: "Trio://mealScan")!
+    static let bolus = URL(string: "Trio://treatments")!
+}
+
+/// Compact shortcut buttons. `compact` uses icon-only pills for the small widget.
+private struct ShortcutButtons: View {
+    var compact: Bool = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Link(destination: WidgetShortcut.meal) {
+                label(systemImage: "fork.knife", text: "Meal", tint: .green)
+            }
+            Link(destination: WidgetShortcut.bolus) {
+                label(systemImage: "syringe", text: "Bolus", tint: .blue)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func label(systemImage: String, text: String, tint: Color) -> some View {
+        if compact {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 5)
+                .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        } else {
+            Label(text, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+    }
+}
+
 // MARK: - Lock-screen views
 
 private struct AccessoryCircularGlucose: View {
@@ -112,17 +155,22 @@ private struct SmallGlucose: View {
     var body: some View {
         ZStack {
             if let data {
-                VStack(spacing: 4) {
+                VStack(spacing: 5) {
                     HStack(spacing: 4) {
                         Circle().fill(data.stalenessColor).frame(width: 8, height: 8)
                         Text("@ \(data.timeString)").font(.caption2).foregroundStyle(.secondary)
                     }
-                    TrendGlucose(data: data, glucoseFont: .system(size: 40, weight: .bold, design: .rounded))
-                    Text(data.delta).font(.caption).foregroundStyle(.secondary)
+                    TrendGlucose(data: data, glucoseFont: .system(size: 34, weight: .bold, design: .rounded))
+                    Text(data.delta).font(.caption2).foregroundStyle(.secondary)
+                    ShortcutButtons(compact: true)
                 }
-                .padding()
+                .padding(12)
             } else {
-                NoDataView()
+                VStack(spacing: 8) {
+                    NoDataView()
+                    ShortcutButtons(compact: true)
+                }
+                .padding(12)
             }
         }
         .containerBackground(.fill.tertiary, for: .widget)
@@ -144,23 +192,26 @@ private struct MediumGlucose: View {
                         Text("Δ \(data.delta)").font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    VStack(alignment: .leading, spacing: 6) {
-                        if let iob = data.iob, !iob.isEmpty, iob != "--" {
-                            Label("\(iob) U", systemImage: "syringe").font(.caption)
+                    VStack(alignment: .trailing, spacing: 6) {
+                        HStack(spacing: 10) {
+                            if let iob = data.iob, !iob.isEmpty, iob != "--" {
+                                Label("\(iob) U", systemImage: "drop").font(.caption2).foregroundStyle(.secondary)
+                            }
+                            if let cob = data.cob, !cob.isEmpty, cob != "--" {
+                                Label("\(cob) g", systemImage: "fork.knife").font(.caption2).foregroundStyle(.secondary)
+                            }
                         }
-                        if let cob = data.cob, !cob.isEmpty, cob != "--" {
-                            Label("\(cob) g", systemImage: "fork.knife").font(.caption)
-                        }
-                        if data.isStale {
-                            Text(data.isVeryStale ? "Stale data" : "Aging")
-                                .font(.caption2)
-                                .foregroundStyle(data.stalenessColor)
-                        }
+                        ShortcutButtons()
+                            .frame(width: 150)
                     }
                 }
                 .padding()
             } else {
-                NoDataView()
+                VStack(spacing: 10) {
+                    NoDataView()
+                    ShortcutButtons().frame(width: 200)
+                }
+                .padding()
             }
         }
         .containerBackground(.fill.tertiary, for: .widget)
@@ -185,11 +236,16 @@ private struct GlucoseLockEntryView: View {
     @Environment(\.widgetFamily) var family
     let entry: GlucoseWidgetEntry
     var body: some View {
-        switch family {
-        case .accessoryCircular: AccessoryCircularGlucose(data: entry.data)
-        case .accessoryInline: AccessoryInlineGlucose(data: entry.data)
-        default: AccessoryRectangularGlucose(data: entry.data)
+        // Lock-screen accessory widgets take a single tap target; send it to the
+        // carb/bolus entry screen (never doses directly).
+        Group {
+            switch family {
+            case .accessoryCircular: AccessoryCircularGlucose(data: entry.data)
+            case .accessoryInline: AccessoryInlineGlucose(data: entry.data)
+            default: AccessoryRectangularGlucose(data: entry.data)
+            }
         }
+        .widgetURL(WidgetShortcut.bolus)
     }
 }
 

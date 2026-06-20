@@ -40,6 +40,7 @@ extension Notification.Name {
     @State private var showOnboardingCompletedSplash = false
     @State private var showMigrationError: Bool = false
     @State private var showMealScanFromDeepLink: Bool = false
+    @State private var showTreatmentsFromDeepLink: Bool = false
 
     // Telemetry: one-shot guard so the consent migration sheet is presented
     // at most once per process even if scene activates repeatedly.
@@ -342,6 +343,9 @@ extension Notification.Name {
                         .sheet(isPresented: $showMealScanFromDeepLink) {
                             MealScan.RootView(resolver: resolver)
                         }
+                        .sheet(isPresented: $showTreatmentsFromDeepLink) {
+                            Treatments.RootView(resolver: resolver)
+                        }
                 }
             }
             .onReceive(Foundation.NotificationCenter.default.publisher(for: .onboardingCompleted)) { _ in
@@ -498,6 +502,8 @@ extension Notification.Name {
             resolver.resolve(NotificationCenter.self)!.post(name: .openFromGarminConnect, object: url)
         case "mealScan":
             showMealScanFromDeepLink = true
+        case "treatments", "bolus", "addCarbs":
+            showTreatmentsFromDeepLink = true
         default: break
         }
     }

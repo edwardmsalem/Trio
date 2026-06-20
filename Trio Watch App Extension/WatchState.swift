@@ -7,6 +7,7 @@ import WidgetKit
 /// Deep-link targets the complication can request via the `triowatch://` scheme.
 /// Tapping the complication only ever *opens* an entry surface — it never doses.
 enum WatchDeepLink: String {
+    case home // open the main glucose screen
     case treatments
     case carbs
     case bolus

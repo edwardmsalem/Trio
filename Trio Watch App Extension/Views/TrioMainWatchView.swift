@@ -242,6 +242,10 @@ struct TrioMainWatchView: View {
         state.pendingDeepLink = nil
         navigationPath = NavigationPath() // start from a known root
         switch link {
+        case .home:
+            // Just show the main glucose screen (page 0); close any open sheet.
+            showingTreatmentMenuSheet = false
+            currentPage = 0
         case .treatments:
             showingTreatmentMenuSheet = true
         case .carbs:

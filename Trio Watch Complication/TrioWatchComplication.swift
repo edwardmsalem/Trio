@@ -219,9 +219,8 @@ struct TrioWatchComplicationEntryView: View {
                     .widgetBackground(backgroundView: Color.clear)
             }
         }
-        // Tapping the complication opens the watch app's treatment menu (carb/bolus
-        // entry). It never doses — the in-app confirm flow still applies.
-        .widgetURL(URL(string: "triowatch://treatments"))
+        // Tapping the complication opens the watch app's main glucose screen.
+        .widgetURL(URL(string: "triowatch://home"))
     }
 }
 

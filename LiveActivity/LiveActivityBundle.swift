@@ -7,5 +7,8 @@ import WidgetKit
         MealScanWidget()
         TrioGlucoseLockWidget()
         TrioGlucoseHomeWidget()
+        // Control Center / lock-screen-button controls (iOS 18+)
+        BolusControl()
+        MealControl()
     }
 }

@@ -5,6 +5,14 @@ import WidgetKit
 /// Snapshot of current glucose shared from the main Trio app to the home-screen
 /// and lock-screen WidgetKit widgets via the App Group. Mirrors what the watch
 /// complication receives. Written by AppleWatchManager on every glucose push.
+/// One sampled glucose point for the large widget's trend chart. `glucose` is in
+/// the user's display unit (mg/dL or mmol/L), matching the big number shown.
+struct WidgetGlucosePoint: Codable, Identifiable {
+    var id: Date { date }
+    let date: Date
+    let glucose: Double
+}
+
 struct GlucoseWidgetData: Codable {
     var glucose: String // e.g. "120" or "6.7"
     var trend: String // arrow, e.g. "→"
@@ -13,6 +21,9 @@ struct GlucoseWidgetData: Codable {
     var cob: String?
     var colorString: String // "#ffffff" in-range; other = out of range
     var date: Date // timestamp of the reading
+    var history: [WidgetGlucosePoint]? = nil // recent readings for the large widget chart
+    var low: Double? = nil // low target line (display unit) for the chart band
+    var high: Double? = nil // high target line (display unit) for the chart band
 
     private static let storeKey = "glucoseWidgetData.v1"
 

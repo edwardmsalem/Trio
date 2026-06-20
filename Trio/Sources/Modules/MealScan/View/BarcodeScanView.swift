@@ -71,8 +71,11 @@ extension MealScan {
                     }
                 }
                 .alert("Not found", isPresented: $showError) {
-                    Button("Scan Again") { showError = false; scannedCode = nil; phase = .scanning }
-                    Button("Cancel", role: .cancel) { showError = false; dismiss() }
+                    Button("Scan Again") { showError = false
+                        scannedCode = nil
+                        phase = .scanning }
+                    Button("Cancel", role: .cancel) { showError = false
+                        dismiss() }
                 } message: {
                     Text(errorMessage ?? "Couldn't find that product.")
                 }
@@ -87,8 +90,7 @@ extension MealScan {
             }
         }
 
-        @ViewBuilder
-        private var reviewForm: some View {
+        @ViewBuilder private var reviewForm: some View {
             Form {
                 Section("Name") {
                     TextField("Product name", text: $dish)
@@ -161,8 +163,7 @@ extension MealScan {
             dismiss()
         }
 
-        @MainActor
-        private func lookup(_ code: String) async {
+        @MainActor private func lookup(_ code: String) async {
             do {
                 let product = try await OpenFoodFacts.lookup(code)
                 dish = product.name
@@ -202,7 +203,8 @@ enum OpenFoodFacts {
     }
 
     static func lookup(_ code: String) async throws -> Product {
-        let urlStr = "https://world.openfoodfacts.org/api/v2/product/\(code).json?fields=product_name,brands,nutriments,serving_size,serving_quantity"
+        let urlStr =
+            "https://world.openfoodfacts.org/api/v2/product/\(code).json?fields=product_name,brands,nutriments,serving_size,serving_quantity"
         guard let url = URL(string: urlStr) else { throw LookupError.notFound }
 
         var request = URLRequest(url: url)
@@ -227,7 +229,7 @@ enum OpenFoodFacts {
         let protein100 = decimal(nutr["proteins_100g"])
         if carbs100 == 0, fat100 == 0, protein100 == 0 { throw LookupError.noNutrition }
 
-        let name = [(product["brands"] as? String), (product["product_name"] as? String)]
+        let name = [product["brands"] as? String, product["product_name"] as? String]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
@@ -263,7 +265,7 @@ struct BarcodeCameraView: UIViewControllerRepresentable {
     let onCode: (String) -> Void
     let onCancel: () -> Void
 
-    func makeUIViewController(context: Context) -> ScannerVC {
+    func makeUIViewController(context _: Context) -> ScannerVC {
         let vc = ScannerVC()
         vc.onCode = onCode
         return vc

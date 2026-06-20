@@ -28,7 +28,7 @@ extension ISFTiersEditor {
                             "Define BG ranges and the ISF multiplier for each. Ranges are in \(state.units == .mmolL ? "mmol/L" : "mg/dL"). Multiplier 100% = no change, 80% = more aggressive, 120% = less aggressive."
                         )
                     ) {
-                        ForEach(Array(state.tiers.enumerated()), id: \.element.id) { index, tier in
+                        ForEach(Array(state.tiers.enumerated()), id: \.element.id) { index, _ in
                             ISFTierRow(
                                 tier: Binding(
                                     get: { state.tiers[index] },

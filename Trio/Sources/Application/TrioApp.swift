@@ -502,7 +502,9 @@ extension Notification.Name {
             resolver.resolve(NotificationCenter.self)!.post(name: .openFromGarminConnect, object: url)
         case "mealScan":
             showMealScanFromDeepLink = true
-        case "treatments", "bolus", "addCarbs":
+        case "addCarbs",
+             "bolus",
+             "treatments":
             showTreatmentsFromDeepLink = true
         default: break
         }

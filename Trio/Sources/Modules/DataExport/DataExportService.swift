@@ -242,7 +242,8 @@ final class DataExportService {
         var csv = "date,total_units,bolus_units,temp_basal_units,scheduled_basal_units\n"
         await context.perform {
             for t in tdds {
-                csv += "\(self.fmt(t.date)),\(self.dec(t.total)),\(self.dec(t.bolus)),\(self.dec(t.tempBasal)),\(self.dec(t.scheduledBasal))\n"
+                csv +=
+                    "\(self.fmt(t.date)),\(self.dec(t.total)),\(self.dec(t.bolus)),\(self.dec(t.tempBasal)),\(self.dec(t.scheduledBasal))\n"
             }
         }
         return csv

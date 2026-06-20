@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 import WidgetKit
 
@@ -79,8 +80,7 @@ private struct ShortcutButtons: View {
         }
     }
 
-    @ViewBuilder
-    private func label(systemImage: String, text: String, tint: Color) -> some View {
+    @ViewBuilder private func label(systemImage: String, text: String, tint: Color) -> some View {
         if compact {
             Image(systemName: systemImage)
                 .font(.system(size: 13, weight: .semibold))
@@ -113,7 +113,8 @@ private struct AccessoryCircularGlucose: View {
                 }
             }
         } else {
-            ZStack { AccessoryWidgetBackground(); Text("--").font(.headline) }
+            ZStack { AccessoryWidgetBackground()
+                Text("--").font(.headline) }
         }
     }
 }
@@ -218,6 +219,125 @@ private struct MediumGlucose: View {
     }
 }
 
+/// The biggest home-screen size: header (timestamp + IOB/COB), the big reading,
+/// a glucose trend chart with the target band shaded, and the shortcut buttons.
+private struct LargeGlucose: View {
+    let data: GlucoseWidgetData?
+
+    var body: some View {
+        ZStack {
+            if let data {
+                VStack(alignment: .leading, spacing: 10) {
+                    header(data)
+                    readingRow(data)
+                    chart(data)
+                        .frame(maxHeight: .infinity)
+                    ShortcutButtons()
+                }
+                .padding()
+            } else {
+                VStack(spacing: 12) {
+                    NoDataView()
+                    ShortcutButtons().frame(width: 220)
+                }
+                .padding()
+            }
+        }
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+
+    private func header(_ data: GlucoseWidgetData) -> some View {
+        HStack {
+            HStack(spacing: 5) {
+                Circle().fill(data.stalenessColor).frame(width: 8, height: 8)
+                Text("@ \(data.timeString)").font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer()
+            HStack(spacing: 12) {
+                if let iob = data.iob, !iob.isEmpty, iob != "--" {
+                    Label("\(iob) U", systemImage: "drop").font(.caption2).foregroundStyle(.secondary)
+                }
+                if let cob = data.cob, !cob.isEmpty, cob != "--" {
+                    Label("\(cob) g", systemImage: "fork.knife").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func readingRow(_ data: GlucoseWidgetData) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(data.glucose)
+                .font(.system(size: 52, weight: .bold, design: .rounded))
+            Text(data.trend.isEmpty ? "→" : data.trend)
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text("Δ \(data.delta)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private func chart(_ data: GlucoseWidgetData) -> some View {
+        if let history = data.history, history.count >= 2 {
+            let values = history.map(\.glucose)
+            let lowLine = data.low
+            let highLine = data.high
+            let minY = min(values.min() ?? 0, lowLine ?? .greatestFiniteMagnitude) * 0.9
+            let maxY = max(values.max() ?? 0, highLine ?? 0) * 1.1
+
+            Chart {
+                if let lowLine, let highLine {
+                    RectangleMark(
+                        yStart: .value("Low", lowLine),
+                        yEnd: .value("High", highLine)
+                    )
+                    .foregroundStyle(.green.opacity(0.12))
+                }
+                ForEach(history) { point in
+                    LineMark(
+                        x: .value("Time", point.date),
+                        y: .value("Glucose", point.glucose)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .foregroundStyle(.cyan)
+                }
+                if let last = history.last {
+                    PointMark(
+                        x: .value("Time", last.date),
+                        y: .value("Glucose", last.glucose)
+                    )
+                    .symbolSize(60)
+                    .foregroundStyle(data.isInRange ? Color.green : Color.orange)
+                }
+            }
+            .chartYScale(domain: minY ... maxY)
+            .chartYAxis {
+                AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) {
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.25))
+                    AxisValueLabel().font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 3)) {
+                    AxisValueLabel(format: .dateTime.hour().minute())
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            // Not enough samples yet for a chart — keep the slot so layout is stable.
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(.fill.quaternary)
+                .overlay(
+                    Text("Building trend…")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                )
+        }
+    }
+}
+
 // MARK: - Widget configurations
 
 struct TrioGlucoseLockWidget: Widget {
@@ -257,7 +377,7 @@ struct TrioGlucoseHomeWidget: Widget {
         }
         .configurationDisplayName("Glucose")
         .description("Current glucose, trend, and delta on your Home Screen.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
@@ -266,6 +386,7 @@ private struct GlucoseHomeEntryView: View {
     let entry: GlucoseWidgetEntry
     var body: some View {
         switch family {
+        case .systemLarge: LargeGlucose(data: entry.data)
         case .systemMedium: MediumGlucose(data: entry.data)
         default: SmallGlucose(data: entry.data)
         }

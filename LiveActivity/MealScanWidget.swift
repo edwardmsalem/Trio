@@ -17,15 +17,15 @@ struct MealScanWidget: Widget {
 // MARK: - Timeline Provider
 
 struct MealScanTimelineProvider: TimelineProvider {
-    func placeholder(in context: Context) -> MealScanEntry {
+    func placeholder(in _: Context) -> MealScanEntry {
         MealScanEntry(date: Date())
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (MealScanEntry) -> Void) {
+    func getSnapshot(in _: Context, completion: @escaping (MealScanEntry) -> Void) {
         completion(MealScanEntry(date: Date()))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<MealScanEntry>) -> Void) {
+    func getTimeline(in _: Context, completion: @escaping (Timeline<MealScanEntry>) -> Void) {
         let entry = MealScanEntry(date: Date())
         // Static widget — no updates needed
         let timeline = Timeline(entries: [entry], policy: .never)

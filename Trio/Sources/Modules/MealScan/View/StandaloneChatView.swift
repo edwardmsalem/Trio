@@ -45,43 +45,43 @@ extension MealScan {
                         .background(.bar)
                     }
                     .background(Color(.systemBackground))
-                .navigationTitle("AI Meal Advisor")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Close") { dismiss() }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        HStack(spacing: 16) {
-                            Button {
-                                showHistory = true
-                            } label: {
-                                Image(systemName: "clock.arrow.circlepath")
-                            }
-                            .disabled(session.history.isEmpty)
+                    .navigationTitle("AI Meal Advisor")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { dismiss() }
+                        }
+                        ToolbarItem(placement: .primaryAction) {
+                            HStack(spacing: 16) {
+                                Button {
+                                    showHistory = true
+                                } label: {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                }
+                                .disabled(session.history.isEmpty)
 
-                            Button {
-                                session.startNew()
-                            } label: {
-                                Image(systemName: "square.and.pencil")
+                                Button {
+                                    session.startNew()
+                                } label: {
+                                    Image(systemName: "square.and.pencil")
+                                }
+                                .disabled(!session.hasConversation || session.isStreaming)
                             }
-                            .disabled(!session.hasConversation || session.isStreaming)
                         }
                     }
-                }
-                .sheet(isPresented: $showHistory) {
-                    historySheet
-                }
-                .alert("Save as Preset", isPresented: $showSavePreset) {
-                    TextField("Preset name", text: $presetName)
-                    Button("Save") { savePreset() }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Saves the current carbs, fat, and protein as a reusable preset.")
-                }
-                .onChange(of: photoPickerItem) { _, newValue in
-                    Task { await loadPickedImage(newValue) }
-                }
+                    .sheet(isPresented: $showHistory) {
+                        historySheet
+                    }
+                    .alert("Save as Preset", isPresented: $showSavePreset) {
+                        TextField("Preset name", text: $presetName)
+                        Button("Save") { savePreset() }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Saves the current carbs, fat, and protein as a reusable preset.")
+                    }
+                    .onChange(of: photoPickerItem) { _, newValue in
+                        Task { await loadPickedImage(newValue) }
+                    }
             }
             .onAppear {
                 session.configure(resolver: resolver)
@@ -182,8 +182,7 @@ extension MealScan {
 
         // MARK: - Message row
 
-        @ViewBuilder
-        private func messageRow(_ message: ChatMessage, isLastInRun: Bool) -> some View {
+        @ViewBuilder private func messageRow(_ message: ChatMessage, isLastInRun: Bool) -> some View {
             let isUser = message.role == .user
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 2) {
@@ -217,8 +216,7 @@ extension MealScan {
             .padding(.top, isLastInRun ? 4 : 1)
         }
 
-        @ViewBuilder
-        private func bubble(_ message: ChatMessage, isUser: Bool, isLastInRun: Bool) -> some View {
+        @ViewBuilder private func bubble(_ message: ChatMessage, isUser: Bool, isLastInRun: Bool) -> some View {
             let textColor: Color = isUser ? .white : .primary
             let bubbleColor: Color = isUser
                 ? Color(red: 0.0, green: 0.48, blue: 1.0)
@@ -355,8 +353,7 @@ extension MealScan {
 
         // MARK: - Input bar
 
-        @ViewBuilder
-        private var inputBar: some View {
+        @ViewBuilder private var inputBar: some View {
             VStack(spacing: 6) {
                 if let img = session.pendingImage {
                     HStack {
@@ -427,8 +424,7 @@ extension MealScan {
             return messages[next].role != messages[index].role
         }
 
-        @MainActor
-        private func loadPickedImage(_ item: PhotosPickerItem?) async {
+        @MainActor private func loadPickedImage(_ item: PhotosPickerItem?) async {
             guard let item else { return }
             if let data = try? await item.loadTransferable(type: Data.self),
                let img = UIImage(data: data)

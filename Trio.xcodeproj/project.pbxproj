@@ -7,6 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CC0000000000000000000003 /* MealPredictionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000004 /* MealPredictionView.swift */; };
+		CC0000000000000000000005 /* MealHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000006 /* MealHistoryView.swift */; };
+		CC0000000000000000000007 /* PortionVolumeEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000008 /* PortionVolumeEstimator.swift */; };
+		CC0000000000000000000009 /* DepthCameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000A /* DepthCameraCaptureView.swift */; };
+		CC000000000000000000000B /* PDFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000C /* PDFExportService.swift */; };
+		CC000000000000000000000D /* InsightsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000E /* InsightsModel.swift */; };
+		CC000000000000000000000F /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000010 /* InsightsView.swift */; };
+		CC0000000000000000000011 /* SettingsBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000012 /* SettingsBackupService.swift */; };
+		CC0000000000000000000013 /* SettingsBackupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000014 /* SettingsBackupView.swift */; };
+		CC0000000000000000000015 /* MealOutcomeV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000016 /* MealOutcomeV2Tests.swift */; };
 		041D1E995A6AE92E9289DC49 /* TreatmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D1A7CA8C10C4403D4BBFA7 /* TreatmentsDataFlow.swift */; };
 		0437CE46C12535A56504EC19 /* SnoozeRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5822B15939E719628E9FF7C /* SnoozeRootView.swift */; };
 		05801FCFDF91B09F76423197 /* HistoryStateModel+CarbEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B83754E05AF541C961ABBD /* HistoryStateModel+CarbEditing.swift */; };
@@ -66,7 +76,6 @@
 		2BD7F6AB58FA03DF4756A35A /* MealLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A9757FE91F4B523F53578D /* MealLog.swift */; };
 		2CF242E390669F8FFE5E29F0 /* MealScanStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC045F59C16F1161CB1E923 /* MealScanStateModel.swift */; };
 		2DD336B8E68B34FC1BB0884C /* MealOutcomeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BCD037D9551274EF63F7B3 /* MealOutcomeService.swift */; };
-		2E82416FB3530BFA1DA6C36B /* FatSecretService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A1A4D71BAD336F5928B9712 /* FatSecretService.swift */; };
 		2FC66BB355DD966015347F7D /* GarminWatchSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3B96EC798171FD0F9890DD /* GarminWatchSettings.swift */; };
 		3171D2818C7C72CD1584BB5E /* GlucoseNotificationSettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2C6489D29ECCCAD78E0721 /* GlucoseNotificationSettingsStateModel.swift */; };
 		320D030F724170A637F06D50 /* BuildFile in Sources */ = {isa = PBXBuildFile; };
@@ -913,6 +922,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		CC0000000000000000000004 /* MealPredictionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealPredictionView.swift; path = Trio/Sources/Modules/MealScan/View/MealPredictionView.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000006 /* MealHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealHistoryView.swift; path = Trio/Sources/Modules/MealScan/View/MealHistoryView.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000008 /* PortionVolumeEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PortionVolumeEstimator.swift; path = Trio/Sources/Modules/MealScan/View/PortionVolumeEstimator.swift; sourceTree = SOURCE_ROOT; };
+		CC000000000000000000000A /* DepthCameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DepthCameraCaptureView.swift; path = Trio/Sources/Modules/MealScan/View/DepthCameraCaptureView.swift; sourceTree = SOURCE_ROOT; };
+		CC000000000000000000000C /* PDFExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PDFExportService.swift; path = Trio/Sources/Modules/DataExport/PDFExportService.swift; sourceTree = SOURCE_ROOT; };
+		CC000000000000000000000E /* InsightsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InsightsModel.swift; path = Trio/Sources/Modules/Insights/InsightsModel.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000010 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InsightsView.swift; path = Trio/Sources/Modules/Insights/InsightsView.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000012 /* SettingsBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsBackupService.swift; path = Trio/Sources/Modules/SettingsBackup/SettingsBackupService.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000014 /* SettingsBackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsBackupView.swift; path = Trio/Sources/Modules/SettingsBackup/SettingsBackupView.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000016 /* MealOutcomeV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealOutcomeV2Tests.swift; path = TrioTests/MealOutcomeV2Tests.swift; sourceTree = SOURCE_ROOT; };
 		02101290E4DA113C038E5FD3 /* HistoryDataFlow+Models.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryDataFlow+Models.swift"; sourceTree = "<group>"; };
 		048796E0FB0CB80D4A4D27E1 /* GlucoseWidgetData.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlucoseWidgetData.swift; path = LiveActivity/Shared/GlucoseWidgetData.swift; sourceTree = SOURCE_ROOT; };
 		0786154493A49D67476D5EE4 /* BarcodeScanView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BarcodeScanView.swift; path = Trio/Sources/Modules/MealScan/View/BarcodeScanView.swift; sourceTree = SOURCE_ROOT; };
@@ -1235,7 +1254,6 @@
 		66F748348FAA45DF89C887DE /* MealChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealChatView.swift; path = Trio/Sources/Modules/MealScan/View/MealChatView.swift; sourceTree = SOURCE_ROOT; };
 		67F94DD2853CF42BA4E30616 /* BasalProfileEditorDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BasalProfileEditorDataFlow.swift; sourceTree = "<group>"; };
 		680C4420C9A345D46D90D06C /* ManualTempBasalProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ManualTempBasalProvider.swift; sourceTree = "<group>"; };
-		6A1A4D71BAD336F5928B9712 /* FatSecretService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FatSecretService.swift; path = Trio/Sources/Services/MealScan/FatSecretService.swift; sourceTree = SOURCE_ROOT; };
 		6B1A8D012B14D88B00E76752 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		6B1A8D172B14D91600E76752 /* LiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6B1A8D182B14D91600E76752 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -1812,6 +1830,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		CC0000000000000000000001 /* Insights */ = {
+			isa = PBXGroup;
+			children = (
+				CC000000000000000000000E /* InsightsModel.swift */,
+				CC0000000000000000000010 /* InsightsView.swift */,
+			);
+			name = Insights;
+			sourceTree = "<group>";
+		};
+		CC0000000000000000000002 /* SettingsBackup */ = {
+			isa = PBXGroup;
+			children = (
+				CC0000000000000000000012 /* SettingsBackupService.swift */,
+				CC0000000000000000000014 /* SettingsBackupView.swift */,
+			);
+			name = SettingsBackup;
+			sourceTree = "<group>";
+		};
 		0610F7D6D2EC00E3BA1569F0 /* ConfigEditor */ = {
 			isa = PBXGroup;
 			children = (
@@ -2051,6 +2087,8 @@
 		3811DE0325C9D31700A708ED /* Modules */ = {
 			isa = PBXGroup;
 			children = (
+				CC0000000000000000000001 /* Insights */,
+				CC0000000000000000000002 /* SettingsBackup */,
 				DDD163032C4C67B400CD525A /* Adjustments */,
 				DD1745382C55BF8B00211FAC /* AlgorithmAdvancedSettings */,
 				DDF690FE2DA2C9EE008BF16C /* AppDiagnostics */,
@@ -2489,7 +2527,6 @@
 				38FCF3EE25E9028E0078B0D1 /* TrioTests */,
 				7CF64F61A012FC68A6EE5921 /* MealScanModels.swift */,
 				45B44B12AF615700CB19CD3B /* MealScanDevKeys.swift */,
-				6A1A4D71BAD336F5928B9712 /* FatSecretService.swift */,
 				088248DAAE3F9B9660C156A2 /* ClaudeNutritionService.swift */,
 				0B8843A5B79BEBAED1697136 /* MealScanDataFlow.swift */,
 				39844B328AEDCC84871009CF /* MealScanProvider.swift */,
@@ -2790,6 +2827,7 @@
 		38FCF3EE25E9028E0078B0D1 /* TrioTests */ = {
 			isa = PBXGroup;
 			children = (
+				CC0000000000000000000016 /* MealOutcomeV2Tests.swift */,
 				DDC6CA6C2DD90A2A0060EE25 /* LocalizationTests.swift */,
 				3B997DD22DC02AEF006B6BB2 /* JSONImporterData */,
 				BD8FC05C2D6618BE00B95AED /* BolusCalculatorTests */,
@@ -3056,6 +3094,7 @@
 		AA00030000000000000003C1 /* DataExport */ = {
 			isa = PBXGroup;
 			children = (
+				CC000000000000000000000C /* PDFExportService.swift */,
 				AA00010000000000000006A1 /* DataExportService.swift */,
 				AA00010000000000000007A1 /* DataExportDataFlow.swift */,
 				AA00010000000000000008A1 /* DataExportProvider.swift */,
@@ -4447,6 +4486,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC0000000000000000000003 /* MealPredictionView.swift in Sources */,
+				CC0000000000000000000005 /* MealHistoryView.swift in Sources */,
+				CC0000000000000000000007 /* PortionVolumeEstimator.swift in Sources */,
+				CC0000000000000000000009 /* DepthCameraCaptureView.swift in Sources */,
+				CC000000000000000000000B /* PDFExportService.swift in Sources */,
+				CC000000000000000000000D /* InsightsModel.swift in Sources */,
+				CC000000000000000000000F /* InsightsView.swift in Sources */,
+				CC0000000000000000000011 /* SettingsBackupService.swift in Sources */,
+				CC0000000000000000000013 /* SettingsBackupView.swift in Sources */,
 				DD5DC9F12CF3D97C00AB8703 /* AdjustmentsStateModel+Overrides.swift in Sources */,
 				3811DE2325C9D48300A708ED /* MainDataFlow.swift in Sources */,
 				C2A0A42F2CE03131003B98E8 /* ConstantValues.swift in Sources */,
@@ -5049,7 +5097,6 @@
 				0437CE46C12535A56504EC19 /* SnoozeRootView.swift in Sources */,
 				D6BE4CAABC7413D3CB9345A9 /* MealScanModels.swift in Sources */,
 				F55D4D1DB1E23006C73415CC /* MealScanDevKeys.swift in Sources */,
-				2E82416FB3530BFA1DA6C36B /* FatSecretService.swift in Sources */,
 				39E643FFB76FAED104BF748A /* ClaudeNutritionService.swift in Sources */,
 				73D74AFABEE4BD79705E7375 /* MealScanDataFlow.swift in Sources */,
 				190D4F8099FAB4E64068F9AE /* MealScanProvider.swift in Sources */,
@@ -5101,6 +5148,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC0000000000000000000015 /* MealOutcomeV2Tests.swift in Sources */,
 				BD8FC0572D66188700B95AED /* PumpHistoryStorageTests.swift in Sources */,
 				BD8FC0642D6619EF00B95AED /* TempTargetStorageTests.swift in Sources */,
 				BD8FC0542D66186000B95AED /* TestError.swift in Sources */,

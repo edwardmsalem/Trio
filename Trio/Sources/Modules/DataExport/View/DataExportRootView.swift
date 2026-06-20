@@ -54,13 +54,37 @@ extension DataExport {
                                 Text("Exporting...")
                             } else {
                                 Image(systemName: "square.and.arrow.up")
-                                Text("Export & Share")
+                                Text("Export CSV & Share")
                             }
                             Spacer()
                         }
                         .font(.headline)
                     }
-                    .disabled(state.isExporting)
+                    .disabled(state.isExporting || state.isExportingPDF)
+                }
+                .listRowBackground(Color.chart)
+
+                Section(
+                    footer: Text(
+                        "A one-page summary (time in range, GMI / est. A1c, average glucose, daily bolus, and a trend chart) to share with your care team."
+                    )
+                ) {
+                    Button(action: state.exportPDF) {
+                        HStack {
+                            Spacer()
+                            if state.isExportingPDF {
+                                ProgressView()
+                                    .padding(.trailing, 8)
+                                Text("Building PDF...")
+                            } else {
+                                Image(systemName: "doc.richtext")
+                                Text("Clinician PDF & Share")
+                            }
+                            Spacer()
+                        }
+                        .font(.headline)
+                    }
+                    .disabled(state.isExporting || state.isExportingPDF)
                 }
                 .listRowBackground(Color.chart)
 

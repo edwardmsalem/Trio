@@ -1,7 +1,16 @@
 import Foundation
 import SwiftUI
 import WatchConnectivity
+import WatchKit
 import WidgetKit
+
+/// Deep-link targets the complication can request via the `triowatch://` scheme.
+/// Tapping the complication only ever *opens* an entry surface — it never doses.
+enum WatchDeepLink: String {
+    case treatments
+    case carbs
+    case bolus
+}
 
 // MARK: - App Group Helper
 
@@ -13,7 +22,7 @@ private func getAppGroupSuiteName() -> String? {
     let components = bundleId.components(separatedBy: ".")
     // Find the base: org.nightscout.TEAMID.trio
     if let trioIndex = components.firstIndex(of: "trio"), trioIndex >= 3 {
-        let base = components[0...trioIndex].joined(separator: ".")
+        let base = components[0 ... trioIndex].joined(separator: ".")
         return "group.\(base).trio-app-group"
     }
     return nil
@@ -45,6 +54,13 @@ var sharedUserDefaults: UserDefaults? {
     /// main view relevant metrics
     var currentGlucose: String = "--"
     var currentGlucoseColorString: String = "#ffffff"
+    /// Low/high alarm limits in the same display unit as `currentGlucose`, used for
+    /// the discreet crossing haptic. Optional until the first state arrives.
+    var lowThreshold: Double?
+    var highThreshold: Double?
+    private var lastGlucoseHapticState: GlucoseHapticState = .inRange
+    /// Set when the complication is tapped; the main view consumes it to navigate.
+    var pendingDeepLink: WatchDeepLink?
     var trend: String? = ""
     var delta: String? = "--"
     var glucoseValues: [(date: Date, glucose: Double, color: Color)] = []
@@ -52,7 +68,7 @@ var sharedUserDefaults: UserDefaults? {
     var maxYAxisValue: Decimal = 200
     var cob: String? = "--"
     var iob: String? = "--"
-    var tdd: String? = nil  // Total Daily Dose
+    var tdd: String? // Total Daily Dose
     var lastLoopTime: String? = "--"
     var overridePresets: [OverridePresetWatch] = []
     var tempTargetPresets: [TempTargetPresetWatch] = []
@@ -325,7 +341,10 @@ var sharedUserDefaults: UserDefaults? {
         let timestamp = userInfo[WatchMessageKeys.date] as? TimeInterval
 
         Task {
-            await WatchLogger.shared.log("📥 Parsed: glucose=\(glucose), trend=\(trend), delta=\(delta), tdd=\(tdd ?? "nil"), timestamp=\(timestamp ?? 0)")
+            await WatchLogger.shared
+                .log(
+                    "📥 Parsed: glucose=\(glucose), trend=\(trend), delta=\(delta), tdd=\(tdd ?? "nil"), timestamp=\(timestamp ?? 0)"
+                )
         }
 
         // Determine if urgent based on color
@@ -565,8 +584,16 @@ var sharedUserDefaults: UserDefaults? {
             }
         }
 
+        if let lowThreshold = message[WatchMessageKeys.lowThreshold] as? Double {
+            self.lowThreshold = lowThreshold
+        }
+        if let highThreshold = message[WatchMessageKeys.highThreshold] as? Double {
+            self.highThreshold = highThreshold
+        }
+
         if let currentGlucose = message[WatchMessageKeys.currentGlucose] as? String {
             self.currentGlucose = currentGlucose
+            evaluateGlucoseHaptic()
         }
 
         if let currentGlucoseColorString = message[WatchMessageKeys.currentGlucoseColorString] as? String {
@@ -729,6 +756,50 @@ var sharedUserDefaults: UserDefaults? {
         // White (#ffffff) means in range, anything else is out of range
         return normalized == "#ffffff" || normalized == "ffffff"
     }
+
+    /// Parses a `triowatch://` complication tap into a pending navigation target.
+    /// Opening an entry surface only — never doses.
+    func handleDeepLink(_ url: URL) {
+        guard url.scheme?.lowercased() == "triowatch" else { return }
+        let target = url.host ?? url.path.replacingOccurrences(of: "/", with: "")
+        pendingDeepLink = WatchDeepLink(rawValue: target) ?? .treatments
+    }
+
+    private enum GlucoseHapticState {
+        case inRange
+        case low
+        case high
+    }
+
+    /// Plays a distinct wrist tap when glucose crosses into low or high — but only
+    /// on the transition, so it doesn't buzz on every reading while out of range.
+    /// Returning to range is silent. Thresholds and glucose share the display unit.
+    private func evaluateGlucoseHaptic() {
+        guard let value = Double(currentGlucose),
+              let low = lowThreshold,
+              let high = highThreshold else { return }
+
+        let newState: GlucoseHapticState
+        if value <= low {
+            newState = .low
+        } else if value >= high {
+            newState = .high
+        } else {
+            newState = .inRange
+        }
+
+        defer { lastGlucoseHapticState = newState }
+        guard newState != lastGlucoseHapticState else { return }
+
+        switch newState {
+        case .low:
+            WKInterfaceDevice.current().play(.failure) // stronger, for the more urgent case
+        case .high:
+            WKInterfaceDevice.current().play(.directionUp)
+        case .inRange:
+            break
+        }
+    }
 }
 
 // MARK: - Shared Complication Data (must match Trio Watch Complication)
@@ -740,14 +811,24 @@ struct GlucoseComplicationData: Codable {
     let delta: String
     let iob: String?
     let cob: String?
-    let tdd: String?  // Total Daily Dose
+    let tdd: String? // Total Daily Dose
     let glucoseDate: Date?
     let lastLoopDate: Date?
-    let isUrgent: Bool  // true when glucose is out of range (high/low)
+    let isUrgent: Bool // true when glucose is out of range (high/low)
 
     static let key = "complicationData"
 
-    init(glucose: String, trend: String, delta: String, iob: String?, cob: String?, tdd: String? = nil, glucoseDate: Date?, lastLoopDate: Date?, isUrgent: Bool = false) {
+    init(
+        glucose: String,
+        trend: String,
+        delta: String,
+        iob: String?,
+        cob: String?,
+        tdd: String? = nil,
+        glucoseDate: Date?,
+        lastLoopDate: Date?,
+        isUrgent: Bool = false
+    ) {
         self.glucose = glucose
         self.trend = trend
         self.delta = delta
@@ -787,7 +868,8 @@ struct GlucoseComplicationData: Codable {
         // Try shared App Group first
         if let shared = sharedUserDefaults,
            let data = shared.data(forKey: key),
-           let decoded = try? JSONDecoder().decode(GlucoseComplicationData.self, from: data) {
+           let decoded = try? JSONDecoder().decode(GlucoseComplicationData.self, from: data)
+        {
             return decoded
         }
         // Fall back to standard UserDefaults

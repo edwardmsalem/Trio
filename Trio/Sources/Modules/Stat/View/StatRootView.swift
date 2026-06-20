@@ -18,6 +18,7 @@ extension Stat {
         @State var state = StateModel()
         @State private var selectedView: StateModel.StatisticViewType = .glucose
         @State private var isGlucoseDaySelected: Bool = false
+        @State private var showInsights = false
 
         private var intervalOptions: [Stat.StateModel.StatsTimeIntervalWithToday] {
             state.selectedGlucoseChartType == .percentileByDay || state.selectedGlucoseChartType == .distributionByDay
@@ -61,6 +62,21 @@ extension Stat {
                             .foregroundColor(.tabBar)
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showInsights = true
+                    } label: {
+                        Image(systemName: "lightbulb.max")
+                            .foregroundColor(.tabBar)
+                    }
+                }
+            }
+            .sheet(isPresented: $showInsights) {
+                InsightsView(
+                    units: state.units,
+                    highThreshold: Int(truncating: state.highLimit as NSNumber),
+                    lowThreshold: Int(truncating: state.lowLimit as NSNumber)
+                )
             }
         }
 

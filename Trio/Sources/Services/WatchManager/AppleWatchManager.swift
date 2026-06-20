@@ -252,7 +252,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 // Set TDD (Total Daily Dose)
                 if let tddDict = (tddResults as? [[String: Any]])?.first,
                    let tddValue = (tddDict["total"] as? NSDecimalNumber)?.decimalValue,
-                   tddValue > 0 {
+                   tddValue > 0
+                {
                     watchState.tdd = Formatter.decimalFormatterWithOneFractionDigit.string(from: tddValue as NSNumber)
                 }
 
@@ -464,11 +465,20 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
     // MARK: - Send to Watch
 
+    /// Low/high alarm limits in the user's display unit, so the watch can compare
+    /// them directly against the `currentGlucose` string it receives.
+    private func displayThreshold(_ mgdl: Decimal) -> Double {
+        let value = settingsManager.settings.units == .mmolL ? mgdl.asMmolL : mgdl
+        return Double(truncating: value as NSNumber)
+    }
+
     func watchStateToDictionary(from state: WatchState) -> [String: Any] {
         [
             WatchMessageKeys.date: state.date.timeIntervalSince1970,
             WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
             WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
+            WatchMessageKeys.lowThreshold: displayThreshold(lowGlucose),
+            WatchMessageKeys.highThreshold: displayThreshold(highGlucose),
             WatchMessageKeys.trend: state.trend ?? "",
             WatchMessageKeys.delta: state.delta ?? "",
             WatchMessageKeys.iob: state.iob ?? "",
@@ -527,7 +537,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             session.activate()
 
             // Wait up to 1 second for activation (check every 0.1s)
-            for _ in 0..<10 {
+            for _ in 0 ..< 10 {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
                 if session.activationState == .activated {
                     break
@@ -563,45 +573,45 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         // Send complication data via transferUserInfo (NOT transferCurrentComplicationUserInfo)
         // transferCurrentComplicationUserInfo is ClockKit-era and doesn't work with WidgetKit
         #if os(iOS)
-        let complicationData: [String: Any] = [
-            "complicationUpdate": true,
-            WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
-            WatchMessageKeys.trend: state.trend ?? "",
-            WatchMessageKeys.delta: state.delta ?? "",
-            WatchMessageKeys.iob: state.iob ?? "",
-            WatchMessageKeys.cob: state.cob ?? "",
-            WatchMessageKeys.tdd: state.tdd ?? "",
-            WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
-            WatchMessageKeys.date: state.date.timeIntervalSince1970
-        ]
-        session.transferUserInfo(complicationData)
+            let complicationData: [String: Any] = [
+                "complicationUpdate": true,
+                WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
+                WatchMessageKeys.trend: state.trend ?? "",
+                WatchMessageKeys.delta: state.delta ?? "",
+                WatchMessageKeys.iob: state.iob ?? "",
+                WatchMessageKeys.cob: state.cob ?? "",
+                WatchMessageKeys.tdd: state.tdd ?? "",
+                WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
+                WatchMessageKeys.date: state.date.timeIntervalSince1970
+            ]
+            session.transferUserInfo(complicationData)
 
-        // Also update applicationContext - this persists and is available immediately
-        // when the Watch extension wakes, unlike transferUserInfo which queues
-        do {
-            try session.updateApplicationContext(complicationData)
-            debug(.watchManager, "📤 Updated applicationContext with complication data")
-        } catch {
-            debug(.watchManager, "❌ Failed to update applicationContext: \(error)")
-        }
+            // Also update applicationContext - this persists and is available immediately
+            // when the Watch extension wakes, unlike transferUserInfo which queues
+            do {
+                try session.updateApplicationContext(complicationData)
+                debug(.watchManager, "📤 Updated applicationContext with complication data")
+            } catch {
+                debug(.watchManager, "❌ Failed to update applicationContext: \(error)")
+            }
 
-        // Trigger complication refresh
-        WidgetCenter.shared.reloadTimelines(ofKind: "TrioWatchComplication")
-        debug(.watchManager, "⌚️✅ Triggered watch complication refresh")
+            // Trigger complication refresh
+            WidgetCenter.shared.reloadTimelines(ofKind: "TrioWatchComplication")
+            debug(.watchManager, "⌚️✅ Triggered watch complication refresh")
 
-        // Mirror the same glucose snapshot to the iPhone home/lock-screen widgets
-        // via the App Group, then refresh their timelines.
-        GlucoseWidgetData(
-            glucose: state.currentGlucose ?? "--",
-            trend: state.trend ?? "",
-            delta: state.delta ?? "",
-            iob: state.iob,
-            cob: state.cob,
-            colorString: state.currentGlucoseColorString ?? "#ffffff",
-            date: state.date
-        ).save()
-        WidgetCenter.shared.reloadTimelines(ofKind: "TrioGlucoseLockWidget")
-        WidgetCenter.shared.reloadTimelines(ofKind: "TrioGlucoseHomeWidget")
+            // Mirror the same glucose snapshot to the iPhone home/lock-screen widgets
+            // via the App Group, then refresh their timelines.
+            GlucoseWidgetData(
+                glucose: state.currentGlucose ?? "--",
+                trend: state.trend ?? "",
+                delta: state.delta ?? "",
+                iob: state.iob,
+                cob: state.cob,
+                colorString: state.currentGlucoseColorString ?? "#ffffff",
+                date: state.date
+            ).save()
+            WidgetCenter.shared.reloadTimelines(ofKind: "TrioGlucoseLockWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "TrioGlucoseHomeWidget")
         #endif
 
         WatchStateSnapshot.saveLatestDateToDisk(state.date)
@@ -1377,7 +1387,8 @@ extension BaseWatchManager {
 
         // Already out of range - check if there's a significant change
         guard let current = currentGlucose,
-              let last = lastComplicationPushGlucose else {
+              let last = lastComplicationPushGlucose
+        else {
             return true // Push if we don't have previous data
         }
 

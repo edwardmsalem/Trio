@@ -5,11 +5,25 @@ import UIKit
 
 extension MealScan {
     final class MealScanProvider: BaseProvider {
-        @Injected() var fatSecretService: FatSecretService!
         @Injected() var claudeService: ClaudeNutritionService!
+        @Injected() var apsManager: APSManager!
+        @Injected() var settingsManager: SettingsManager!
 
-        func recognizeImage(_ image: UIImage, eatenFoodIds: [String]) async throws -> [DetectedFood] {
-            try await fatSecretService.recognizeImage(image, eatenFoodIds: eatenFoodIds)
+        /// The user's preferred glucose unit, so the prediction chart matches the
+        /// rest of the app.
+        var glucoseUnits: GlucoseUnits {
+            settingsManager.settings.units
+        }
+
+        /// Runs Trio's own predictor on a hypothetical meal so the user can see the
+        /// projected glucose curve before eating. Read-only — it calls
+        /// `simulateDetermineBasal` (a simulation pass) and never enacts anything.
+        func predictMeal(carbs: Decimal, bolus: Decimal) async -> Determination? {
+            await apsManager.simulateDetermineBasal(
+                simulatedCarbsAmount: carbs,
+                simulatedBolusAmount: bolus,
+                simulatedCarbsDate: Date()
+            )
         }
 
         func startChatSession(
@@ -42,7 +56,11 @@ extension MealScan {
             try await claudeService.parseNutritionLabel(image: image)
         }
 
-        func startFreeFormChat(initialMessage: String, image: UIImage?, contextBlock: String? = nil) async throws -> AsyncStream<String> {
+        func startFreeFormChat(
+            initialMessage: String,
+            image: UIImage?,
+            contextBlock: String? = nil
+        ) async throws -> AsyncStream<String> {
             try await claudeService.startFreeFormChat(initialMessage: initialMessage, image: image, contextBlock: contextBlock)
         }
 
@@ -65,7 +83,7 @@ extension MealScan {
             let context = CoreDataStack.shared.persistentContainer.viewContext
             let request = MealPresetStored.fetchRequest()
             let presets = (try? context.fetch(request)) ?? []
-            return presets.compactMap { $0.fatSecretFoodId }
+            return presets.compactMap(\.fatSecretFoodId)
         }
 
         func fetchCustomFoodNotes() -> [(dish: String, note: String)] {

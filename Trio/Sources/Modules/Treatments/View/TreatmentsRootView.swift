@@ -30,6 +30,7 @@ extension Treatments {
         @State private var showStandaloneChat = false
         @State private var showPlateScan = false
         @State private var showBarcodeScan = false
+        @State private var showMealHistory = false
         @State private var quickPresetSelection: MealPresetStored?
         @State private var quickPresetServings: Decimal = 1
         @State private var mealLog = MealLog.shared
@@ -200,6 +201,16 @@ extension Treatments {
                         applyMealTotals(totals)
                     }, mealContextProvider: { currentMealContext() })
                 }
+                Button {
+                    showMealHistory = true
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.borderless)
+                .sheet(isPresented: $showMealHistory) {
+                    MealScan.MealHistoryView(units: state.units)
+                }
                 Spacer()
                 TextFieldWithToolBar(
                     text: $state.carbs,
@@ -297,10 +308,12 @@ extension Treatments {
                             logPresetUse()
                             handleDebouncedInput()
                         } label: {
-                            Text("Use \(quickPresetServings as NSDecimalNumber, formatter: servingsFormatter) × \(quickPresetSelection?.dish ?? "")")
-                                .font(.subheadline)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
+                            Text(
+                                "Use \(quickPresetServings as NSDecimalNumber, formatter: servingsFormatter) × \(quickPresetSelection?.dish ?? "")"
+                            )
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
                         }
                         .listRowBackground(Color.blue)
                     }

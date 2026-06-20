@@ -53,6 +53,9 @@ enum Screen: Identifiable, Hashable {
     case appDiagnostics
     case settingsExport
     case mealScan
+    case mealHistory
+    case insights
+    case settingsBackup
 
     var id: Int { String(reflecting: self).hashValue }
 }
@@ -174,6 +177,17 @@ extension Screen {
             SettingsExport.RootView(resolver: resolver)
         case .mealScan:
             MealScan.RootView(resolver: resolver)
+        case .mealHistory:
+            MealScan.MealHistoryView(units: resolver.resolve(SettingsManager.self)?.settings.units ?? .mgdL)
+        case .insights:
+            let settings = resolver.resolve(SettingsManager.self)?.settings
+            InsightsView(
+                units: settings?.units ?? .mgdL,
+                highThreshold: Int(truncating: (settings?.high ?? 180) as NSNumber),
+                lowThreshold: Int(truncating: (settings?.low ?? 70) as NSNumber)
+            )
+        case .settingsBackup:
+            SettingsBackupView(resolver: resolver)
         }
     }
 

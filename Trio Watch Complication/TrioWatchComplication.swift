@@ -11,7 +11,7 @@ private func getAppGroupSuiteName() -> String? {
     let components = bundleId.components(separatedBy: ".")
     // Find the base: org.nightscout.TEAMID.trio
     if let trioIndex = components.firstIndex(of: "trio"), trioIndex >= 3 {
-        let base = components[0...trioIndex].joined(separator: ".")
+        let base = components[0 ... trioIndex].joined(separator: ".")
         return "group.\(base).trio-app-group"
     }
     return nil
@@ -40,10 +40,10 @@ struct GlucoseComplicationData: Codable {
     let delta: String
     let iob: String?
     let cob: String?
-    let tdd: String?  // Total Daily Dose
+    let tdd: String? // Total Daily Dose
     let glucoseDate: Date?
     let lastLoopDate: Date?
-    let isUrgent: Bool  // true when glucose is out of range (high/low)
+    let isUrgent: Bool // true when glucose is out of range (high/low)
 
     static let key = "complicationData"
 
@@ -61,7 +61,17 @@ struct GlucoseComplicationData: Codable {
         isUrgent = try container.decodeIfPresent(Bool.self, forKey: .isUrgent) ?? false
     }
 
-    init(glucose: String, trend: String, delta: String, iob: String?, cob: String?, tdd: String? = nil, glucoseDate: Date?, lastLoopDate: Date?, isUrgent: Bool = false) {
+    init(
+        glucose: String,
+        trend: String,
+        delta: String,
+        iob: String?,
+        cob: String?,
+        tdd: String? = nil,
+        glucoseDate: Date?,
+        lastLoopDate: Date?,
+        isUrgent: Bool = false
+    ) {
         self.glucose = glucose
         self.trend = trend
         self.delta = delta
@@ -88,7 +98,8 @@ struct GlucoseComplicationData: Codable {
         // Try shared App Group first (this is what the complication uses)
         if let shared = sharedUserDefaults,
            let data = shared.data(forKey: key),
-           let decoded = try? JSONDecoder().decode(GlucoseComplicationData.self, from: data) {
+           let decoded = try? JSONDecoder().decode(GlucoseComplicationData.self, from: data)
+        {
             return decoded
         }
         // Fall back to standard UserDefaults
@@ -191,21 +202,26 @@ struct TrioWatchComplicationEntryView: View {
     var entry: TrioWatchComplicationEntry
 
     var body: some View {
-        switch widgetFamily {
-        case .accessoryCircular:
-            AccessoryCircularView(entry: entry)
-        case .accessoryCorner:
-            AccessoryCornerView(entry: entry)
-        case .accessoryRectangular:
-            AccessoryRectangularView(entry: entry)
-        case .accessoryInline:
-            AccessoryInlineView(entry: entry)
-        default:
-            // Fallback for unsupported families
-            Image("ComplicationIcon")
-                .widgetAccentable()
-                .widgetBackground(backgroundView: Color.clear)
+        Group {
+            switch widgetFamily {
+            case .accessoryCircular:
+                AccessoryCircularView(entry: entry)
+            case .accessoryCorner:
+                AccessoryCornerView(entry: entry)
+            case .accessoryRectangular:
+                AccessoryRectangularView(entry: entry)
+            case .accessoryInline:
+                AccessoryInlineView(entry: entry)
+            default:
+                // Fallback for unsupported families
+                Image("ComplicationIcon")
+                    .widgetAccentable()
+                    .widgetBackground(backgroundView: Color.clear)
+            }
         }
+        // Tapping the complication opens the watch app's treatment menu (carb/bolus
+        // entry). It never doses — the in-app confirm flow still applies.
+        .widgetURL(URL(string: "triowatch://treatments"))
     }
 }
 

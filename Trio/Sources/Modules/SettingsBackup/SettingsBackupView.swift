@@ -7,8 +7,6 @@ import Swinject
 struct SettingsBackupView: View {
     let resolver: Resolver
 
-    @Environment(\.dismiss) private var dismiss
-
     @State private var exportURL: URL?
     @State private var exportError: String?
 
@@ -29,33 +27,30 @@ struct SettingsBackupView: View {
     private var settingsManager: SettingsManager? { resolver.resolve(SettingsManager.self) }
 
     var body: some View {
-        NavigationStack {
-            List {
-                exportSection
-                importSection
-            }
-            .navigationTitle("Backup & Restore")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-            .fileImporter(
-                isPresented: $showImporter,
-                allowedContentTypes: [.json],
-                allowsMultipleSelection: false
-            ) { result in
-                handleImportResult(result)
-            }
-            .sheet(item: $pendingBackup) { backup in
-                confirmSheet(for: backup)
-            }
-            .alert("Import", isPresented: $showResult) {
-                Button("OK") {}
-            } message: {
-                Text(resultMessage ?? "")
-            }
+        // This screen is PUSHED onto the Settings navigation stack, so it must not
+        // wrap itself in another NavigationStack — nested NavigationStacks render as
+        // a blank screen (with a warning triangle) on iOS 26. The parent provides
+        // the "Back" button.
+        List {
+            exportSection
+            importSection
+        }
+        .navigationTitle("Backup & Restore")
+        .navigationBarTitleDisplayMode(.inline)
+        .fileImporter(
+            isPresented: $showImporter,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImportResult(result)
+        }
+        .sheet(item: $pendingBackup) { backup in
+            confirmSheet(for: backup)
+        }
+        .alert("Import", isPresented: $showResult) {
+            Button("OK") {}
+        } message: {
+            Text(resultMessage ?? "")
         }
     }
 

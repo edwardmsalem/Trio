@@ -87,4 +87,44 @@ enum MealOutcomeService {
             }
         }
     }
+
+    /// Live physiology snapshot for the AI Meal Advisor when it's opened outside
+    /// the bolus screen (e.g. from the Home Screen widget), so its advice still
+    /// uses real numbers instead of running blind. Reads the most recent
+    /// determination (ISF, carb ratio, target, IOB, COB) and the latest glucose
+    /// readings (current BG + recent delta). Returns nil if there's no data yet,
+    /// in which case the advisor simply runs without live context.
+    static func liveMealContext() -> MealContext? {
+        let context = CoreDataStack.shared.persistentContainer.viewContext
+        var result: MealContext?
+        context.performAndWait {
+            // Latest few readings (~15 min) for current BG and a recent delta.
+            let glucoseRequest: NSFetchRequest<GlucoseStored> = GlucoseStored.fetchRequest()
+            glucoseRequest.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+            glucoseRequest.fetchLimit = 4
+            let readings = (try? context.fetch(glucoseRequest)) ?? []
+            guard let latest = readings.first else { return }
+            let currentBG = Decimal(latest.glucose)
+            let deltaBG: Decimal = readings.count >= 2
+                ? Decimal(latest.glucose) - Decimal(readings[readings.count - 1].glucose)
+                : 0
+
+            // Most recent determination for the loop's live ISF / CR / target / IOB / COB.
+            let determinationRequest: NSFetchRequest<OrefDetermination> = OrefDetermination.fetchRequest()
+            determinationRequest.sortDescriptors = [NSSortDescriptor(key: "deliverAt", ascending: false)]
+            determinationRequest.fetchLimit = 1
+            let determination = (try? context.fetch(determinationRequest))?.first
+
+            result = MealContext(
+                glucose: currentBG,
+                deltaBG: deltaBG,
+                iob: determination?.iob?.decimalValue ?? 0,
+                cob: determination?.cob ?? 0,
+                isf: determination?.insulinSensitivity?.decimalValue ?? 0,
+                carbRatio: determination?.carbRatio?.decimalValue ?? 0,
+                target: determination?.currentTarget?.decimalValue ?? 0
+            )
+        }
+        return result
+    }
 }

@@ -57,12 +57,11 @@ private struct NoDataView: View {
     }
 }
 
-/// Deep links into the app. Both open Trio's treatment-entry screen (carbs,
-/// bolus, and the meal-scan options all live there) — "Meal" lands you there to
-/// log carbs, "Bolus" to dose. They never dose from the widget; dosing always
-/// requires in-app confirmation. Distinct hosts keep the intent clear.
+/// Deep links into the app. "Advisor" opens the AI Meal Advisor chat (advice
+/// only — it never doses); "Bolus" opens Trio's treatment-entry screen to log
+/// carbs and dose. Dosing always requires in-app confirmation.
 private enum WidgetShortcut {
-    static let meal = URL(string: "Trio://addCarbs")!
+    static let advisor = URL(string: "Trio://chat")!
     static let bolus = URL(string: "Trio://bolus")!
 }
 
@@ -72,8 +71,8 @@ private struct ShortcutButtons: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Link(destination: WidgetShortcut.meal) {
-                label(systemImage: "fork.knife", text: "Meal", tint: .green)
+            Link(destination: WidgetShortcut.advisor) {
+                label(systemImage: "bubble.left.and.bubble.right.fill", text: "Advisor", tint: .purple)
             }
             Link(destination: WidgetShortcut.bolus) {
                 label(systemImage: "syringe", text: "Bolus", tint: .blue)

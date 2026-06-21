@@ -40,6 +40,7 @@ extension Notification.Name {
     @State private var showOnboardingCompletedSplash = false
     @State private var showMigrationError: Bool = false
     @State private var showMealScanFromDeepLink: Bool = false
+    @State private var showChatFromDeepLink: Bool = false
 
     // Telemetry: one-shot guard so the consent migration sheet is presented
     // at most once per process even if scene activates repeatedly.
@@ -342,6 +343,16 @@ extension Notification.Name {
                         .sheet(isPresented: $showMealScanFromDeepLink) {
                             MealScan.RootView(resolver: resolver)
                         }
+                        .sheet(isPresented: $showChatFromDeepLink) {
+                            // AI Meal Advisor opened from the widget. It manages its
+                            // own NavigationStack and dismiss, and needs no AppState,
+                            // so a plain sheet is safe. Feed it a live physiology
+                            // snapshot so its advice uses real numbers; advisory only.
+                            MealScan.StandaloneChatView(
+                                resolver: resolver,
+                                mealContextProvider: { MealOutcomeService.liveMealContext() }
+                            )
+                        }
                 }
             }
             .onReceive(Foundation.NotificationCenter.default.publisher(for: .onboardingCompleted)) { _ in
@@ -498,6 +509,9 @@ extension Notification.Name {
             resolver.resolve(NotificationCenter.self)!.post(name: .openFromGarminConnect, object: url)
         case "mealScan":
             showMealScanFromDeepLink = true
+        case "chat",
+             "mealChat":
+            showChatFromDeepLink = true
         case "addCarbs",
              "bolus",
              "treatments":

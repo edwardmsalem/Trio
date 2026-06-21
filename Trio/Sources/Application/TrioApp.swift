@@ -40,7 +40,6 @@ extension Notification.Name {
     @State private var showOnboardingCompletedSplash = false
     @State private var showMigrationError: Bool = false
     @State private var showMealScanFromDeepLink: Bool = false
-    @State private var showTreatmentsFromDeepLink: Bool = false
 
     // Telemetry: one-shot guard so the consent migration sheet is presented
     // at most once per process even if scene activates repeatedly.
@@ -343,9 +342,6 @@ extension Notification.Name {
                         .sheet(isPresented: $showMealScanFromDeepLink) {
                             MealScan.RootView(resolver: resolver)
                         }
-                        .sheet(isPresented: $showTreatmentsFromDeepLink) {
-                            Treatments.RootView(resolver: resolver)
-                        }
                 }
             }
             .onReceive(Foundation.NotificationCenter.default.publisher(for: .onboardingCompleted)) { _ in
@@ -505,7 +501,12 @@ extension Notification.Name {
         case "addCarbs",
              "bolus",
              "treatments":
-            showTreatmentsFromDeepLink = true
+            // Present the treatment-entry screen the SAME way the in-app "+" button
+            // does — through the shared Router's modal subject. That wraps it in a
+            // NavigationView, supplies the AppState environment it needs, and makes
+            // its "Close" button work. Presenting Treatments.RootView in a bare
+            // .sheet instead crashed (missing AppState) and left Close inert.
+            resolver.resolve(Router.self)?.mainModalScreen.send(.treatmentView)
         default: break
         }
     }

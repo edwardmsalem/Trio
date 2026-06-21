@@ -16,6 +16,19 @@ final class CoachService {
     private let proxyURL: String
     private let proxySecret: String
 
+    /// The coach is a research agent: it can spend 30-90s thinking and pulling
+    /// sources before the gateway returns its (single, non-incremental) reply.
+    /// `URLSession.shared` defaults to a 60s request timeout, which silently
+    /// killed slow replies and surfaced as "something went wrong". A dedicated
+    /// session with generous timeouts is what keeps long answers from failing.
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 180
+        config.timeoutIntervalForResource = 300
+        config.waitsForConnectivity = true
+        return URLSession(configuration: config)
+    }()
+
     /// Thread id for the active coach conversation. Persisted by `CoachInbox`
     /// so the coach keeps cross-session memory (the OpenClaw agent replays full
     /// context server-side when the same id is sent back).
@@ -39,7 +52,7 @@ final class CoachService {
         request.httpMethod = "POST"
         request.setValue("Bearer \(proxySecret)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 120
+        request.timeoutInterval = 180
 
         var body: [String: Any] = [
             "messages": [["role": "user", "content": text]]
@@ -49,7 +62,7 @@ final class CoachService {
         }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        let (bytes, response) = try await session.bytes(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse, (200 ... 299).contains(httpResponse.statusCode) else {
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -120,7 +133,7 @@ final class CoachService {
         request.setValue("Bearer \(proxySecret)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 30
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse, (200 ... 299).contains(httpResponse.statusCode) else {
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0

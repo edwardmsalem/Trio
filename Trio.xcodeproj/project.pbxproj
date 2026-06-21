@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DD0000000000000000000002 /* CoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000003 /* CoachService.swift */; };
+		DD0000000000000000000004 /* CoachDevKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000005 /* CoachDevKeys.swift */; };
+		DD0000000000000000000006 /* CoachInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000007 /* CoachInbox.swift */; };
+		DD0000000000000000000008 /* CoachStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000009 /* CoachStateModel.swift */; };
+		DD000000000000000000000A /* CoachView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD000000000000000000000B /* CoachView.swift */; };
 		CC0000000000000000000003 /* MealPredictionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000004 /* MealPredictionView.swift */; };
 		CC0000000000000000000005 /* MealHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000006 /* MealHistoryView.swift */; };
 		CC0000000000000000000007 /* PortionVolumeEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000008 /* PortionVolumeEstimator.swift */; };
@@ -922,6 +927,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		DD0000000000000000000003 /* CoachService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachService.swift; path = Trio/Sources/Services/Coach/CoachService.swift; sourceTree = SOURCE_ROOT; };
+		DD0000000000000000000005 /* CoachDevKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachDevKeys.swift; path = Trio/Sources/Services/Coach/CoachDevKeys.swift; sourceTree = SOURCE_ROOT; };
+		DD0000000000000000000007 /* CoachInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachInbox.swift; path = Trio/Sources/Modules/Coach/CoachInbox.swift; sourceTree = SOURCE_ROOT; };
+		DD0000000000000000000009 /* CoachStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachStateModel.swift; path = Trio/Sources/Modules/Coach/CoachStateModel.swift; sourceTree = SOURCE_ROOT; };
+		DD000000000000000000000B /* CoachView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachView.swift; path = Trio/Sources/Modules/Coach/View/CoachView.swift; sourceTree = SOURCE_ROOT; };
 		CC0000000000000000000004 /* MealPredictionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealPredictionView.swift; path = Trio/Sources/Modules/MealScan/View/MealPredictionView.swift; sourceTree = SOURCE_ROOT; };
 		CC0000000000000000000006 /* MealHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealHistoryView.swift; path = Trio/Sources/Modules/MealScan/View/MealHistoryView.swift; sourceTree = SOURCE_ROOT; };
 		CC0000000000000000000008 /* PortionVolumeEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PortionVolumeEstimator.swift; path = Trio/Sources/Modules/MealScan/View/PortionVolumeEstimator.swift; sourceTree = SOURCE_ROOT; };
@@ -1830,6 +1840,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		DD0000000000000000000001 /* Coach */ = {
+			isa = PBXGroup;
+			children = (
+				DD0000000000000000000003 /* CoachService.swift */,
+				DD0000000000000000000005 /* CoachDevKeys.swift */,
+				DD0000000000000000000007 /* CoachInbox.swift */,
+				DD0000000000000000000009 /* CoachStateModel.swift */,
+				DD000000000000000000000B /* CoachView.swift */,
+			);
+			name = Coach;
+			sourceTree = "<group>";
+		};
 		CC0000000000000000000001 /* Insights */ = {
 			isa = PBXGroup;
 			children = (
@@ -2087,6 +2109,7 @@
 		3811DE0325C9D31700A708ED /* Modules */ = {
 			isa = PBXGroup;
 			children = (
+				DD0000000000000000000001 /* Coach */,
 				CC0000000000000000000001 /* Insights */,
 				CC0000000000000000000002 /* SettingsBackup */,
 				DDD163032C4C67B400CD525A /* Adjustments */,
@@ -4486,6 +4509,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD0000000000000000000002 /* CoachService.swift in Sources */,
+				DD0000000000000000000004 /* CoachDevKeys.swift in Sources */,
+				DD0000000000000000000006 /* CoachInbox.swift in Sources */,
+				DD0000000000000000000008 /* CoachStateModel.swift in Sources */,
+				DD000000000000000000000A /* CoachView.swift in Sources */,
 				CC0000000000000000000003 /* MealPredictionView.swift in Sources */,
 				CC0000000000000000000005 /* MealHistoryView.swift in Sources */,
 				CC0000000000000000000007 /* PortionVolumeEstimator.swift in Sources */,

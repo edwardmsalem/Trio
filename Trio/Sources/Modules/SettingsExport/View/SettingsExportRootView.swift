@@ -16,6 +16,17 @@ extension SettingsExport {
 
         var body: some View {
             List {
+                Section {
+                    Text("Backup & Restore")
+                        .navigationLink(to: .settingsBackup, from: self)
+                } header: {
+                    Text("Move settings between devices")
+                } footer: {
+                    Text(
+                        "The export below is a CSV report for your records — it can't be loaded back in. To copy your full setup to another device, use Backup & Restore."
+                    )
+                }.listRowBackground(Color.chart)
+
                 Section(
                     header: Text("Export Categories"),
                     content: {

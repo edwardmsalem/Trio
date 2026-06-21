@@ -37,7 +37,7 @@ enum WatchMessageKeys {
     static let delta = "delta"
     static let iob = "iob"
     static let cob = "cob"
-    static let tdd = "tdd"  // Total Daily Dose
+    static let tdd = "tdd" // Total Daily Dose
     static let lastLoopTime = "lastLoopTime"
     static let glucoseValues = "glucoseValues"
     static let minYAxisValue = "minYAxisValue"
@@ -55,4 +55,9 @@ enum WatchMessageKeys {
 
     // Notification Actions
     static let snoozeDuration = "snoozeDuration"
+
+    // Glucose thresholds (sent in the user's display unit, matching currentGlucose)
+    // so the watch can give a discreet haptic when glucose crosses low/high.
+    static let lowThreshold = "lowThreshold"
+    static let highThreshold = "highThreshold"
 }

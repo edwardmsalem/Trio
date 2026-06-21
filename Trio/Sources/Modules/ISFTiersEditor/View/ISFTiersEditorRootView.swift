@@ -28,13 +28,15 @@ extension ISFTiersEditor {
                             "Define BG ranges and the ISF multiplier for each. Ranges are in \(state.units == .mmolL ? "mmol/L" : "mg/dL"). Multiplier 100% = no change, 80% = more aggressive, 120% = less aggressive."
                         )
                     ) {
-                        ForEach(Array(state.tiers.enumerated()), id: \.element.id) { index, tier in
+                        ForEach(Array(state.tiers.enumerated()), id: \.element.id) { index, _ in
                             ISFTierRow(
                                 tier: Binding(
                                     get: { state.tiers[index] },
                                     set: { state.tiers[index] = $0 }
                                 ),
-                                units: state.units
+                                units: state.units,
+                                showCarbEffect: state.carbTierEnabled,
+                                carbAggression: state.carbAggression(for: state.tiers[index].isfMultiplier)
                             )
                         }
                         .onDelete { offsets in
@@ -50,6 +52,16 @@ extension ISFTiersEditor {
                                 }
                             }
                         }
+                    }
+                    .listRowBackground(Color.chart)
+
+                    Section(
+                        header: Text("Carb Ratio Tiering"),
+                        footer: Text(
+                            "When on, your carb ratio is also tightened at high BG so meals eaten while high get more insulin. It is DAMPED (about half the ISF aggressiveness, capped at +30%) and never applies below 140 mg/dL. Flagged fatty meals are excluded. Off by default — verify your max-IOB and watch 2–3h post-meal lows before trusting it."
+                        )
+                    ) {
+                        Toggle("Also tighten carb ratio at high BG", isOn: $state.carbTierEnabled)
                     }
                     .listRowBackground(Color.chart)
                 }
@@ -84,8 +96,22 @@ extension ISFTiersEditor {
 private struct ISFTierRow: View {
     @Binding var tier: InsulinSensitivityTier
     let units: GlucoseUnits
+    var showCarbEffect: Bool = false
+    var carbAggression: Decimal = 1
 
     @State private var showingEditor = false
+
+    /// Whether this band actually moves the carb ratio (aggressive ISF + above the
+    /// BG-140 floor). Bands below 140 are never carb-tiered.
+    private var carbEffectActive: Bool {
+        showCarbEffect && tier.isfMultiplier < 1 && carbAggression > 1 && tier.bgMax > InsulinSensitivityTiers.carbTierBGFloor
+    }
+
+    private var carbEffectText: String {
+        // carbAggression is the divisor; insulin-per-carb increase is (aggr - 1).
+        let pct = Int(truncating: ((carbAggression - 1) * 100) as NSDecimalNumber)
+        return "Carbs: +\(pct)% insulin (damped)"
+    }
 
     private func displayBG(_ value: Decimal) -> String {
         if units == .mmolL {
@@ -109,6 +135,11 @@ private struct ISFTierRow: View {
                         Text("ISF multiplier: \(Int(truncating: (tier.isfMultiplier * 100) as NSDecimalNumber))%")
                             .font(.caption)
                             .foregroundColor(multiplierColor)
+                        if carbEffectActive {
+                            Text(carbEffectText)
+                                .font(.caption2)
+                                .foregroundColor(.purple)
+                        }
                     }
                     Spacer()
                     Image(systemName: showingEditor ? "chevron.up" : "chevron.down")

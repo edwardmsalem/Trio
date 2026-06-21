@@ -160,6 +160,17 @@ final class BaseBolusCalculationManager: BolusCalculationManager, Injectable {
             ?? CarbRatios(units: .grams, schedule: [])
     }
 
+    /// True when the user has the (off-by-default) damped carb-ratio tier enabled.
+    /// Used to suppress that tier for flagged fatty meals (slow-absorbing carbs
+    /// should not get the high-BG carb-ratio boost).
+    private func isCarbTierEnabled() async -> Bool {
+        let tiers = await fileStorage.retrieveAsync(
+            OpenAPS.Settings.insulinSensitivityTiers,
+            as: InsulinSensitivityTiers.self
+        )
+        return (tiers?.enabled ?? false) && (tiers?.carbTierEnabled ?? false)
+    }
+
     /// Retrieves blood glucose targets from storage
     /// - Returns: BGTargets object containing target schedule
     private func getBGTargets() async -> BGTargets {
@@ -345,13 +356,22 @@ final class BaseBolusCalculationManager: BolusCalculationManager, Injectable {
             let effectiveCarbs = isBackdated ? 0 : carbs
             let effectiveCob = isBackdated ? simulatedCOB : bolusVars.cob
 
+            // Fatty-meal carb-tier suppression: when the user flags a fatty meal AND the
+            // damped carb tier is enabled, use the UNTIERED profile carb ratio so the
+            // high-BG carb boost is not applied to slow-absorbing carbs (prevents the
+            // early-low-then-rebound trap). Existing users (carb tier off) are unaffected.
+            let carbTierActive = await isCarbTierEnabled()
+            let effectiveCarbRatio: Decimal = (useFattyMealCorrection && carbTierActive && currentCarbRatio > 0)
+                ? currentCarbRatio
+                : bolusVars.carbRatio
+
             return CalculationInput(
                 carbs: effectiveCarbs,
                 currentBG: glucoseVars.currentBG,
                 deltaBG: glucoseVars.deltaBG,
                 target: bolusVars.target,
                 isf: bolusVars.isf,
-                carbRatio: bolusVars.carbRatio,
+                carbRatio: effectiveCarbRatio,
                 iob: bolusVars.iob,
                 cob: effectiveCob ?? bolusVars.cob,
                 useFattyMealCorrectionFactor: useFattyMealCorrection,

@@ -36,6 +36,16 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var notificationsAlgorithm: Bool = true
     var glucoseNotificationsOption: GlucoseNotificationsOption = .onlyAlarmLimits
     var addSourceInfoToGlucoseNotifications: Bool = false
+    // Quiet hours: during this daily window, routine (info) notifications are
+    // muted. Lows/highs and errors always still fire. Times are minutes from
+    // local midnight; the window may wrap past midnight (e.g. 1320 → 420).
+    var quietHoursEnabled: Bool = false
+    var quietHoursStart: Int = 1320 // 22:00
+    var quietHoursEnd: Int = 420 // 07:00
+    // Opt-in: play the system Critical sound for urgent low/high alarms. Only has
+    // its full (bypass-silent) effect if the build carries the critical-alert
+    // entitlement; otherwise it degrades gracefully to the default sound.
+    var urgentGlucoseUsesCriticalSound: Bool = false
     var lowGlucose: Decimal = 72
     var highGlucose: Decimal = 270
     var carbsRequiredThreshold: Decimal = 10
@@ -386,6 +396,22 @@ extension TrioSettings: Decodable {
 
         if let isWatchfaceDataEnabled = try? container.decode(Bool.self, forKey: .isWatchfaceDataEnabled) {
             settings.isWatchfaceDataEnabled = isWatchfaceDataEnabled
+        }
+
+        if let quietHoursEnabled = try? container.decode(Bool.self, forKey: .quietHoursEnabled) {
+            settings.quietHoursEnabled = quietHoursEnabled
+        }
+
+        if let quietHoursStart = try? container.decode(Int.self, forKey: .quietHoursStart) {
+            settings.quietHoursStart = quietHoursStart
+        }
+
+        if let quietHoursEnd = try? container.decode(Int.self, forKey: .quietHoursEnd) {
+            settings.quietHoursEnd = quietHoursEnd
+        }
+
+        if let urgentGlucoseUsesCriticalSound = try? container.decode(Bool.self, forKey: .urgentGlucoseUsesCriticalSound) {
+            settings.urgentGlucoseUsesCriticalSound = urgentGlucoseUsesCriticalSound
         }
 
         self = settings

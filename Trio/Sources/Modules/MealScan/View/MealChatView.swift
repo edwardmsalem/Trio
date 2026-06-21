@@ -61,12 +61,77 @@ extension MealScan {
                 // Input bar
                 inputBar
 
+                // Outcome-learning advisory ("last time this meal...")
+                advisoryCard
+
                 // Super bolus recommendation
                 superBolusIndicator
+
+                // Pre-meal projection
+                predictButton
 
                 // Confirm button
                 confirmButton
             }
+            .sheet(isPresented: $state.showPrediction) {
+                MealPredictionView(
+                    determination: state.predictedDetermination,
+                    units: state.glucoseUnits,
+                    carbs: state.runningTotals.carbs
+                )
+            }
+        }
+
+        // MARK: - Outcome-learning advisory
+
+        @ViewBuilder private var advisoryCard: some View {
+            if let advisory = state.adjustmentAdvisory {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.title3)
+                        .foregroundStyle(.purple)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("From your history")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.primary)
+                        Text(advisory.suggestion)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .background(Color.purple.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal)
+                .padding(.top, 4)
+            }
+        }
+
+        // MARK: - Preview Impact
+
+        private var predictButton: some View {
+            Button {
+                Task { await state.previewImpact() }
+            } label: {
+                HStack(spacing: 8) {
+                    if state.isPredicting {
+                        ProgressView().tint(.blue)
+                    } else {
+                        Image(systemName: "chart.xyaxis.line")
+                    }
+                    Text(state.isPredicting ? "Projecting..." : "Preview Impact")
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.blue)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            }
+            .disabled(state.isStreaming || state.isPredicting || state.runningTotals.carbs <= 0)
+            .padding(.horizontal)
+            .padding(.top, 4)
         }
 
         // MARK: - Totals Bar
@@ -222,8 +287,7 @@ extension MealScan {
 
         // MARK: - Super Bolus Indicator
 
-        @ViewBuilder
-        private var superBolusIndicator: some View {
+        @ViewBuilder private var superBolusIndicator: some View {
             switch state.runningTotals.superBolusRecommendation {
             case .yes:
                 HStack(spacing: 10) {

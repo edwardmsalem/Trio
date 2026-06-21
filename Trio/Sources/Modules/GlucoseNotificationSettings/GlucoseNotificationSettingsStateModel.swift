@@ -13,6 +13,11 @@ extension GlucoseNotificationSettings {
         @Published var notificationsCarb = true
         @Published var notificationsAlgorithm = true
 
+        @Published var quietHoursEnabled = false
+        @Published var quietHoursStart = 1320
+        @Published var quietHoursEnd = 420
+        @Published var urgentGlucoseUsesCriticalSound = false
+
         var units: GlucoseUnits = .mgdL
 
         override func subscribe() {
@@ -23,6 +28,12 @@ extension GlucoseNotificationSettings {
             subscribeSetting(\.notificationsCgm, on: $notificationsCgm) { notificationsCgm = $0 }
             subscribeSetting(\.notificationsCarb, on: $notificationsCarb) { notificationsCarb = $0 }
             subscribeSetting(\.notificationsAlgorithm, on: $notificationsAlgorithm) { notificationsAlgorithm = $0 }
+
+            subscribeSetting(\.quietHoursEnabled, on: $quietHoursEnabled) { quietHoursEnabled = $0 }
+            subscribeSetting(\.quietHoursStart, on: $quietHoursStart) { quietHoursStart = $0 }
+            subscribeSetting(\.quietHoursEnd, on: $quietHoursEnd) { quietHoursEnd = $0 }
+            subscribeSetting(\.urgentGlucoseUsesCriticalSound, on: $urgentGlucoseUsesCriticalSound) {
+                urgentGlucoseUsesCriticalSound = $0 }
 
             subscribeSetting(\.glucoseBadge, on: $glucoseBadge) { glucoseBadge = $0 }
             subscribeSetting(\.glucoseNotificationsOption, on: $glucoseNotificationsOption) { glucoseNotificationsOption = $0 }

@@ -7,14 +7,16 @@ extension ISFTiersEditor {
     @Observable final class StateModel: BaseStateModel<Provider> {
         var enabled: Bool = false
         var tiers: [InsulinSensitivityTier] = []
+        var carbTierEnabled: Bool = false
         var initialEnabled: Bool = false
         var initialTiers: [InsulinSensitivityTier] = []
+        var initialCarbTierEnabled: Bool = false
         var shouldDisplaySaving: Bool = false
 
         private(set) var units: GlucoseUnits = .mgdL
 
         var hasChanges: Bool {
-            enabled != initialEnabled || tiers != initialTiers
+            enabled != initialEnabled || tiers != initialTiers || carbTierEnabled != initialCarbTierEnabled
         }
 
         var canAddTier: Bool {
@@ -28,9 +30,17 @@ extension ISFTiersEditor {
             let settings = provider.tiersSettings
             enabled = settings.enabled
             tiers = settings.tiers.isEmpty ? InsulinSensitivityTier.defaultTiers : settings.tiers
+            carbTierEnabled = settings.carbTierEnabled
 
             initialEnabled = enabled
             initialTiers = tiers
+            initialCarbTierEnabled = carbTierEnabled
+        }
+
+        /// The damped carb-ratio aggression for a tier's ISF multiplier (1.0 = no change).
+        /// Mirrors the algorithm so the editor can preview the carb effect per band.
+        func carbAggression(for isfMultiplier: Decimal) -> Decimal {
+            InsulinSensitivityTiers.dampedCarbAggression(forISFMultiplier: isfMultiplier)
         }
 
         func addTier() {
@@ -49,11 +59,12 @@ extension ISFTiersEditor {
             guard hasChanges else { return }
             shouldDisplaySaving = true
 
-            let settings = InsulinSensitivityTiers(enabled: enabled, tiers: tiers)
+            let settings = InsulinSensitivityTiers(enabled: enabled, tiers: tiers, carbTierEnabled: carbTierEnabled)
             provider.saveTiersSettings(settings)
 
             initialEnabled = enabled
             initialTiers = tiers
+            initialCarbTierEnabled = carbTierEnabled
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 self.shouldDisplaySaving = false

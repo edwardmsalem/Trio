@@ -48,7 +48,7 @@ struct DetectedFood: Identifiable {
         fiber: Decimal = 0,
         alternativeServings: [ServingOption] = []
     ) {
-        self.id = UUID()
+        id = UUID()
         self.foodId = foodId
         self.name = name
         self.foodType = foodType
@@ -64,8 +64,8 @@ struct DetectedFood: Identifiable {
         self.sugar = sugar
         self.fiber = fiber
         self.alternativeServings = alternativeServings
-        self.isRemoved = false
-        self.isUserAdjusted = false
+        isRemoved = false
+        isUserAdjusted = false
     }
 }
 
@@ -138,6 +138,28 @@ struct MealContext {
         NSDecimalNumber(decimal: d).doubleValue.formatted(.number.precision(.fractionLength(0 ... 1)))
     }
 
+    /// BG-tier multiplier applied to ISF (ported from Eddie's OmniBot advisor).
+    var isfTierMultiplier: Decimal {
+        switch glucose {
+        case ..<70: return Decimal(string: "1.2")!
+        case ..<140: return 1
+        case ..<200: return Decimal(string: "0.9")!
+        case ..<250: return Decimal(string: "0.8")!
+        default: return Decimal(string: "0.7")!
+        }
+    }
+
+    /// Same advisory-dose formula the AI is instructed to use:
+    /// meal (net carbs / CR) + correction ((BG - target) / tiered ISF) - IOB.
+    /// Used to sanity-check the AI's arithmetic, never to dose.
+    func advisoryDose(netCarbs: Decimal) -> Decimal? {
+        guard glucose > 0, carbRatio > 0, isf > 0 else { return nil }
+        let meal = netCarbs / carbRatio
+        let tieredISF = isf * isfTierMultiplier
+        let correction = tieredISF > 0 ? (glucose - target) / tieredISF : 0
+        return meal + correction - iob
+    }
+
     /// A compact block prepended to the AI's first message. Empty if no live data.
     var promptBlock: String {
         guard glucose > 0 else { return "" }
@@ -171,6 +193,8 @@ struct NutritionTotals: Codable {
     var superBolusReason: String
     /// Short dish name from the AI, for the meal log / recents. Optional, defaults nil.
     var name: String? = nil
+    /// AI's advisory total dose in units (nil when no live context was provided).
+    var advisoryDose: Decimal? = nil
 
     static var zero: NutritionTotals {
         NutritionTotals(
@@ -214,10 +238,10 @@ struct ChatMessage: Identifiable, Codable {
     var updatedTotals: NutritionTotals?
 
     init(role: ChatRole, text: String, updatedTotals: NutritionTotals? = nil) {
-        self.id = UUID()
+        id = UUID()
         self.role = role
         self.text = text
-        self.timestamp = Date()
+        timestamp = Date()
         self.updatedTotals = updatedTotals
     }
 }

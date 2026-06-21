@@ -225,8 +225,35 @@ struct TrioMainWatchView: View {
                     continueToBolus = false
                 }
             }
+            .onChange(of: state.pendingDeepLink) { _, _ in
+                consumeDeepLink()
+            }
+            .onAppear {
+                consumeDeepLink()
+            }
         }
         .ignoresSafeArea()
+    }
+
+    /// Acts on a complication tap (`triowatch://`). Opens an entry surface only —
+    /// it never doses; the existing confirm flow still applies.
+    private func consumeDeepLink() {
+        guard let link = state.pendingDeepLink else { return }
+        state.pendingDeepLink = nil
+        navigationPath = NavigationPath() // start from a known root
+        switch link {
+        case .home:
+            // Just show the main glucose screen (page 0); close any open sheet.
+            showingTreatmentMenuSheet = false
+            currentPage = 0
+        case .treatments:
+            showingTreatmentMenuSheet = true
+        case .carbs:
+            navigationPath.append(NavigationDestinations.carbsInput)
+        case .bolus:
+            state.carbsAmount = 0
+            navigationPath.append(NavigationDestinations.bolusInput)
+        }
     }
 
     private func updateRotation(for trend: String?) {

@@ -10,6 +10,11 @@ import WidgetKit
     var body: some Scene {
         WindowGroup {
             TrioMainWatchView()
+                .onOpenURL { url in
+                    // Complication tap (triowatch://). Routes to an entry surface;
+                    // never doses.
+                    WatchState.shared.handleDeepLink(url)
+                }
         }
         .onChange(of: scenePhase) { _, newScenePhase in
             switch newScenePhase {
@@ -33,7 +38,6 @@ import WidgetKit
 // MARK: - Watch App Delegate for Background Refresh
 
 class WatchAppDelegate: NSObject, WKApplicationDelegate {
-
     /// Called when the app finishes launching
     func applicationDidFinishLaunching() {
         // Schedule background refresh immediately on launch
@@ -90,7 +94,8 @@ class WatchAppDelegate: NSObject, WKApplicationDelegate {
                         let context = WCSession.default.receivedApplicationContext
                         if context["complicationUpdate"] as? Bool == true {
                             Task {
-                                await WatchLogger.shared.log("📥 Found complication data in applicationContext during background refresh")
+                                await WatchLogger.shared
+                                    .log("📥 Found complication data in applicationContext during background refresh")
                             }
                             // Update complication data from context
                             watchState.updateComplicationFromContext(context)

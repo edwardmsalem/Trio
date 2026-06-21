@@ -249,6 +249,10 @@ extension GlucoseNotificationSettings {
                         }
                     )
                 }
+
+                quietHoursSection
+
+                criticalSoundSection
             }
             .listSectionSpacing(sectionSpacing)
             .sheet(isPresented: $shouldDisplayHint) {
@@ -384,6 +388,63 @@ extension GlucoseNotificationSettings {
                     }.padding(.top)
                 }.padding(.bottom)
             }.listRowBackground(Color.chart)
+        }
+
+        // MARK: - Quiet Hours
+
+        private func timeBinding(_ minutes: Binding<Int>) -> Binding<Date> {
+            Binding(
+                get: {
+                    Calendar.current.date(
+                        bySettingHour: minutes.wrappedValue / 60,
+                        minute: minutes.wrappedValue % 60,
+                        second: 0,
+                        of: Date()
+                    ) ?? Date()
+                },
+                set: { newDate in
+                    let comps = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                    minutes.wrappedValue = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
+                }
+            )
+        }
+
+        private var quietHoursSection: some View {
+            Section {
+                Toggle("Quiet Hours", isOn: $state.quietHoursEnabled)
+                if state.quietHoursEnabled {
+                    DatePicker(
+                        "Start",
+                        selection: timeBinding($state.quietHoursStart),
+                        displayedComponents: .hourAndMinute
+                    )
+                    DatePicker(
+                        "End",
+                        selection: timeBinding($state.quietHoursEnd),
+                        displayedComponents: .hourAndMinute
+                    )
+                }
+                Text(
+                    "During quiet hours, routine glucose pings are silenced. Low and high alarms, and errors, always still come through."
+                )
+                .font(.footnote)
+                .foregroundColor(.secondary)
+            } header: {
+                Text("Quiet Hours")
+            }
+            .listRowBackground(Color.chart)
+        }
+
+        private var criticalSoundSection: some View {
+            Section {
+                Toggle("Urgent Alarms Use Critical Sound", isOn: $state.urgentGlucoseUsesCriticalSound)
+                Text(
+                    "Plays the louder system Critical alert sound for LOW and HIGH alarms. The full effect (overriding Silent and Focus) needs the critical-alert entitlement; otherwise it falls back to the standard alarm sound."
+                )
+                .font(.footnote)
+                .foregroundColor(.secondary)
+            }
+            .listRowBackground(Color.chart)
         }
     }
 }

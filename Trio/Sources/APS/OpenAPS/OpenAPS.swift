@@ -562,7 +562,8 @@ final class OpenAPS {
                 smbMinutes: activeOverrides.first?.smbMinutes?.decimalValue ?? maxSMBBasalMinutes,
                 uamMinutes: activeOverrides.first?.uamMinutes?.decimalValue ?? maxUAMBasalMinutes,
                 isfTiersEnabled: isfTiersSettings.enabled,
-                isfTiers: isfTiersSettings.tiers
+                isfTiers: isfTiersSettings.tiers,
+                carbTierEnabled: isfTiersSettings.carbTierEnabled
             )
 
             // Save and return contents of Trio's custom oref variables

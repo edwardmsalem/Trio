@@ -19,69 +19,73 @@ extension MealScan {
         @State private var presetName = ""
 
         var onConfirm: ((NutritionTotals) -> Void)?
-        var mealContext: MealContext?
+        /// Re-evaluated on every message so dosing advice always uses live numbers.
+        var mealContextProvider: (() -> MealContext?)?
 
         var body: some View {
             NavigationStack {
-                VStack(spacing: 0) {
-                    if let totals = session.current.runningTotals {
-                        totalsBar(totals)
-                        Divider()
-                    }
-
-                    messageList
-
-                    if session.current.runningTotals != nil {
-                        actionButtons
-                    }
-
-                    inputBar
-                }
-                .background(Color(.systemBackground))
-                .navigationTitle("AI Meal Advisor")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Close") { dismiss() }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        HStack(spacing: 16) {
-                            Button {
-                                showHistory = true
-                            } label: {
-                                Image(systemName: "clock.arrow.circlepath")
+                messageList
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        if let totals = session.current.runningTotals {
+                            VStack(spacing: 0) {
+                                totalsBar(totals)
+                                Divider()
                             }
-                            .disabled(session.history.isEmpty)
-
-                            Button {
-                                session.startNew()
-                            } label: {
-                                Image(systemName: "square.and.pencil")
-                            }
-                            .disabled(!session.hasConversation || session.isStreaming)
                         }
                     }
-                }
-                .sheet(isPresented: $showHistory) {
-                    historySheet
-                }
-                .alert("Save as Preset", isPresented: $showSavePreset) {
-                    TextField("Preset name", text: $presetName)
-                    Button("Save") { savePreset() }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Saves the current carbs, fat, and protein as a reusable preset.")
-                }
-                .onChange(of: photoPickerItem) { _, newValue in
-                    Task { await loadPickedImage(newValue) }
-                }
+                    // Bottom bar lives in a safe-area inset so the keyboard
+                    // pushes it up instead of covering it (fixes invisible typing).
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        VStack(spacing: 0) {
+                            if session.current.runningTotals != nil {
+                                actionButtons
+                            }
+                            inputBar
+                        }
+                        .background(.bar)
+                    }
+                    .background(Color(.systemBackground))
+                    .navigationTitle("AI Meal Advisor")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { dismiss() }
+                        }
+                        ToolbarItem(placement: .primaryAction) {
+                            HStack(spacing: 16) {
+                                Button {
+                                    showHistory = true
+                                } label: {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                }
+                                .disabled(session.history.isEmpty)
+
+                                Button {
+                                    session.startNew()
+                                } label: {
+                                    Image(systemName: "square.and.pencil")
+                                }
+                                .disabled(!session.hasConversation || session.isStreaming)
+                            }
+                        }
+                    }
+                    .sheet(isPresented: $showHistory) {
+                        historySheet
+                    }
+                    .alert("Save as Preset", isPresented: $showSavePreset) {
+                        TextField("Preset name", text: $presetName)
+                        Button("Save") { savePreset() }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Saves the current carbs, fat, and protein as a reusable preset.")
+                    }
+                    .onChange(of: photoPickerItem) { _, newValue in
+                        Task { await loadPickedImage(newValue) }
+                    }
             }
             .onAppear {
                 session.configure(resolver: resolver)
-                session.liveContextBlock = [mealContext?.promptBlock, MealLog.shared.outcomesSummary()]
-                    .compactMap { $0 }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: "\n\n")
+                session.mealContextProvider = mealContextProvider
             }
         }
 
@@ -178,8 +182,7 @@ extension MealScan {
 
         // MARK: - Message row
 
-        @ViewBuilder
-        private func messageRow(_ message: ChatMessage, isLastInRun: Bool) -> some View {
+        @ViewBuilder private func messageRow(_ message: ChatMessage, isLastInRun: Bool) -> some View {
             let isUser = message.role == .user
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 2) {
@@ -213,8 +216,7 @@ extension MealScan {
             .padding(.top, isLastInRun ? 4 : 1)
         }
 
-        @ViewBuilder
-        private func bubble(_ message: ChatMessage, isUser: Bool, isLastInRun: Bool) -> some View {
+        @ViewBuilder private func bubble(_ message: ChatMessage, isUser: Bool, isLastInRun: Bool) -> some View {
             let textColor: Color = isUser ? .white : .primary
             let bubbleColor: Color = isUser
                 ? Color(red: 0.0, green: 0.48, blue: 1.0)
@@ -351,8 +353,7 @@ extension MealScan {
 
         // MARK: - Input bar
 
-        @ViewBuilder
-        private var inputBar: some View {
+        @ViewBuilder private var inputBar: some View {
             VStack(spacing: 6) {
                 if let img = session.pendingImage {
                     HStack {
@@ -423,8 +424,7 @@ extension MealScan {
             return messages[next].role != messages[index].role
         }
 
-        @MainActor
-        private func loadPickedImage(_ item: PhotosPickerItem?) async {
+        @MainActor private func loadPickedImage(_ item: PhotosPickerItem?) async {
             guard let item else { return }
             if let data = try? await item.loadTransferable(type: Data.self),
                let img = UIImage(data: data)

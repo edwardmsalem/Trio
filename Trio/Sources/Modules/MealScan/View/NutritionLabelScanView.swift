@@ -95,8 +95,7 @@ extension MealScan {
             }
         }
 
-        @ViewBuilder
-        private var reviewForm: some View {
+        @ViewBuilder private var reviewForm: some View {
             Form {
                 if let image = capturedImage {
                     Section {
@@ -162,8 +161,7 @@ extension MealScan {
             }
         }
 
-        @MainActor
-        private func parseLabel(_ image: UIImage) async {
+        @MainActor private func parseLabel(_ image: UIImage) async {
             guard let provider else {
                 errorMessage = "Provider not ready"
                 showError = true

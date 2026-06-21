@@ -15,6 +15,7 @@ extension MealScan {
         @State private var provider: MealScanProvider?
         @State private var phase: Phase = .camera
         @State private var capturedImage: UIImage?
+        @State private var portionEstimate: PortionEstimate?
         @State private var analysisText: String = ""
         @State private var totals: NutritionTotals?
         @State private var errorMessage: String?
@@ -42,14 +43,27 @@ extension MealScan {
                 Group {
                     switch phase {
                     case .camera:
-                        CameraCaptureView(
-                            onImageCaptured: { image in
-                                capturedImage = image
-                                phase = .analyzing
-                                Task { await analyze(image) }
-                            },
-                            onCancel: { dismiss() }
-                        )
+                        if DepthCameraCaptureView.isAvailable {
+                            DepthCameraCaptureView(
+                                onCaptured: { image, estimate in
+                                    capturedImage = image
+                                    portionEstimate = estimate
+                                    phase = .analyzing
+                                    Task { await analyze(image) }
+                                },
+                                onCancel: { dismiss() }
+                            )
+                        } else {
+                            CameraCaptureView(
+                                onImageCaptured: { image in
+                                    capturedImage = image
+                                    portionEstimate = nil
+                                    phase = .analyzing
+                                    Task { await analyze(image) }
+                                },
+                                onCancel: { dismiss() }
+                            )
+                        }
 
                     case .analyzing:
                         VStack(spacing: 16) {
@@ -80,8 +94,10 @@ extension MealScan {
                     }
                 }
                 .alert("Error", isPresented: $showError) {
-                    Button("Try Again") { showError = false; phase = .camera }
-                    Button("Cancel", role: .cancel) { showError = false; dismiss() }
+                    Button("Try Again") { showError = false
+                        phase = .camera }
+                    Button("Cancel", role: .cancel) { showError = false
+                        dismiss() }
                 } message: {
                     Text(errorMessage ?? "Unable to analyze the photo.")
                 }
@@ -101,8 +117,7 @@ extension MealScan {
             }
         }
 
-        @ViewBuilder
-        private var reviewForm: some View {
+        @ViewBuilder private var reviewForm: some View {
             Form {
                 if let image = capturedImage {
                     Section {
@@ -119,6 +134,16 @@ extension MealScan {
                     macroRow("Carbs", value: $editableCarbs)
                     macroRow("Fat", value: $editableFat)
                     macroRow("Protein", value: $editableProtein)
+                }
+
+                if let portionEstimate {
+                    Section {
+                        Label(portionEstimate.displayText, systemImage: "ruler")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } footer: {
+                        Text("Measured with the depth camera and used to inform the estimate above.")
+                    }
                 }
 
                 if let totals, totals.superBolusRecommendation != .no {
@@ -194,8 +219,7 @@ extension MealScan {
             }
         }
 
-        @ViewBuilder
-        private func superBolusBanner(_ totals: NutritionTotals) -> some View {
+        @ViewBuilder private func superBolusBanner(_ totals: NutritionTotals) -> some View {
             HStack(spacing: 10) {
                 Image(systemName: totals.superBolusRecommendation == .yes ? "bolt.fill" : "bolt.circle")
                     .foregroundStyle(.orange)
@@ -211,15 +235,14 @@ extension MealScan {
             }
         }
 
-        @MainActor
-        private func analyze(_ image: UIImage) async {
+        @MainActor private func analyze(_ image: UIImage) async {
             guard let provider else {
                 errorMessage = "Provider not ready"
                 showError = true
                 return
             }
             do {
-                let combinedContext = [mealContext?.promptBlock, MealLog.shared.outcomesSummary()]
+                let combinedContext = [mealContext?.promptBlock, MealLog.shared.outcomesSummary(), portionEstimate?.promptHint]
                     .compactMap { $0 }
                     .filter { !$0.isEmpty }
                     .joined(separator: "\n\n")
@@ -240,6 +263,21 @@ extension MealScan {
                     editableProtein = parsed.protein
                 }
                 analysisText = Self.stripNutritionBlock(text)
+
+                // Cross-check the AI's dose arithmetic against the same formula in Swift.
+                if let parsed = totals, let aiDose = parsed.advisoryDose, let ctx = mealContext {
+                    let netCarbs = parsed.netCarbs > 0 ? parsed.netCarbs : parsed.carbs
+                    if let swiftDose = ctx.advisoryDose(netCarbs: netCarbs),
+                       abs(NSDecimalNumber(decimal: aiDose - swiftDose).doubleValue) > 0.5
+                    {
+                        let fmt = { (d: Decimal) in
+                            NSDecimalNumber(decimal: d).doubleValue.formatted(.number.precision(.fractionLength(1)))
+                        }
+                        analysisText =
+                            "⚠️ Dose check: AI said \(fmt(aiDose))u, formula gives \(fmt(swiftDose))u. Trust Trio's calculator.\n\n" +
+                            analysisText
+                    }
+                }
                 phase = .review
             } catch {
                 errorMessage = error.localizedDescription

@@ -423,7 +423,8 @@ enum SettingItems {
     ]
 
     static var allItems: [SettingItem] {
-        trioConfig + devicesItems + therapyItems + algorithmItems + trioFeaturesItems + notificationItems + serviceItems + supportItems
+        trioConfig + devicesItems + therapyItems + algorithmItems + trioFeaturesItems + notificationItems + serviceItems +
+            supportItems
     }
 
     static func filteredItems(searchText: String) -> [FilteredSettingItem] {

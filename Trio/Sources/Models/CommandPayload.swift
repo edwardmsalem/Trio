@@ -8,7 +8,7 @@ struct EncryptedPushMessage: Decodable {
     }
 }
 
-struct CommandPayload: Decodable, Sendable {
+struct CommandPayload: Codable, Sendable {
     var user: String
     var commandType: TrioRemoteControl.CommandType
     var timestamp: TimeInterval
@@ -22,7 +22,7 @@ struct CommandPayload: Decodable, Sendable {
     var scheduledTime: TimeInterval?
     var returnNotification: ReturnNotificationInfo?
 
-    struct ReturnNotificationInfo: Decodable, Sendable {
+    struct ReturnNotificationInfo: Codable, Sendable {
         let productionEnvironment: Bool
         let deviceToken: String
         let bundleId: String

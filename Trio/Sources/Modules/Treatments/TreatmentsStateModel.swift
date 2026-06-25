@@ -27,6 +27,20 @@ extension Treatments {
 
         var predictions: Predictions?
         var amount: Decimal = 0
+
+        // Split bolus: deliver part of the meal bolus now, get reminded for the rest.
+        // The "later" part is only ever a reminder — never an auto-dose.
+        var splitBolusEnabled: Bool = false
+        var splitNowPercent: Int = 60
+        var splitDelayMinutes: Int = 30
+        var splitNowAmount: Decimal {
+            apsManager.roundBolus(amount: amount * Decimal(splitNowPercent) / 100)
+        }
+
+        var splitLaterAmount: Decimal {
+            max(0, amount - splitNowAmount)
+        }
+
         var insulinRecommended: Decimal = 0
         var insulinRequired: Decimal = 0
         var units: GlucoseUnits = .mgdL
@@ -434,6 +448,16 @@ extension Treatments {
                 await MainActor.run {
                     self.addButtonPressed = true
                 }
+
+                // Split bolus: deliver the "now" portion through the normal flow and
+                // hold the rest for a reminder. Capture the remainder before mutating
+                // `amount` (external insulin is logged as a single past dose, no split).
+                let splitRemainder: Decimal = (splitBolusEnabled && !externalInsulin && amount > 0) ? splitLaterAmount : 0
+                if splitRemainder > 0 {
+                    let nowAmount = splitNowAmount
+                    await MainActor.run { self.amount = nowAmount }
+                }
+
                 let isInsulinGiven = amount > 0
                 let isCarbsPresent = carbs > 0
                 let isFatPresent = fat > 0
@@ -445,6 +469,10 @@ extension Treatments {
 
                 if isInsulinGiven {
                     await handleInsulin(isExternal: externalInsulin)
+                    // Reminder only — the held-back portion is never auto-delivered.
+                    if splitRemainder > 0 {
+                        SplitBolusReminder.schedule(remaining: splitRemainder, after: splitDelayMinutes)
+                    }
                 } else {
                     hideModal()
                     return

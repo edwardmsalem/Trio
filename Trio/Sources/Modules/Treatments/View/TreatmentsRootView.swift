@@ -622,6 +622,40 @@ extension Treatments {
                                     }
                             }
 
+                            if !state.externalInsulin {
+                                HStack {
+                                    Text("Split dose")
+                                    Spacer()
+                                    Toggle("", isOn: $state.splitBolusEnabled).toggleStyle(CheckboxToggleStyle())
+                                }
+
+                                if state.splitBolusEnabled, state.amount > 0 {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Picker("Take now", selection: $state.splitNowPercent) {
+                                            Text("50%").tag(50)
+                                            Text("60%").tag(60)
+                                            Text("70%").tag(70)
+                                            Text("75%").tag(75)
+                                        }
+                                        .pickerStyle(.segmented)
+
+                                        Picker("Remind in", selection: $state.splitDelayMinutes) {
+                                            Text("15m").tag(15)
+                                            Text("30m").tag(30)
+                                            Text("45m").tag(45)
+                                            Text("60m").tag(60)
+                                        }
+                                        .pickerStyle(.segmented)
+
+                                        Text(
+                                            "Deliver \(formatter.string(from: state.splitNowAmount as NSNumber) ?? "0") U now — reminder for the remaining \(formatter.string(from: state.splitLaterAmount as NSNumber) ?? "0") U in \(state.splitDelayMinutes) min. You confirm the rest yourself; it is never auto-delivered."
+                                        )
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+
                             HStack {
                                 Text("External Insulin")
                                 Spacer()
@@ -667,6 +701,12 @@ extension Treatments {
                 }
             })
             .onAppear {
+                // Arriving from a due split-bolus reminder: pre-fill the remaining units
+                // so the user can review and deliver it through the normal bolus flow.
+                if let pending = SplitBolusReminder.pending(), pending.dueDate <= Date() {
+                    state.amount = pending.remaining
+                    SplitBolusReminder.clear()
+                }
                 configureView {
                     state.isActive = true
                     Task { @MainActor in

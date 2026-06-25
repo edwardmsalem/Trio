@@ -102,7 +102,7 @@ extension MealScan {
 
                 for await chunk in stream {
                     assistantText += chunk
-                    chatMessages[messageIndex].text = assistantText
+                    chatMessages[messageIndex].text = BaseClaudeNutritionService.conversationalText(from: assistantText)
                 }
 
                 // Parse totals from Claude's response
@@ -146,7 +146,7 @@ extension MealScan {
 
                 for await chunk in stream {
                     assistantText += chunk
-                    chatMessages[messageIndex].text = assistantText
+                    chatMessages[messageIndex].text = BaseClaudeNutritionService.conversationalText(from: assistantText)
                 }
 
                 if let totals = BaseClaudeNutritionService.parseTotals(from: assistantText) {

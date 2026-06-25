@@ -154,7 +154,7 @@ struct MealConversation: Codable, Identifiable {
 
             for await chunk in stream {
                 assistantText += chunk
-                current.messages[idx].text = assistantText
+                current.messages[idx].text = BaseClaudeNutritionService.conversationalText(from: assistantText)
             }
 
             if assistantText.isEmpty {
@@ -162,6 +162,10 @@ struct MealConversation: Codable, Identifiable {
             } else if let totals = BaseClaudeNutritionService.parseTotals(from: assistantText) {
                 current.messages[idx].updatedTotals = totals
                 current.runningTotals = totals
+                // If the model gave only the block, keep the bubble from being blank.
+                if current.messages[idx].text.isEmpty {
+                    current.messages[idx].text = "Here's my estimate 👇"
+                }
 
                 // Cross-check the AI's dose arithmetic against the same formula in Swift.
                 if let aiDose = totals.advisoryDose, let ctx = context {

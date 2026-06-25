@@ -150,67 +150,58 @@ extension Treatments {
             }
         }
 
+        /// Single entry point for meal estimation: the AI Meal Advisor (photo + chat),
+        /// with the other capture tools tucked into a compact menu so nothing is lost.
+        @ViewBuilder private func mealAdvisorEntry() -> some View {
+            Button {
+                showStandaloneChat = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                    Text("AI Meal Advisor").font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(.blue)
+            }
+            .buttonStyle(.borderless)
+            .sheet(isPresented: $showStandaloneChat) {
+                MealScan.StandaloneChatView(resolver: resolver, onConfirm: { totals in
+                    applyMealTotals(totals)
+                }, mealContextProvider: { currentMealContext() })
+            }
+
+            Menu {
+                Button { showPlateScan = true } label: { Label("Scan a Plate", systemImage: "fork.knife") }
+                Button { showBarcodeScan = true } label: { Label("Scan a Barcode", systemImage: "barcode") }
+                Button { showLabelScan = true } label: { Label("Scan a Nutrition Label", systemImage: "doc.text.viewfinder") }
+                Button { showMealHistory = true } label: { Label("Meal History", systemImage: "clock.arrow.circlepath") }
+            } label: {
+                Image(systemName: "ellipsis.circle").foregroundStyle(.blue)
+            }
+            .buttonStyle(.borderless)
+            .sheet(isPresented: $showPlateScan) {
+                MealScan.PlateScanView(resolver: resolver, onConfirm: { totals in
+                    applyMealTotals(totals)
+                }, mealContext: currentMealContext())
+            }
+            .sheet(isPresented: $showBarcodeScan) {
+                MealScan.BarcodeScanView(resolver: resolver, onConfirm: { totals in
+                    applyMealTotals(totals)
+                })
+            }
+            .sheet(isPresented: $showLabelScan) {
+                MealScan.NutritionLabelScanView(resolver: resolver, onSaved: { _ in
+                    // Preset list refreshes automatically via @FetchRequest
+                })
+            }
+            .sheet(isPresented: $showMealHistory) {
+                MealScan.MealHistoryView(units: state.units)
+            }
+        }
+
         @ViewBuilder private func carbsTextField() -> some View {
             HStack(spacing: 8) {
                 Text("Carbs")
-                Button {
-                    showPlateScan = true
-                } label: {
-                    Image(systemName: "fork.knife")
-                        .foregroundStyle(.blue)
-                }
-                .buttonStyle(.borderless)
-                .sheet(isPresented: $showPlateScan) {
-                    MealScan.PlateScanView(resolver: resolver, onConfirm: { totals in
-                        applyMealTotals(totals)
-                    }, mealContext: currentMealContext())
-                }
-                Button {
-                    showLabelScan = true
-                } label: {
-                    Image(systemName: "doc.text.viewfinder")
-                        .foregroundStyle(.blue)
-                }
-                .buttonStyle(.borderless)
-                .sheet(isPresented: $showLabelScan) {
-                    MealScan.NutritionLabelScanView(resolver: resolver, onSaved: { _ in
-                        // Preset list refreshes automatically via @FetchRequest
-                    })
-                }
-                Button {
-                    showBarcodeScan = true
-                } label: {
-                    Image(systemName: "barcode")
-                        .foregroundStyle(.blue)
-                }
-                .buttonStyle(.borderless)
-                .sheet(isPresented: $showBarcodeScan) {
-                    MealScan.BarcodeScanView(resolver: resolver, onConfirm: { totals in
-                        applyMealTotals(totals)
-                    })
-                }
-                Button {
-                    showStandaloneChat = true
-                } label: {
-                    Image(systemName: "bubble.left.and.text.bubble.right")
-                        .foregroundStyle(.blue)
-                }
-                .buttonStyle(.borderless)
-                .sheet(isPresented: $showStandaloneChat) {
-                    MealScan.StandaloneChatView(resolver: resolver, onConfirm: { totals in
-                        applyMealTotals(totals)
-                    }, mealContextProvider: { currentMealContext() })
-                }
-                Button {
-                    showMealHistory = true
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .foregroundStyle(.blue)
-                }
-                .buttonStyle(.borderless)
-                .sheet(isPresented: $showMealHistory) {
-                    MealScan.MealHistoryView(units: state.units)
-                }
+                mealAdvisorEntry()
                 Spacer()
                 TextFieldWithToolBar(
                     text: $state.carbs,

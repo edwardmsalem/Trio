@@ -447,6 +447,12 @@ extension Treatments {
 
         private var glassDivider: some View { Divider().overlay(Color.white.opacity(0.07)) }
 
+        /// Bolus stepper increment. Read safely: `settingsManager` is @Injected and is
+        /// nil during the first render (before onAppear), so never force-unwrap it here.
+        private var bolusStep: Decimal {
+            state.settingsManager?.preferences.bolusIncrement ?? 0.05
+        }
+
         private var glassHeader: some View {
             HStack {
                 Text("Add Treatment")
@@ -558,7 +564,7 @@ extension Treatments {
                         glassDivider
                         GlassStepper(
                             systemImage: "syringe", label: "Bolus", value: $state.amount,
-                            unit: "U", step: state.settingsManager.preferences.bolusIncrement,
+                            unit: "U", step: bolusStep,
                             keyboardType: .decimalPad, formatter: formatter, accent: TrioGlass.Colors.accent
                         ) { Task { await state.updateForecasts() } }
                         if !state.externalInsulin {

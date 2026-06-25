@@ -309,7 +309,7 @@ extension Treatments {
                         .listRowBackground(Color.blue)
                     }
                 }
-                .listRowBackground(Color.chart)
+                .listRowBackground(glassRow)
             }
         }
 
@@ -353,7 +353,7 @@ extension Treatments {
                         .padding(.vertical, 2)
                     }
                 }
-                .listRowBackground(Color.chart)
+                .listRowBackground(glassRow)
             }
         }
 
@@ -435,19 +435,19 @@ extension Treatments {
             }
         }
 
+        /// Liquid-glass row fill for the Treatments list (matches the dashboard cards).
+        private var glassRow: some View {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().fill(TrioGlass.Colors.glassTint.opacity(0.45))
+            }
+        }
+
         var body: some View {
             ZStack(alignment: .center) {
+                TrioGlassBackground()
                 VStack {
                     List {
-                        Section {
-                            ForecastChart(state: state)
-                                .padding(.vertical)
-                        }.listRowBackground(Color.chart)
-
-                        recentsSection()
-
-                        quickPresetSection()
-
                         Section {
                             carbsTextField()
 
@@ -520,7 +520,7 @@ extension Treatments {
                                     maxLength: 25
                                 )
                             }
-                        }.listRowBackground(Color.chart)
+                        }.listRowBackground(glassRow)
 
                         Section {
                             if state.fattyMeals || state.sweetMeals {
@@ -652,11 +652,21 @@ extension Treatments {
                                 Spacer()
                                 Toggle("", isOn: $state.externalInsulin).toggleStyle(CheckboxToggleStyle())
                             }
-                        }.listRowBackground(Color.chart)
+                        }.listRowBackground(glassRow)
+
+                        Section {
+                            ForecastChart(state: state)
+                                .padding(.vertical)
+                        }.listRowBackground(glassRow)
+
+                        recentsSection()
+
+                        quickPresetSection()
 
                         treatmentButton
                     }
                     .listSectionSpacing(sectionSpacing)
+                    .environment(\.colorScheme, .dark)
                 }
                 .blur(radius: state.isAwaitingDeterminationResult ? 5 : 0)
 
@@ -666,7 +676,7 @@ extension Treatments {
             }
             .padding(.top)
             .ignoresSafeArea(edges: .top)
-            .scrollContentBackground(.hidden).background(appState.trioBackgroundColor(for: colorScheme))
+            .scrollContentBackground(.hidden)
             .blur(radius: state.showInfo ? 3 : 0)
             .navigationTitle("Treatments")
             .navigationBarTitleDisplayMode(.inline)

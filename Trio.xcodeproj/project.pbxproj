@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DD2000000000000000000002 /* TrioGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2000000000000000000003 /* TrioGlass.swift */; };
 		DD1000000000000000000002 /* SplitBolusReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000003 /* SplitBolusReminder.swift */; };
 		DD0000000000000000000002 /* CoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000003 /* CoachService.swift */; };
 		DD0000000000000000000004 /* CoachDevKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000005 /* CoachDevKeys.swift */; };
@@ -929,6 +930,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		DD2000000000000000000003 /* TrioGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TrioGlass.swift; path = Trio/Sources/Views/DesignSystem/TrioGlass.swift; sourceTree = SOURCE_ROOT; };
 		DD1000000000000000000003 /* SplitBolusReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplitBolusReminder.swift; path = Trio/Sources/Modules/Treatments/SplitBolusReminder.swift; sourceTree = SOURCE_ROOT; };
 		DD0000000000000000000003 /* CoachService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachService.swift; path = Trio/Sources/Services/Coach/CoachService.swift; sourceTree = SOURCE_ROOT; };
 		DD0000000000000000000005 /* CoachDevKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachDevKeys.swift; path = Trio/Sources/Services/Coach/CoachDevKeys.swift; sourceTree = SOURCE_ROOT; };
@@ -4514,6 +4516,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD2000000000000000000002 /* TrioGlass.swift in Sources */,
 				DD1000000000000000000002 /* SplitBolusReminder.swift in Sources */,
 				DD0000000000000000000002 /* CoachService.swift in Sources */,
 				DD0000000000000000000004 /* CoachDevKeys.swift in Sources */,

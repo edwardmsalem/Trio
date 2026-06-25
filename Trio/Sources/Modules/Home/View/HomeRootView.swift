@@ -971,95 +971,96 @@ extension Home {
         }
 
         @ViewBuilder func mainView() -> some View {
-            GeometryReader { geo in
-                mainViewElements(geo)
-            }
-            .onChange(of: state.hours) {
-                highlightButtons()
-            }
-            .onAppear {
-                configureView {
+            // Liquid Glass reskin: the main-tab content is the new GlucoseDashboardView.
+            // The stock dashboard (mainViewElements) is preserved in this file for the
+            // engine/sheet wiring; only the rendered content is swapped here.
+            GlucoseDashboardView(state: state)
+                .onChange(of: state.hours) {
                     highlightButtons()
                 }
-            }
-            .navigationTitle("Home")
-            .navigationBarHidden(true)
-            .blur(radius: state.isLoopStatusPresented ? 3 : 0)
-            .sheet(isPresented: $state.isLoopStatusPresented) {
-                LoopStatusView(state: state)
-            }
-            .sheet(isPresented: $state.isLegendPresented) {
-                ChartLegendView(state: state)
-            }
-            // PUMP RELATED
-            .confirmationDialog("Pump Model", isPresented: $showPumpSelection) {
-                Button("Medtronic") { state.addPump(.minimed) }
-                Button("All Omnipod Types") { state.addPump(.omni) }
-                Button("Dana(RS/-i)") { state.addPump(.dana) }
-                Button("Medtrum Nano") { state.addPump(.medtrum) }
-                Button("Pump Simulator") { state.addPump(.simulator) }
-            } message: { Text("Select Pump Model") }
-            .sheet(isPresented: $state.shouldDisplayPumpSetupSheet) {
-                if let pumpManager = state.provider.apsManager.pumpManager {
-                    PumpConfig.PumpSettingsView(
-                        pumpManager: pumpManager,
-                        bluetoothManager: state.provider.apsManager.bluetoothManager!,
-                        completionDelegate: state,
-                        setupDelegate: state
-                    )
-                } else {
-                    PumpConfig.PumpSetupView(
-                        pumpType: state.setupPumpType,
-                        pumpInitialSettings: state.pumpInitialSettings,
-                        bluetoothManager: state.provider.apsManager.bluetoothManager!,
-                        completionDelegate: state,
-                        setupDelegate: state
-                    )
+                .onAppear {
+                    configureView {
+                        highlightButtons()
+                    }
                 }
-            }
-            // CGM RELATED
-            .confirmationDialog("CGM Model", isPresented: $showCGMSelection) {
-                cgmSelectionButtons
-            } message: {
-                Text("Select CGM Model")
-            }
-            .sheet(isPresented: $state.shouldDisplayCGMSetupSheet) {
-                switch state.cgmCurrent.type {
-                case .enlite,
-                     .nightscout,
-                     .none,
-                     .simulator,
-                     .xdrip:
-                    CGMSettings.CustomCGMOptionsView(
-                        resolver: self.resolver,
-                        state: state.cgmStateModel,
-                        cgmCurrent: state.cgmCurrent,
-                        deleteCGM: state.deleteCGM
-                    )
-                case .plugin:
-                    if let fetchGlucoseManager = state.fetchGlucoseManager,
-                       let cgmManager = fetchGlucoseManager.cgmManager,
-                       state.cgmCurrent.type == fetchGlucoseManager.cgmGlucoseSourceType,
-                       state.cgmCurrent.id == fetchGlucoseManager.cgmGlucosePluginId
-                    {
-                        CGMSettings.CGMSettingsView(
-                            cgmManager: cgmManager,
+                .navigationTitle("Home")
+                .navigationBarHidden(true)
+                .blur(radius: state.isLoopStatusPresented ? 3 : 0)
+                .sheet(isPresented: $state.isLoopStatusPresented) {
+                    LoopStatusView(state: state)
+                }
+                .sheet(isPresented: $state.isLegendPresented) {
+                    ChartLegendView(state: state)
+                }
+                // PUMP RELATED
+                .confirmationDialog("Pump Model", isPresented: $showPumpSelection) {
+                    Button("Medtronic") { state.addPump(.minimed) }
+                    Button("All Omnipod Types") { state.addPump(.omni) }
+                    Button("Dana(RS/-i)") { state.addPump(.dana) }
+                    Button("Medtrum Nano") { state.addPump(.medtrum) }
+                    Button("Pump Simulator") { state.addPump(.simulator) }
+                } message: { Text("Select Pump Model") }
+                .sheet(isPresented: $state.shouldDisplayPumpSetupSheet) {
+                    if let pumpManager = state.provider.apsManager.pumpManager {
+                        PumpConfig.PumpSettingsView(
+                            pumpManager: pumpManager,
                             bluetoothManager: state.provider.apsManager.bluetoothManager!,
-                            unit: state.settingsManager.settings.units,
-                            completionDelegate: state
+                            completionDelegate: state,
+                            setupDelegate: state
                         )
                     } else {
-                        CGMSettings.CGMSetupView(
-                            CGMType: state.cgmCurrent,
+                        PumpConfig.PumpSetupView(
+                            pumpType: state.setupPumpType,
+                            pumpInitialSettings: state.pumpInitialSettings,
                             bluetoothManager: state.provider.apsManager.bluetoothManager!,
-                            unit: state.settingsManager.settings.units,
                             completionDelegate: state,
-                            setupDelegate: state,
-                            pluginCGMManager: self.state.pluginCGMManager
+                            setupDelegate: state
                         )
                     }
                 }
-            }
+                // CGM RELATED
+                .confirmationDialog("CGM Model", isPresented: $showCGMSelection) {
+                    cgmSelectionButtons
+                } message: {
+                    Text("Select CGM Model")
+                }
+                .sheet(isPresented: $state.shouldDisplayCGMSetupSheet) {
+                    switch state.cgmCurrent.type {
+                    case .enlite,
+                         .nightscout,
+                         .none,
+                         .simulator,
+                         .xdrip:
+                        CGMSettings.CustomCGMOptionsView(
+                            resolver: self.resolver,
+                            state: state.cgmStateModel,
+                            cgmCurrent: state.cgmCurrent,
+                            deleteCGM: state.deleteCGM
+                        )
+                    case .plugin:
+                        if let fetchGlucoseManager = state.fetchGlucoseManager,
+                           let cgmManager = fetchGlucoseManager.cgmManager,
+                           state.cgmCurrent.type == fetchGlucoseManager.cgmGlucoseSourceType,
+                           state.cgmCurrent.id == fetchGlucoseManager.cgmGlucosePluginId
+                        {
+                            CGMSettings.CGMSettingsView(
+                                cgmManager: cgmManager,
+                                bluetoothManager: state.provider.apsManager.bluetoothManager!,
+                                unit: state.settingsManager.settings.units,
+                                completionDelegate: state
+                            )
+                        } else {
+                            CGMSettings.CGMSetupView(
+                                CGMType: state.cgmCurrent,
+                                bluetoothManager: state.provider.apsManager.bluetoothManager!,
+                                unit: state.settingsManager.settings.units,
+                                completionDelegate: state,
+                                setupDelegate: state,
+                                pluginCGMManager: self.state.pluginCGMManager
+                            )
+                        }
+                    }
+                }
         }
 
         @ViewBuilder func tabBar() -> some View {

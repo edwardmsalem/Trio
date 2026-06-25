@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DD3000000000000000000002 /* GlucoseDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3000000000000000000003 /* GlucoseDashboardView.swift */; };
 		DD2000000000000000000002 /* TrioGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2000000000000000000003 /* TrioGlass.swift */; };
 		DD1000000000000000000002 /* SplitBolusReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000003 /* SplitBolusReminder.swift */; };
 		DD0000000000000000000002 /* CoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000003 /* CoachService.swift */; };
@@ -930,6 +931,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		DD3000000000000000000003 /* GlucoseDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GlucoseDashboardView.swift; path = Trio/Sources/Modules/Home/View/GlucoseDashboardView.swift; sourceTree = SOURCE_ROOT; };
 		DD2000000000000000000003 /* TrioGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TrioGlass.swift; path = Trio/Sources/Views/DesignSystem/TrioGlass.swift; sourceTree = SOURCE_ROOT; };
 		DD1000000000000000000003 /* SplitBolusReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplitBolusReminder.swift; path = Trio/Sources/Modules/Treatments/SplitBolusReminder.swift; sourceTree = SOURCE_ROOT; };
 		DD0000000000000000000003 /* CoachService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachService.swift; path = Trio/Sources/Services/Coach/CoachService.swift; sourceTree = SOURCE_ROOT; };
@@ -4516,6 +4518,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD3000000000000000000002 /* GlucoseDashboardView.swift in Sources */,
 				DD2000000000000000000002 /* TrioGlass.swift in Sources */,
 				DD1000000000000000000002 /* SplitBolusReminder.swift in Sources */,
 				DD0000000000000000000002 /* CoachService.swift in Sources */,

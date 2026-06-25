@@ -12,6 +12,37 @@ extension Home {
     struct GlucoseDashboardView: View {
         let state: StateModel
 
+        /// Pump/CGM model-pick dialogs live as @State on the RootView (they drive
+        /// `.confirmationDialog`s attached around this view), so they're passed in as
+        /// bindings. Everything else is wired straight through `state` (the StateModel).
+        @Binding var showPumpSelection: Bool
+        @Binding var showCGMSelection: Bool
+        @Binding var selectedTab: Int
+
+        private func haptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+            UIImpactFeedbackGenerator(style: style).impactOccurred()
+        }
+
+        // MARK: - Interaction wiring (mirrors the stock Home taps 1:1)
+
+        /// Tap the glucose number → CGM setup, or the model picker if no CGM yet.
+        private func tapGlucose() {
+            if !state.cgmAvailable { showCGMSelection.toggle() }
+            else { state.shouldDisplayCGMSetupSheet.toggle() }
+        }
+
+        /// Long-press the glucose number → snooze the alarm (same as stock).
+        private func longPressGlucose() {
+            haptic(.heavy)
+            state.showModal(for: .snooze)
+        }
+
+        /// Tap the Pod card → pump settings, or the model picker if no pump yet.
+        private func tapPump() {
+            if state.pumpDisplayState == nil { showPumpSelection.toggle() }
+            else { state.shouldDisplayPumpSetupSheet.toggle() }
+        }
+
         // MARK: - Derived live data
 
         private var readings: [GlucoseStored] {
@@ -81,9 +112,12 @@ extension Home {
                         header
                         hero
                         statePillRow
+                        if let progress = state.bolusProgress { bolusCard(progress) }
                         chartCard
                         GlassSectionedCard(title: "LOOP & BASAL") { loopBasalRows }
                         GlassSectionedCard(title: "POD") { podRows }
+                            .contentShape(Rectangle())
+                            .onTapGesture { tapPump() }
                         Color.clear.frame(height: 24)
                     }
                     .padding(.horizontal, 16)
@@ -103,14 +137,19 @@ extension Home {
                     Text("Glucose").font(TrioGlass.rounded(32, .heavy))
                 }
                 Spacer()
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.1)))
-                    .frame(width: 38, height: 38)
-                    .overlay(
-                        Image(systemName: "person.crop.circle").font(.system(size: 18))
-                            .foregroundStyle(TrioGlass.Colors.accent)
-                    )
+                Button {
+                    selectedTab = 3 // Settings tab
+                } label: {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.1)))
+                        .frame(width: 38, height: 38)
+                        .overlay(
+                            Image(systemName: "gearshape").font(.system(size: 17))
+                                .foregroundStyle(TrioGlass.Colors.accent)
+                        )
+                }
+                .buttonStyle(.plain)
             }
         }
 
@@ -132,6 +171,9 @@ extension Home {
                         .padding(.bottom, 10)
                     }
                 }
+                .contentShape(Rectangle())
+                .onTapGesture { tapGlucose() }
+                .onLongPressGesture { longPressGlucose() }
                 Spacer()
                 VStack(alignment: .leading, spacing: 12) {
                     GlassStat(systemImage: "syringe", label: "IOB", value: fmt(state.currentIOB), unit: "U")
@@ -166,6 +208,47 @@ extension Home {
             }
         }
 
+        // MARK: - Bolus in progress (safety: always offer Cancel)
+
+        private func bolusCard(_ progress: Decimal) -> some View {
+            let total = (state.lastPumpBolus?.bolus?.amount).map { $0 as Decimal }
+            let delivered = total.map { progress * $0 }
+            let frac = CGFloat(truncating: progress as NSNumber)
+            return GlassCard {
+                VStack(spacing: 10) {
+                    HStack(spacing: 11) {
+                        Image(systemName: "cross.vial.fill").font(.system(size: 18))
+                            .foregroundStyle(TrioGlass.Colors.accent)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Bolusing").font(TrioGlass.rounded(15, .heavy))
+                            if let total {
+                                Text("\(fmt(delivered)) of \(fmt(total)) U")
+                                    .font(TrioGlass.text(12.5, .semibold)).foregroundStyle(TrioGlass.label(0.55))
+                            }
+                        }
+                        Spacer()
+                        Button {
+                            state.showProgressView()
+                            state.cancelBolus()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").font(.system(size: 26))
+                                .foregroundStyle(TrioGlass.Colors.urgent)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.08))
+                            Capsule().fill(TrioGlass.Colors.accent)
+                                .frame(width: geo.size.width * min(1, max(0, frac)))
+                        }
+                    }
+                    .frame(height: 6)
+                }
+                .padding(14)
+            }
+        }
+
         // MARK: - Chart
 
         private var chartCard: some View {
@@ -181,6 +264,8 @@ extension Home {
                 }
                 .padding(14)
             }
+            .contentShape(Rectangle())
+            .onTapGesture { state.isLegendPresented.toggle() }
         }
 
         private var glucoseChart: some View {
@@ -235,6 +320,12 @@ extension Home {
                             .font(TrioGlass.rounded(14.5, .bold))
                             .foregroundStyle(state.closedLoop ? TrioGlass.Colors.inRange : TrioGlass.Colors.high)
                     }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { state.isLoopStatusPresented = true }
+                .onLongPressGesture {
+                    haptic(.medium)
+                    state.runLoop()
                 }
                 Divider().overlay(Color.white.opacity(0.07))
                 GlassRow(icon: "clock", iconColor: TrioGlass.label(0.55), label: "Last Loop") {

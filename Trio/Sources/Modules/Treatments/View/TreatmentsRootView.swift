@@ -443,231 +443,331 @@ extension Treatments {
             }
         }
 
+        // MARK: - Glass Add-Treatment layout
+
+        private var glassDivider: some View { Divider().overlay(Color.white.opacity(0.07)) }
+
+        private var glassHeader: some View {
+            HStack {
+                Text("Add Treatment")
+                    .font(TrioGlass.rounded(30, .heavy))
+                    .foregroundStyle(TrioGlass.Colors.textPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 2)
+            .padding(.bottom, 10)
+        }
+
+        private var bgStatusPill: some View {
+            let v = state.currentBG
+            let color: Color = v == 0
+                ? TrioGlass.label(0.5)
+                : TrioGlass.Colors.state(for: v, low: state.lowGlucose, high: state.highGlucose)
+            let word = v == 0
+                ? String(localized: "No data")
+                : (v <= state.lowGlucose ? "Low" : (v >= state.highGlucose ? "High" : "In Range"))
+            return GlassCard {
+                HStack(spacing: 9) {
+                    Circle().fill(color).frame(width: 9, height: 9)
+                    Text(gluoseFormatter.string(from: v as NSNumber) ?? "--").font(TrioGlass.rounded(20, .heavy))
+                    Text(state.units.rawValue).font(TrioGlass.text(12, .semibold)).foregroundStyle(TrioGlass.label(0.5))
+                    Text("· \(word)").font(TrioGlass.text(13, .bold)).foregroundStyle(color)
+                    Spacer()
+                    Text("IOB \(formatter.string(from: state.iob as NSNumber) ?? "0") U")
+                        .font(TrioGlass.text(13, .semibold)).foregroundStyle(TrioGlass.label(0.7))
+                }
+                .padding(.horizontal, 14).padding(.vertical, 12)
+            }
+        }
+
+        private var carbsCard: some View {
+            VStack(spacing: 8) {
+                GlassSectionHeader(title: "CARBS")
+                GlassCard {
+                    VStack(spacing: 0) {
+                        HStack { mealAdvisorEntry()
+                            Spacer() }.padding(.vertical, 9)
+                        glassDivider
+                        GlassStepper(
+                            systemImage: "fork.knife", label: "Carbs", value: $state.carbs,
+                            unit: "g", step: 5, keyboardType: .numberPad, formatter: mealFormatter
+                        ) { handleDebouncedInput() }
+                        if state.useFPUconversion {
+                            glassDivider
+                            proteinAndFat().padding(.vertical, 8)
+                        }
+                        glassDivider
+                        timeGlassRow
+                        glassDivider
+                        notesGlassRow
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 2)
+                }
+            }
+        }
+
+        private var timeGlassRow: some View {
+            HStack {
+                Image(systemName: "clock").foregroundStyle(TrioGlass.label(0.6))
+                Text("Time").font(TrioGlass.text(15.5, .medium))
+                Spacer()
+                if !pushed {
+                    Button { pushed = true } label: { Text("Now") }
+                        .buttonStyle(.borderless).foregroundStyle(TrioGlass.Colors.accent)
+                } else {
+                    Button { state.date = state.date.addingTimeInterval(-15.minutes.timeInterval) }
+                    label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless).tint(TrioGlass.Colors.accent)
+                    DatePicker("", selection: $state.date, displayedComponents: [.hourAndMinute])
+                        .labelsHidden().controlSize(.mini)
+                        .onChange(of: state.date) { _, _ in
+                            Task {
+                                await state.updateForecasts()
+                                state.insulinCalculated = await state.calculateInsulin()
+                            }
+                        }
+                    Button { state.date = state.date.addingTimeInterval(15.minutes.timeInterval) }
+                    label: { Image(systemName: "plus.circle") }.buttonStyle(.borderless).tint(TrioGlass.Colors.accent)
+                }
+            }
+            .padding(.vertical, 10)
+        }
+
+        private var notesGlassRow: some View {
+            HStack {
+                Image(systemName: "square.and.pencil").foregroundStyle(TrioGlass.label(0.6))
+                TextFieldWithToolBarString(
+                    text: $state.note,
+                    placeholder: String(localized: "Note..."),
+                    maxLength: 25
+                )
+            }
+            .padding(.vertical, 8)
+        }
+
+        private var bolusCard: some View {
+            VStack(spacing: 8) {
+                GlassSectionHeader(title: "BOLUS")
+                GlassCard {
+                    VStack(spacing: 0) {
+                        if state.fattyMeals || state.sweetMeals {
+                            fattySuperToggles
+                            glassDivider
+                        }
+                        recommendedGlassRow
+                        glassDivider
+                        GlassStepper(
+                            systemImage: "syringe", label: "Bolus", value: $state.amount,
+                            unit: "U", step: state.settingsManager.preferences.bolusIncrement,
+                            keyboardType: .decimalPad, formatter: formatter, accent: TrioGlass.Colors.accent
+                        ) { Task { await state.updateForecasts() } }
+                        if !state.externalInsulin {
+                            glassDivider
+                            splitDoseGlass
+                        }
+                        glassDivider
+                        Toggle(isOn: $state.externalInsulin) {
+                            Text("External Insulin").font(TrioGlass.text(15.5, .medium))
+                        }
+                        .tint(TrioGlass.Colors.accent)
+                        .padding(.vertical, 8)
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 2)
+                }
+            }
+        }
+
+        private var fattySuperToggles: some View {
+            HStack(spacing: 16) {
+                if state.fattyMeals {
+                    Toggle(isOn: $state.useFattyMealCorrectionFactor) { Text("Reduced Bolus") }
+                        .toggleStyle(RadioButtonToggleStyle()).font(.footnote)
+                        .onChange(of: state.useFattyMealCorrectionFactor) {
+                            Task {
+                                state.insulinCalculated = await state.calculateInsulin()
+                                if state.useFattyMealCorrectionFactor { state.useSuperBolus = false }
+                            }
+                        }
+                }
+                if state.sweetMeals || state.useSuperBolus {
+                    Toggle(isOn: $state.useSuperBolus) { Text("Super Bolus") }
+                        .toggleStyle(RadioButtonToggleStyle()).font(.footnote)
+                        .onChange(of: state.useSuperBolus) {
+                            Task {
+                                state.insulinCalculated = await state.calculateInsulin()
+                                if state.useSuperBolus { state.useFattyMealCorrectionFactor = false }
+                            }
+                        }
+                }
+                Spacer()
+            }
+            .padding(.vertical, 9)
+        }
+
+        private var recommendedGlassRow: some View {
+            HStack {
+                Image(systemName: "wand.and.stars").foregroundStyle(TrioGlass.Colors.inRange)
+                Text("Recommended").font(TrioGlass.text(15.5, .medium))
+                Button { state.showInfo.toggle() } label: { Image(systemName: "info.circle") }
+                    .buttonStyle(.plain).foregroundStyle(TrioGlass.Colors.accent)
+                Spacer()
+                Button { state.amount = state.insulinCalculated } label: {
+                    Text("\(formatter.string(from: state.insulinCalculated as NSNumber) ?? "0") U")
+                        .font(TrioGlass.rounded(15, .bold))
+                        .foregroundStyle(TrioGlass.Colors.accent)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(TrioGlass.Colors.accent.opacity(0.14), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(state.insulinCalculated == 0 || state.amount == state.insulinCalculated)
+            }
+            .padding(.vertical, 10)
+        }
+
+        private var splitDoseGlass: some View {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle(isOn: $state.splitBolusEnabled) {
+                    Text("Split dose").font(TrioGlass.text(15.5, .medium))
+                }
+                .tint(TrioGlass.Colors.accent)
+                if state.splitBolusEnabled, state.amount > 0 {
+                    Picker("Take now", selection: $state.splitNowPercent) {
+                        Text("50%").tag(50)
+                        Text("60%").tag(60)
+                        Text("70%").tag(70)
+                        Text("75%").tag(75)
+                    }.pickerStyle(.segmented)
+                    Picker("Remind in", selection: $state.splitDelayMinutes) {
+                        Text("15m").tag(15)
+                        Text("30m").tag(30)
+                        Text("45m").tag(45)
+                        Text("60m").tag(60)
+                    }.pickerStyle(.segmented)
+                    Text(
+                        "Deliver \(formatter.string(from: state.splitNowAmount as NSNumber) ?? "0") U now — reminder for the remaining \(formatter.string(from: state.splitLaterAmount as NSNumber) ?? "0") U in \(state.splitDelayMinutes) min. You confirm the rest yourself; it is never auto-delivered."
+                    )
+                    .font(.caption).foregroundStyle(TrioGlass.label(0.6))
+                }
+            }
+            .padding(.vertical, 8)
+        }
+
+        private var glassChartCard: some View {
+            VStack(spacing: 8) {
+                GlassSectionHeader(title: "FORECAST")
+                GlassCard { ForecastChart(state: state).padding(.vertical, 8).padding(.horizontal, 6) }
+            }
+        }
+
+        @ViewBuilder private var glassRecents: some View {
+            let recents = mealLog.recents(limit: 8)
+            if !recents.isEmpty {
+                VStack(spacing: 8) {
+                    GlassSectionHeader(title: "RECENT MEALS")
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(recents) { meal in
+                                Button { applyRecent(meal) } label: {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(meal.name).font(TrioGlass.text(13, .semibold))
+                                            .foregroundStyle(TrioGlass.Colors.textPrimary).lineLimit(1)
+                                        Text("\(NSDecimalNumber(decimal: meal.carbs).intValue)g carbs")
+                                            .font(TrioGlass.text(11.5, .medium)).foregroundStyle(TrioGlass.label(0.5))
+                                    }
+                                    .padding(.horizontal, 14).padding(.vertical, 10)
+                                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white.opacity(0.08)))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 2)
+                    }
+                }
+            }
+        }
+
+        private var enactColor: Color {
+            if limitExceeded { return Color(.systemRed) }
+            if disableTaskButton { return Color.white.opacity(0.12) }
+            return TrioGlass.Colors.accent
+        }
+
+        /// Pinned bottom action bar. Reuses the exact enact path, very-low confirm gate,
+        /// limit guards, label, and the bolus-in-progress card from the original screen.
+        private var glassActionBar: some View {
+            let shouldShowProgress = state.isBolusInProgress && state.amount > 0 &&
+                !state.externalInsulin && (state.carbs == 0 || state.fat == 0 || state.protein == 0)
+            return VStack(spacing: 8) {
+                if !bolusWarning.warningMessage.isEmpty {
+                    Text(bolusWarning.warningMessage)
+                        .font(TrioGlass.text(13, .semibold))
+                        .foregroundStyle(bolusWarning.color)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                if shouldShowProgress {
+                    bolusInProgressView
+                } else {
+                    Button {
+                        if bolusWarning.shouldConfirm {
+                            showConfirmDialogForBolusing = true
+                        } else {
+                            state.invokeTreatmentsTask()
+                        }
+                    } label: {
+                        taskButtonLabel
+                            .font(TrioGlass.rounded(17, .heavy))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(enactColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .shadow(color: enactColor.opacity(0.5), radius: 10, y: 4)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(disableTaskButton)
+                    .confirmationDialog(
+                        bolusWarning.warningMessage + " Bolus \(state.amount.description) U?",
+                        isPresented: $showConfirmDialogForBolusing,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Cancel", role: .cancel) {}
+                        Button(
+                            bolusWarning.warningMessage
+                                .isEmpty ? String(localized: "Enact Bolus") : String(localized: "Ignore Warning and Enact Bolus"),
+                            role: bolusWarning.warningMessage.isEmpty ? nil : .destructive
+                        ) {
+                            state.invokeTreatmentsTask()
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 8)
+            .background(.ultraThinMaterial)
+        }
+
         var body: some View {
             ZStack(alignment: .center) {
                 TrioGlassBackground()
-                VStack {
-                    List {
-                        Section {
-                            carbsTextField()
-
-                            if state.useFPUconversion {
-                                proteinAndFat()
-
-                                if showFatProteinOrderBanner {
-                                    HStack {
-                                        Image(systemName: "arrow.left.arrow.right")
-                                        Text("The order of Fat and Protein inputs has changed.").font(.callout)
-                                        Spacer()
-                                        Button {
-                                            PropertyPersistentFlags.shared.hasSeenFatProteinOrderChange = true
-                                            withAnimation { showFatProteinOrderBanner = false }
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill")
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .listRowBackground(Color.orange.opacity(0.75))
-                                    .transition(.opacity)
-                                }
-                            }
-
-                            // Time
-                            HStack {
-                                // Semi-hacky workaround to make sure the List renders the horizontal divider properly between the `Time` and `Note` rows within the Section
-                                HStack {
-                                    Text("")
-                                    Image(systemName: "clock").padding(.leading, -7)
-                                }
-
-                                Spacer()
-                                if !pushed {
-                                    Button {
-                                        pushed = true
-                                    } label: { Text("Now") }.buttonStyle(.borderless).foregroundColor(.secondary)
-                                        .padding(.trailing, 5)
-                                } else {
-                                    Button { state.date = state.date.addingTimeInterval(-15.minutes.timeInterval) }
-                                    label: { Image(systemName: "minus.circle") }.tint(.blue).buttonStyle(.borderless)
-
-                                    DatePicker(
-                                        "Time",
-                                        selection: $state.date,
-                                        displayedComponents: [.hourAndMinute]
-                                    ).controlSize(.mini)
-                                        .labelsHidden()
-                                        .onChange(of: state.date) { _, _ in
-                                            // Trigger simulation when date changes to update forecasts for backdated carbs
-                                            Task {
-                                                // `updateForecasts()` does update the `simulatedDetermination` of type `Determination?` var on the main thread, so I can use this to pass its cob value into the bolus calc manager
-                                                await state.updateForecasts()
-                                                state.insulinCalculated = await state.calculateInsulin()
-                                            }
-                                        }
-                                    Button {
-                                        state.date = state.date.addingTimeInterval(15.minutes.timeInterval)
-                                    }
-                                    label: { Image(systemName: "plus.circle") }.tint(.blue).buttonStyle(.borderless)
-                                }
-                            }
-
-                            // Notes
-                            HStack {
-                                Image(systemName: "square.and.pencil")
-                                TextFieldWithToolBarString(
-                                    text: $state.note,
-                                    placeholder: String(localized: "Note..."),
-                                    maxLength: 25
-                                )
-                            }
-                        }.listRowBackground(glassRow)
-
-                        Section {
-                            if state.fattyMeals || state.sweetMeals {
-                                HStack(spacing: 10) {
-                                    if state.fattyMeals {
-                                        Toggle(isOn: $state.useFattyMealCorrectionFactor) {
-                                            Text("Reduced Bolus")
-                                        }
-                                        .toggleStyle(RadioButtonToggleStyle())
-                                        .font(.footnote)
-                                        .onChange(of: state.useFattyMealCorrectionFactor) {
-                                            Task {
-                                                state.insulinCalculated = await state.calculateInsulin()
-                                                if state.useFattyMealCorrectionFactor {
-                                                    state.useSuperBolus = false
-                                                }
-                                            }
-                                        }
-                                    }
-                                    if state.sweetMeals || state.useSuperBolus {
-                                        Toggle(isOn: $state.useSuperBolus) {
-                                            Text("Super Bolus")
-                                        }
-                                        .toggleStyle(RadioButtonToggleStyle())
-                                        .font(.footnote)
-                                        .onChange(of: state.useSuperBolus) {
-                                            Task {
-                                                state.insulinCalculated = await state.calculateInsulin()
-                                                if state.useSuperBolus {
-                                                    state.useFattyMealCorrectionFactor = false
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            HStack {
-                                HStack {
-                                    Text("Recommendation")
-                                    Button(action: {
-                                        state.showInfo.toggle()
-                                    }, label: {
-                                        Image(systemName: "info.circle")
-                                    })
-                                        .foregroundStyle(.blue)
-                                        .buttonStyle(PlainButtonStyle())
-                                }
-                                Spacer()
-                                Button {
-                                    state.amount = state.insulinCalculated
-                                } label: {
-                                    HStack {
-                                        Text(
-                                            formatter
-                                                .string(from: Double(state.insulinCalculated) as NSNumber) ?? ""
-                                        )
-
-                                        Text(
-                                            String(
-                                                localized:
-                                                " U",
-                                                comment: "Unit in number of units delivered (keep the space character!)"
-                                            )
-                                        ).foregroundColor(.secondary)
-                                    }
-                                }
-                                .disabled(state.insulinCalculated == 0 || state.amount == state.insulinCalculated)
-                                .buttonStyle(.bordered).padding(.trailing, -10)
-                            }
-
-                            HStack {
-                                Text("Bolus")
-                                Spacer()
-                                TextFieldWithToolBar(
-                                    text: $state.amount,
-                                    placeholder: "0",
-                                    textColor: colorScheme == .dark ? .white : .blue,
-                                    maxLength: 5,
-                                    numberFormatter: formatter,
-                                    showArrows: true,
-                                    previousTextField: { focusedField = previousField(from: .bolus) },
-                                    nextTextField: { focusedField = nextField(from: .bolus) },
-                                    unitsText: String(localized: "U", comment: "Units for bolus amount")
-                                ).focused($focusedField, equals: .bolus)
-                                    .onChange(of: state.amount) {
-                                        Task {
-                                            await state.updateForecasts()
-                                        }
-                                    }
-                            }
-
-                            if !state.externalInsulin {
-                                HStack {
-                                    Text("Split dose")
-                                    Spacer()
-                                    Toggle("", isOn: $state.splitBolusEnabled).toggleStyle(CheckboxToggleStyle())
-                                }
-
-                                if state.splitBolusEnabled, state.amount > 0 {
-                                    VStack(alignment: .leading, spacing: 10) {
-                                        Picker("Take now", selection: $state.splitNowPercent) {
-                                            Text("50%").tag(50)
-                                            Text("60%").tag(60)
-                                            Text("70%").tag(70)
-                                            Text("75%").tag(75)
-                                        }
-                                        .pickerStyle(.segmented)
-
-                                        Picker("Remind in", selection: $state.splitDelayMinutes) {
-                                            Text("15m").tag(15)
-                                            Text("30m").tag(30)
-                                            Text("45m").tag(45)
-                                            Text("60m").tag(60)
-                                        }
-                                        .pickerStyle(.segmented)
-
-                                        Text(
-                                            "Deliver \(formatter.string(from: state.splitNowAmount as NSNumber) ?? "0") U now — reminder for the remaining \(formatter.string(from: state.splitLaterAmount as NSNumber) ?? "0") U in \(state.splitDelayMinutes) min. You confirm the rest yourself; it is never auto-delivered."
-                                        )
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-
-                            HStack {
-                                Text("External Insulin")
-                                Spacer()
-                                Toggle("", isOn: $state.externalInsulin).toggleStyle(CheckboxToggleStyle())
-                            }
-                        }.listRowBackground(glassRow)
-
-                        Section {
-                            ForecastChart(state: state)
-                                .padding(.vertical)
-                        }.listRowBackground(glassRow)
-
-                        recentsSection()
-
-                        quickPresetSection()
-
-                        treatmentButton
+                VStack(spacing: 0) {
+                    glassHeader
+                    ScrollView {
+                        VStack(spacing: 18) {
+                            bgStatusPill
+                            carbsCard
+                            bolusCard
+                            glassChartCard
+                            glassRecents
+                            Color.clear.frame(height: 8)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 2)
+                        .padding(.bottom, 16)
                     }
-                    .listSectionSpacing(sectionSpacing)
-                    .environment(\.colorScheme, .dark)
+                    .scrollIndicators(.hidden)
                 }
+                .environment(\.colorScheme, .dark)
+                .foregroundStyle(TrioGlass.Colors.textPrimary)
+                .safeAreaInset(edge: .bottom) { glassActionBar }
                 .blur(radius: state.isAwaitingDeterminationResult ? 5 : 0)
 
                 if state.isAwaitingDeterminationResult {
@@ -678,7 +778,7 @@ extension Treatments {
             .ignoresSafeArea(edges: .top)
             .scrollContentBackground(.hidden)
             .blur(radius: state.showInfo ? 3 : 0)
-            .navigationTitle("Treatments")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(content: {
                 ToolbarItem(placement: .topBarLeading) {
@@ -983,6 +1083,65 @@ extension Treatments {
                     .amount > 0 && !state.externalInsulin && (state.carbs == 0 || state.fat == 0 || state.protein == 0)
             ) || state
                 .addButtonPressed || limitExceeded
+        }
+    }
+
+    /// Glass +/- stepper with an editable centered value (keyboard entry preserved
+    /// via TextFieldWithToolBar, which handles Decimal formatting safely).
+    struct GlassStepper: View {
+        let systemImage: String
+        let label: String
+        @Binding var value: Decimal
+        let unit: String
+        let step: Decimal
+        let keyboardType: UIKeyboardType
+        let formatter: NumberFormatter
+        var accent: Color = TrioGlass.Colors.accent
+        let onChange: () -> Void
+
+        var body: some View {
+            HStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: systemImage).font(.system(size: 16, weight: .semibold)).foregroundStyle(accent)
+                    Text(label).font(TrioGlass.text(15.5, .semibold)).foregroundStyle(TrioGlass.Colors.textPrimary)
+                }
+                Spacer()
+                stepButton("minus", filled: false) {
+                    value = max(0, value - step)
+                    onChange()
+                }
+                TextFieldWithToolBar(
+                    text: $value,
+                    placeholder: "0",
+                    textColor: .white,
+                    textAlignment: .center,
+                    keyboardType: keyboardType,
+                    maxLength: 5,
+                    textDidChange: { _ in onChange() },
+                    numberFormatter: formatter,
+                    unitsText: unit
+                )
+                .frame(width: 84)
+                stepButton("plus", filled: true) {
+                    value += step
+                    onChange()
+                }
+            }
+            .padding(.vertical, 10)
+        }
+
+        private func stepButton(_ icon: String, filled: Bool, _ action: @escaping () -> Void) -> some View {
+            Button(action: action) {
+                Image(systemName: icon)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(filled ? TrioGlass.Colors.accentText : TrioGlass.Colors.textPrimary)
+                    .frame(width: 42, height: 36)
+                    .background(
+                        filled ? AnyShapeStyle(accent) : AnyShapeStyle(Color.white.opacity(0.08)),
+                        in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    )
+            }
+            .buttonStyle(.plain)
         }
     }
 

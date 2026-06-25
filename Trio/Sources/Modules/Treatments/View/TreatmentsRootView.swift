@@ -661,7 +661,13 @@ extension Treatments {
         private var glassChartCard: some View {
             VStack(spacing: 8) {
                 GlassSectionHeader(title: "FORECAST")
-                GlassCard { ForecastChart(state: state).padding(.vertical, 8).padding(.horizontal, 6) }
+                GlassCard {
+                    ForecastChart(state: state)
+                        .frame(height: 200)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 8)
+                        .clipped()
+                }
             }
         }
 
@@ -780,8 +786,6 @@ extension Treatments {
                     CustomProgressView(text: progressText.displayName)
                 }
             }
-            .padding(.top)
-            .ignoresSafeArea(edges: .top)
             .scrollContentBackground(.hidden)
             .blur(radius: state.showInfo ? 3 : 0)
             .navigationTitle("")

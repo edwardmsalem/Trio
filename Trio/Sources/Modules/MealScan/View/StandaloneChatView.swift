@@ -17,6 +17,10 @@ extension MealScan {
         @State private var showHistory = false
         @State private var showSavePreset = false
         @State private var presetName = ""
+        @State private var showCamera = false
+        @State private var showLibrary = false
+        @State private var showBarcode = false
+        @State private var showLabel = false
 
         var onConfirm: ((NutritionTotals) -> Void)?
         /// Re-evaluated on every message so dosing advice always uses live numbers.
@@ -170,7 +174,7 @@ extension MealScan {
                     .foregroundStyle(.blue.gradient)
                 Text("AI Meal Advisor")
                     .font(.headline)
-                Text("Send a message, attach a photo, or both. Ask about carbs, fat, protein, or insulin timing.")
+                Text("Tap ➕ to take a photo, scan a barcode or label, or just describe your meal. I'll estimate the carbs and talk it through with you.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -375,10 +379,15 @@ extension MealScan {
                 }
 
                 HStack(spacing: 8) {
-                    PhotosPicker(selection: $photoPickerItem, matching: .images) {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.blue)
+                    Menu {
+                        Button { showCamera = true } label: { Label("Take Photo", systemImage: "camera") }
+                        Button { showLibrary = true } label: { Label("Photo Library", systemImage: "photo.on.rectangle") }
+                        Button { showBarcode = true } label: { Label("Scan Barcode", systemImage: "barcode.viewfinder") }
+                        Button { showLabel = true } label: { Label("Nutrition Label", systemImage: "doc.text.viewfinder") }
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(session.isStreaming ? Color(.systemGray3) : .blue)
                     }
                     .disabled(session.isStreaming)
 
@@ -407,6 +416,41 @@ extension MealScan {
                 .padding(.vertical, 6)
             }
             .background(.bar)
+            .photosPicker(isPresented: $showLibrary, selection: $photoPickerItem, matching: .images)
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraCaptureView(
+                    onImageCaptured: { img in
+                        session.pendingImage = img
+                        showCamera = false
+                    },
+                    onCancel: { showCamera = false }
+                )
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showBarcode) {
+                MealScan.BarcodeScanView(resolver: resolver, onConfirm: { totals in
+                    applyScannedTotals(totals)
+                    showBarcode = false
+                })
+            }
+            .sheet(isPresented: $showLabel) {
+                MealScan.NutritionLabelScanView(resolver: resolver, onSaved: { _ in showLabel = false })
+            }
+        }
+
+        /// Feed a barcode/label scan straight into the conversation so the advisor is
+        /// the single place all capture methods land.
+        private func applyScannedTotals(_ totals: NutritionTotals) {
+            session.current.runningTotals = totals
+            let c = NSDecimalNumber(decimal: totals.carbs).intValue
+            let f = NSDecimalNumber(decimal: totals.fat).intValue
+            let p = NSDecimalNumber(decimal: totals.protein).intValue
+            session.current.messages.append(ChatMessage(
+                role: .assistant,
+                text: "📷 \(totals.name ?? "Scanned item"): about \(c)g carbs, \(f)g fat, \(p)g protein. Tap “Use These Numbers” below, or tell me what to adjust.",
+                updatedTotals: totals
+            ))
+            session.current.updatedAt = Date()
         }
 
         private var sendDisabled: Bool {

@@ -978,8 +978,48 @@ extension Home {
                 state: state,
                 showPumpSelection: $showPumpSelection,
                 showCGMSelection: $showCGMSelection,
-                selectedTab: $selectedTab
+                selectedTab: $selectedTab,
+                overrideText: overrideString,
+                overrideName: latestOverride.first?.name,
+                tempTargetText: tempTargetString,
+                tempTargetName: latestTempTarget.first?.name,
+                notificationsDisabled: notificationsDisabled,
+                onCancelOverride: {
+                    if !latestOverride.isEmpty { isConfirmStopOverridePresented = true }
+                },
+                onCancelTempTarget: {
+                    if !latestTempTarget.isEmpty { isConfirmStopTempTargetShown = true }
+                }
             )
+            .confirmationDialog(
+                "Stop the Override \"\(latestOverride.first?.name ?? "")\"?",
+                isPresented: $isConfirmStopOverridePresented,
+                titleVisibility: .visible
+            ) {
+                Button("Stop", role: .destructive) {
+                    Task {
+                        guard let objectID = latestOverride.first?.objectID else { return }
+                        await state.cancelOverride(withID: objectID)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .confirmationDialog(
+                "Stop the Temp Target \"\(latestTempTarget.first?.name ?? "")\"?",
+                isPresented: $isConfirmStopTempTargetShown,
+                titleVisibility: .visible
+            ) {
+                Button("Stop", role: .destructive) {
+                    Task {
+                        guard let objectID = latestTempTarget.first?.objectID else { return }
+                        await state.cancelTempTarget(withID: objectID)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .onReceive(resolver.resolve(AlertPermissionsChecker.self)!.$notificationsDisabled) {
+                if notificationsDisabled != $0 { notificationsDisabled = $0 }
+            }
             .onChange(of: state.hours) {
                 highlightButtons()
             }

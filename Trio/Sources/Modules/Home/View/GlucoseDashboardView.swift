@@ -19,6 +19,16 @@ extension Home {
         @Binding var showCGMSelection: Bool
         @Binding var selectedTab: Int
 
+        /// Active-adjustment info is computed in the parent (it owns the fetches +
+        /// formatters) and handed down as plain strings + cancel closures.
+        let overrideText: String?
+        let overrideName: String?
+        let tempTargetText: String?
+        let tempTargetName: String?
+        let notificationsDisabled: Bool
+        let onCancelOverride: () -> Void
+        let onCancelTempTarget: () -> Void
+
         private func haptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
             UIImpactFeedbackGenerator(style: style).impactOccurred()
         }
@@ -109,9 +119,11 @@ extension Home {
                 TrioGlassBackground()
                 ScrollView {
                     VStack(spacing: 18) {
+                        if notificationsDisabled { notificationsBanner }
                         header
                         hero
                         statePillRow
+                        if overrideText != nil || tempTargetText != nil { adjustmentsCard }
                         if let progress = state.bolusProgress { bolusCard(progress) }
                         chartCard
                         GlassSectionedCard(title: "LOOP & BASAL") { loopBasalRows }
@@ -151,6 +163,86 @@ extension Home {
                 }
                 .buttonStyle(.plain)
             }
+        }
+
+        // MARK: - Safety: notifications-off banner
+
+        private var notificationsBanner: some View {
+            Button {
+                UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
+            } label: {
+                HStack(spacing: 11) {
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 18))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Safety Notifications are OFF").font(TrioGlass.rounded(14, .heavy))
+                        Text("Tap to turn Notifications ON.").font(TrioGlass.text(12, .semibold)).opacity(0.9)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .background(
+                    TrioGlass.Colors.urgent,
+                    in: RoundedRectangle(cornerRadius: TrioGlass.Metric.cardRadius, style: .continuous)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+
+        // MARK: - Active adjustments (override / temp target)
+
+        private var adjustmentsCard: some View {
+            GlassCard {
+                VStack(spacing: 0) {
+                    if let overrideText {
+                        adjustmentRow(
+                            icon: "clock.arrow.2.circlepath",
+                            iconColor: TrioGlass.Colors.accent,
+                            name: overrideName ?? String(localized: "Custom Override"),
+                            detail: overrideText,
+                            cancel: onCancelOverride
+                        )
+                    }
+                    if overrideText != nil, tempTargetText != nil {
+                        Divider().overlay(Color.white.opacity(0.07))
+                    }
+                    if let tempTargetText {
+                        adjustmentRow(
+                            icon: "target",
+                            iconColor: TrioGlass.Colors.inRange,
+                            name: tempTargetName ?? String(localized: "Temp Target"),
+                            detail: tempTargetText,
+                            cancel: onCancelTempTarget
+                        )
+                    }
+                }
+                .padding(.vertical, 4).padding(.horizontal, 14)
+            }
+        }
+
+        private func adjustmentRow(
+            icon: String,
+            iconColor: Color,
+            name: String,
+            detail: String,
+            cancel: @escaping () -> Void
+        ) -> some View {
+            HStack(spacing: 11) {
+                Image(systemName: icon).font(.system(size: 17)).foregroundStyle(iconColor).frame(width: 26)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(name).font(TrioGlass.rounded(14.5, .bold))
+                    Text(detail).font(TrioGlass.text(12, .semibold)).foregroundStyle(TrioGlass.label(0.55))
+                }
+                Spacer()
+                Button(action: cancel) {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 22)).foregroundStyle(TrioGlass.Colors.urgent)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 9)
+            .contentShape(Rectangle())
+            .onTapGesture { selectedTab = 2 }
         }
 
         // MARK: - Hero (current + IOB/COB)
@@ -255,23 +347,57 @@ extension Home {
             GlassCard(radius: TrioGlass.Metric.chartCardRadius) {
                 VStack(spacing: 12) {
                     HStack {
-                        Text("Last 6 Hours").font(TrioGlass.rounded(15, .heavy))
+                        Text("Last \(state.hours)h").font(TrioGlass.rounded(15, .heavy))
                         Spacer()
                         Text("\(fmt(state.lowGlucose))–\(fmt(state.highGlucose)) range")
                             .font(TrioGlass.text(12.5, .semibold)).foregroundStyle(TrioGlass.label(0.5))
                     }
                     glucoseChart.frame(height: 178)
+                        .contentShape(Rectangle())
+                        .onTapGesture { state.isLegendPresented.toggle() }
+                    chartControls
                 }
                 .padding(14)
             }
-            .contentShape(Rectangle())
-            .onTapGesture { state.isLegendPresented.toggle() }
+        }
+
+        /// Stats shortcut · time-range picker (4/6/12/24h) · legend — the row that
+        /// lived under the stock chart.
+        private var chartControls: some View {
+            HStack(spacing: 8) {
+                Button { state.showModal(for: .statistics) } label: {
+                    Label("Stats", systemImage: "chart.bar.xaxis").font(TrioGlass.text(12.5, .semibold))
+                }
+                .buttonStyle(.plain).foregroundStyle(TrioGlass.label(0.7))
+                Spacer()
+                ForEach([Int16(4), 6, 12, 24], id: \.self) { h in
+                    let on = state.hours == h
+                    Button { state.hours = h } label: {
+                        Text("\(h)h")
+                            .font(TrioGlass.rounded(12.5, .heavy))
+                            .foregroundStyle(on ? TrioGlass.Colors.accentText : TrioGlass.label(0.6))
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(
+                                on ? AnyShapeStyle(TrioGlass.Colors.accent) : AnyShapeStyle(Color.white.opacity(0.06)),
+                                in: Capsule()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
+                Button { state.isLegendPresented.toggle() } label: {
+                    Image(systemName: "info.circle").font(.system(size: 15))
+                }
+                .buttonStyle(.plain).foregroundStyle(TrioGlass.label(0.7))
+            }
+            .padding(.top, 2)
         }
 
         private var glucoseChart: some View {
             let lowV = Double(truncating: state.lowGlucose as NSNumber)
             let highV = Double(truncating: state.highGlucose as NSNumber)
-            let pts = Array(readings.suffix(80))
+            let cutoff = Date().addingTimeInterval(-Double(state.hours) * 3600)
+            let pts = readings.filter { ($0.date ?? .distantPast) >= cutoff }
             return Chart {
                 RectangleMark(yStart: .value("lo", lowV), yEnd: .value("hi", highV))
                     .foregroundStyle(TrioGlass.Colors.inRange.opacity(0.10))

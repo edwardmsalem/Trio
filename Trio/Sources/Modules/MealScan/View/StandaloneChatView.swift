@@ -122,13 +122,13 @@ extension MealScan {
             return parts.isEmpty ? nil : "MY TRIO DATA (for coaching questions):\n\n" + parts.joined(separator: "\n\n")
         }
 
-        /// Glucose + treatment history from the phone's database: 14 days of daily
-        /// summaries (TIR/avg/lows, carbs, insulin) plus a detailed last-48h timeline.
-        /// This is what the app can practically hand a remote assistant in one message.
+        /// Glucose + treatment history from the phone's database: the FULL on-device
+        /// history as per-day summaries (TIR/avg/lows, carbs, insulin), plus a detailed
+        /// last-48h minute-level timeline. (The phone only retains so much; anything
+        /// older than that lives in Nightscout.)
         private func recentHistorySummary() -> String? {
             let cal = Calendar.current
             let now = Date()
-            let since14 = now.addingTimeInterval(-14 * 24 * 3600)
             let since48 = now.addingTimeInterval(-48 * 3600)
             let dayfmt = DateFormatter()
             dayfmt.dateFormat = "EEE MMM d"
@@ -140,12 +140,17 @@ extension MealScan {
             let lowT = sm.map { Int(truncating: $0.settings.low as NSNumber) } ?? 70
             let highT = sm.map { Int(truncating: $0.settings.high as NSNumber) } ?? 180
 
-            // Glucose: daily summaries (14d) + detailed timeline (48h).
-            let gReq: NSFetchRequest<GlucoseStored> = GlucoseStored.fetchRequest()
-            gReq.predicate = NSPredicate(format: "date >= %@", since14 as NSDate)
+            // Glucose: ALL history on the phone as daily summaries + detailed 48h.
+            // Lightweight dictionary fetch keeps this fast even with months of data.
+            let gReq = NSFetchRequest<NSDictionary>(entityName: "GlucoseStored")
+            gReq.resultType = .dictionaryResultType
+            gReq.propertiesToFetch = ["date", "glucose"]
             gReq.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
-            if let readings = try? moc.fetch(gReq) {
-                let pts = readings.compactMap { r -> (Date, Int)? in r.date.map { ($0, Int(r.glucose)) } }
+            if let rows = try? moc.fetch(gReq) {
+                let pts: [(Date, Int)] = rows.compactMap { dict in
+                    guard let d = dict["date"] as? Date, let g = (dict["glucose"] as? NSNumber)?.intValue else { return nil }
+                    return (d, g)
+                }
                 if !pts.isEmpty {
                     let byDay = Dictionary(grouping: pts) { cal.startOfDay(for: $0.0) }
                     let dailyLines = byDay.keys.sorted().compactMap { day -> String? in
@@ -158,11 +163,10 @@ extension MealScan {
                         return "\(dayfmt.string(from: day)): avg \(avg), min \(vals.min()!), max \(vals.max()!), TIR \(tir)%, \(lows) lows, \(highs) highs"
                     }
                     if !dailyLines.isEmpty {
-                        out
-                            .append(
-                                "GLUCOSE daily summary (last 14d, range \(lowT)-\(highT) mg/dL):\n" + dailyLines
-                                    .joined(separator: "\n")
-                            )
+                        out.append(
+                            "GLUCOSE daily summary — full on-device history (\(dailyLines.count) days, range \(lowT)-\(highT) mg/dL):\n"
+                                + dailyLines.joined(separator: "\n")
+                        )
                     }
                     var sampled: [(Date, Int)] = []
                     var lastT: Date?
@@ -178,9 +182,8 @@ extension MealScan {
                 }
             }
 
-            // Boluses: 14d total + detailed 48h.
+            // Boluses: all-time total + detailed 48h.
             let bReq: NSFetchRequest<BolusStored> = BolusStored.fetchRequest()
-            bReq.predicate = NSPredicate(format: "pumpEvent.timestamp >= %@", since14 as NSDate)
             if let boluses = try? moc.fetch(bReq) {
                 let entries = boluses.compactMap { b -> (Date, Decimal)? in
                     guard let t = b.pumpEvent?.timestamp, let amt = b.amount?.decimalValue else { return nil }
@@ -188,22 +191,21 @@ extension MealScan {
                 }.sorted { $0.0 < $1.0 }
                 if !entries.isEmpty {
                     let total = entries.reduce(Decimal(0)) { $0 + $1.1 }
-                    out.append("INSULIN: \(entries.count) boluses over 14d, total \(total)U.")
+                    out.append("INSULIN: \(entries.count) boluses on record, total \(total)U.")
                     let recent = entries.filter { $0.0 >= since48 }.map { "\(stamp.string(from: $0.0)) \($0.1)U" }
                     if !recent.isEmpty { out.append("BOLUSES (last 48h): " + recent.joined(separator: ", ")) }
                 }
             }
 
-            // Carbs: 14d total + detailed 48h.
+            // Carbs: all-time total + detailed 48h.
             let cReq: NSFetchRequest<CarbEntryStored> = CarbEntryStored.fetchRequest()
-            cReq.predicate = NSPredicate(format: "date >= %@", since14 as NSDate)
             if let carbs = try? moc.fetch(cReq) {
                 let entries = carbs.compactMap { c -> (Date, Int)? in
                     c.date.map { ($0, Int(c.carbs)) }
                 }.sorted { $0.0 < $1.0 }
                 if !entries.isEmpty {
                     let total = entries.reduce(0) { $0 + $1.1 }
-                    out.append("CARBS: \(entries.count) entries over 14d, total \(total)g.")
+                    out.append("CARBS: \(entries.count) entries on record, total \(total)g.")
                     let recent = entries.filter { $0.0 >= since48 }.map { "\(stamp.string(from: $0.0)) \($0.1)g" }
                     if !recent.isEmpty { out.append("CARBS (last 48h): " + recent.joined(separator: ", ")) }
                 }

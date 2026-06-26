@@ -119,7 +119,45 @@ extension MealScan {
             if let history = recentHistorySummary() {
                 parts.append(history)
             }
+            if let decisions = algorithmDecisions() {
+                parts.append(decisions)
+            }
             return parts.isEmpty ? nil : "MY TRIO DATA (for coaching questions):\n\n" + parts.joined(separator: "\n\n")
+        }
+
+        /// Trio's own loop decisions over the last 24h: per cycle the predicted
+        /// eventualBG, IOB, COB, the temp basal/SMB it chose, and the oref `reason`
+        /// string — i.e. WHY it did what it did. This is what lets the assistant
+        /// explain the algorithm instead of guessing.
+        private func algorithmDecisions() -> String? {
+            let since = Date().addingTimeInterval(-24 * 3600)
+            let req: NSFetchRequest<OrefDetermination> = OrefDetermination.fetchRequest()
+            req.predicate = NSPredicate(format: "deliverAt >= %@", since as NSDate)
+            req.sortDescriptors = [NSSortDescriptor(key: "deliverAt", ascending: true)]
+            guard let dets = try? moc.fetch(req), !dets.isEmpty else { return nil }
+            let stamp = DateFormatter()
+            stamp.dateFormat = "EEE HH:mm"
+            var lines: [String] = []
+            var lastT: Date?
+            for d in dets {
+                guard let t = d.deliverAt else { continue }
+                if let lt = lastT, t.timeIntervalSince(lt) < 28 * 60 { continue } // ~30 min
+                lastT = t
+                let evbg = d.eventualBG.map { "\($0)" } ?? "?"
+                let iob = d.iob.map { "\($0)" } ?? "?"
+                let basal = d.tempBasal.map { "\($0)U/hr" } ?? "?"
+                let smb = d.smbToDeliver.map { ", SMB \($0)U" } ?? ""
+                var reason = d.reason ?? ""
+                if reason.count > 240 { reason = String(reason.prefix(240)) + "…" }
+                lines
+                    .append(
+                        "\(stamp.string(from: t)): eventualBG \(evbg), IOB \(iob), COB \(d.cob), basal \(basal)\(smb) — \(reason)"
+                    )
+            }
+            return lines.isEmpty ? nil
+                :
+                "TRIO ALGORITHM DECISIONS (last 24h, ~30 min apart — the loop's predicted eventualBG, IOB, COB, the basal/SMB it set, and its own reason for each decision):\n"
+                + lines.joined(separator: "\n")
         }
 
         /// Glucose + treatment history from the phone's database: the FULL on-device
@@ -343,15 +381,26 @@ extension MealScan {
             .padding(.top, isLastInRun ? 4 : 1)
         }
 
+        /// Render the assistant's markdown (bold, code, links, line breaks) as rich
+        /// text instead of showing raw ** and backticks.
+        private func rendered(_ s: String) -> AttributedString {
+            (try? AttributedString(markdown: s, options: .init(
+                allowsExtendedAttributes: true,
+                interpretedSyntax: .inlineOnlyPreservingWhitespace,
+                failurePolicy: .returnPartiallyParsedIfPossible
+            ))) ?? AttributedString(s)
+        }
+
         @ViewBuilder private func bubble(_ message: ChatMessage, isUser: Bool, isLastInRun: Bool) -> some View {
             let textColor: Color = isUser ? .white : .primary
             let bubbleColor: Color = isUser
                 ? Color(red: 0.0, green: 0.48, blue: 1.0)
                 : Color(.systemGray5)
 
-            Text(message.text.isEmpty ? " " : message.text)
+            Text(rendered(message.text.isEmpty ? " " : message.text))
                 .font(.body)
                 .foregroundStyle(textColor)
+                .tint(isUser ? .white : Color(red: 0.0, green: 0.48, blue: 1.0))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .background(

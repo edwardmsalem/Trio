@@ -102,6 +102,44 @@ extension Home {
         private var cob: Int { Int(state.enactedAndNonEnactedDeterminations.first?.cob ?? 0) }
         private var basal: Decimal? { state.enactedAndNonEnactedDeterminations.first?.tempBasal?.decimalValue }
 
+        // MARK: - Staleness / loop health (safety surface)
+
+        /// Minutes since the most recent glucose reading (nil if none).
+        private var glucoseMinutesAgo: Int? {
+            guard let d = readings.last?.date else { return nil }
+            return max(0, Int(Date().timeIntervalSince(d) / 60))
+        }
+
+        /// CGM data older than ~15 min means we're flying blind (e.g. sensor/Dexcom down).
+        /// Only flag when we actually have a reading, so we don't flash on first load.
+        private var isGlucoseStale: Bool { glucoseMinutesAgo.map { $0 > 15 } ?? false }
+
+        /// Minutes since the loop last ran (nil if it never has this session).
+        private var loopMinutesAgo: Int? {
+            guard state.lastLoopDate != .distantPast else { return nil }
+            return max(0, Int(Date().timeIntervalSince(state.lastLoopDate) / 60))
+        }
+
+        /// Trio loops about every 5 min; >15 min without a loop is a real problem.
+        private var isLoopStale: Bool { state.lastLoopDate == .distantPast || (loopMinutesAgo ?? 9999) > 15 }
+
+        /// Loop indicator color by health, not just mode: red when stale, yellow when
+        /// open-loop or slightly behind, green when running normally.
+        private var loopColor: Color {
+            if isLoopStale { return TrioGlass.Colors.urgent }
+            if !state.closedLoop { return TrioGlass.Colors.high }
+            if (loopMinutesAgo ?? 0) > 7 { return TrioGlass.Colors.high }
+            return TrioGlass.Colors.inRange
+        }
+
+        /// Hero number/trend dim to gray when the reading is stale (don't imply a
+        /// confident "in range" on old data).
+        private var heroColor: Color { isGlucoseStale ? TrioGlass.label(0.45) : stateColor }
+        private var pillLabel: String { isGlucoseStale ? "STALE DATA" : stateLabel }
+        private var pillColor: Color { isGlucoseStale ? TrioGlass.label(0.5) : stateColor }
+
+        private var showStalenessBanner: Bool { isLoopStale || isGlucoseStale }
+
         private static let num: NumberFormatter = {
             let f = NumberFormatter()
             f.numberStyle = .decimal
@@ -122,6 +160,7 @@ extension Home {
                 ScrollView {
                     VStack(spacing: 18) {
                         if notificationsDisabled { notificationsBanner }
+                        if showStalenessBanner { stalenessBanner }
                         header
                         hero
                         statePillRow
@@ -168,6 +207,37 @@ extension Home {
         }
 
         // MARK: - Safety: notifications-off banner
+
+        /// Loud red banner the instant we're flying blind: not looping and/or stale CGM.
+        private var stalenessBanner: some View {
+            let message: String = {
+                if isLoopStale, isGlucoseStale {
+                    let g = glucoseMinutesAgo.map { "\($0)m" } ?? "—"
+                    return "Not looping & glucose \(g) old — check CGM/pump"
+                }
+                if isLoopStale {
+                    if let m = loopMinutesAgo { return "Not looping — last loop \(m) min ago" }
+                    return "Not looping — no recent loop"
+                }
+                if let m = glucoseMinutesAgo { return "Glucose data is \(m) min old" }
+                return "Data is stale"
+            }()
+            return HStack(spacing: 11) {
+                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 18))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(message).font(TrioGlass.rounded(14, .heavy))
+                    Text("Treat with caution — automation may be paused.")
+                        .font(TrioGlass.text(11.5, .semibold)).opacity(0.9)
+                }
+                Spacer()
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(
+                TrioGlass.Colors.urgent,
+                in: RoundedRectangle(cornerRadius: TrioGlass.Metric.cardRadius, style: .continuous)
+            )
+        }
 
         private var notificationsBanner: some View {
             Button {
@@ -255,14 +325,18 @@ extension Home {
                     HStack(alignment: .lastTextBaseline, spacing: 8) {
                         Text(currentValue.map(String.init) ?? "--")
                             .font(TrioGlass.rounded(72, .heavy))
-                            .foregroundStyle(stateColor)
+                            .foregroundStyle(heroColor)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("mg/dL").font(TrioGlass.text(14, .semibold)).foregroundStyle(TrioGlass.label(0.55))
-                            Image(systemName: trendSymbol)
+                            Image(systemName: isGlucoseStale ? "wifi.slash" : trendSymbol)
                                 .font(.system(size: 16, weight: .heavy))
-                                .foregroundStyle(stateColor)
+                                .foregroundStyle(heroColor)
                         }
                         .padding(.bottom, 10)
+                    }
+                    if let m = glucoseMinutesAgo, isGlucoseStale {
+                        Text("Last reading \(m) min ago")
+                            .font(TrioGlass.text(12, .bold)).foregroundStyle(TrioGlass.Colors.urgent)
                     }
                 }
                 .contentShape(Rectangle())
@@ -284,7 +358,7 @@ extension Home {
 
         private var statePillRow: some View {
             HStack(spacing: 11) {
-                GlassStatePill(text: stateLabel, color: stateColor)
+                GlassStatePill(text: pillLabel, color: pillColor)
                 if let eventual = state.eventualBG {
                     HStack(spacing: 7) {
                         Image(systemName: "arrow.right")
@@ -440,13 +514,12 @@ extension Home {
 
         private var loopBasalRows: some View {
             VStack(spacing: 0) {
-                GlassRow(icon: "arrow.triangle.2.circlepath", iconColor: TrioGlass.Colors.inRange, label: "Loop Status") {
+                GlassRow(icon: "arrow.triangle.2.circlepath", iconColor: loopColor, label: "Loop Status") {
                     HStack(spacing: 7) {
-                        Circle().fill(state.closedLoop ? TrioGlass.Colors.inRange : TrioGlass.Colors.high)
-                            .frame(width: 9, height: 9)
-                        Text(state.closedLoop ? "Closed" : "Open")
+                        Circle().fill(loopColor).frame(width: 9, height: 9)
+                        Text(isLoopStale ? "Stale" : (state.closedLoop ? "Closed" : "Open"))
                             .font(TrioGlass.rounded(14.5, .bold))
-                            .foregroundStyle(state.closedLoop ? TrioGlass.Colors.inRange : TrioGlass.Colors.high)
+                            .foregroundStyle(loopColor)
                     }
                 }
                 .contentShape(Rectangle())
@@ -456,8 +529,13 @@ extension Home {
                     state.runLoop()
                 }
                 Divider().overlay(Color.white.opacity(0.07))
-                GlassRow(icon: "clock", iconColor: TrioGlass.label(0.55), label: "Last Loop") {
-                    Text(lastLoopText).font(TrioGlass.rounded(14.5, .bold)).foregroundStyle(TrioGlass.label(0.85))
+                GlassRow(
+                    icon: "clock",
+                    iconColor: isLoopStale ? TrioGlass.Colors.urgent : TrioGlass.label(0.55),
+                    label: "Last Loop"
+                ) {
+                    Text(lastLoopText).font(TrioGlass.rounded(14.5, .bold))
+                        .foregroundStyle(isLoopStale ? TrioGlass.Colors.urgent : TrioGlass.label(0.85))
                 }
                 Divider().overlay(Color.white.opacity(0.07))
                 GlassRow(icon: "drop.fill", iconColor: TrioGlass.Colors.inRange, label: "Current Basal") {

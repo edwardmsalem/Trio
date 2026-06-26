@@ -22,9 +22,11 @@ extension MealScan {
         @State private var showBarcode = false
         @State private var showLabel = false
 
-        var onConfirm: ((NutritionTotals) -> Void)?
+        var onConfirm: ((NutritionTotals) -> Void)? = nil
         /// Re-evaluated on every message so dosing advice always uses live numbers.
-        var mealContextProvider: (() -> MealContext?)?
+        var mealContextProvider: (() -> MealContext?)? = nil
+        /// True when shown as a tab (not a modal) — hides the Close button.
+        var embedded: Bool = false
 
         var body: some View {
             NavigationStack {
@@ -49,11 +51,13 @@ extension MealScan {
                         .background(.bar)
                     }
                     .background(Color(.systemBackground))
-                    .navigationTitle("AI Meal Advisor")
+                    .navigationTitle("Trio Assistant")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") { dismiss() }
+                        if !embedded {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { dismiss() }
+                            }
                         }
                         ToolbarItem(placement: .primaryAction) {
                             HStack(spacing: 16) {
@@ -90,7 +94,28 @@ extension MealScan {
             .onAppear {
                 session.configure(resolver: resolver)
                 session.mealContextProvider = mealContextProvider
+                session.dataContextProvider = { buildAssistantData() }
             }
+        }
+
+        /// One-time coaching snapshot for the assistant: full Trio settings + algorithm
+        /// preferences. Live glucose/IOB/COB come via the meal context each turn.
+        private func buildAssistantData() -> String? {
+            guard let settingsManager = resolver.resolve(SettingsManager.self) else { return nil }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            var parts: [String] = []
+            if let data = try? encoder.encode(settingsManager.settings),
+               let json = String(data: data, encoding: .utf8)
+            {
+                parts.append("MY TRIO SETTINGS (JSON):\n\(json)")
+            }
+            if let data = try? encoder.encode(settingsManager.preferences),
+               let json = String(data: data, encoding: .utf8)
+            {
+                parts.append("MY TRIO ALGORITHM PREFERENCES (JSON):\n\(json)")
+            }
+            return parts.isEmpty ? nil : "MY TRIO DATA (for coaching questions):\n\n" + parts.joined(separator: "\n\n")
         }
 
         // MARK: - History
@@ -172,10 +197,10 @@ extension MealScan {
                 Image(systemName: "bubble.left.and.text.bubble.right.fill")
                     .font(.system(size: 46))
                     .foregroundStyle(.blue.gradient)
-                Text("AI Meal Advisor")
+                Text("Trio Assistant")
                     .font(.headline)
                 Text(
-                    "Tap ➕ to take a photo, scan a barcode or label, or just describe your meal. I'll estimate the carbs and talk it through with you."
+                    "Estimate a meal (tap ➕ for photo, barcode, or label) — or ask me anything about your settings, glucose trends, or dosing. I can see your Trio setup."
                 )
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

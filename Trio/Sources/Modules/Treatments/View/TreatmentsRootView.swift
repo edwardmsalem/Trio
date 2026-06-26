@@ -158,7 +158,7 @@ extension Treatments {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkles")
-                    Text("AI Meal Advisor").font(.subheadline.weight(.semibold))
+                    Text("Trio Assistant").font(.subheadline.weight(.semibold))
                 }
                 .foregroundStyle(.blue)
             }

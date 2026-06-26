@@ -59,6 +59,10 @@ struct MealConversation: Codable, Identifiable {
     /// sanity-check the AI's advisory dose arithmetic.
     @ObservationIgnored var mealContextProvider: (() -> MealContext?)?
 
+    /// Full coaching snapshot (settings + therapy + recent data) sent once on the
+    /// first turn, so the one assistant can coach on real numbers, not just food.
+    @ObservationIgnored var dataContextProvider: (() -> String?)?
+
     @ObservationIgnored private var provider: MealScan.MealScanProvider?
 
     private let defaults = UserDefaults.standard
@@ -139,6 +143,7 @@ struct MealConversation: Codable, Identifiable {
             var contextParts: [String] = []
             if let block = context?.promptBlock, !block.isEmpty { contextParts.append(block) }
             if isFirstTurn {
+                if let data = dataContextProvider?(), !data.isEmpty { contextParts.append(data) }
                 let outcomes = MealLog.shared.outcomesSummary()
                 if !outcomes.isEmpty { contextParts.append(outcomes) }
             }

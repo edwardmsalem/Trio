@@ -1141,7 +1141,7 @@ extension Home {
 
                     Spacer()
 
-                    Coach.CoachView(resolver: resolver, embedded: true)
+                    MealScan.StandaloneChatView(resolver: resolver, embedded: true)
                         .tabItem {
                             Label(
                                 "Coach",

@@ -142,8 +142,10 @@ struct MealConversation: Codable, Identifiable {
             // Fresh live numbers on every turn; meal-outcome history only on the first.
             var contextParts: [String] = []
             if let block = context?.promptBlock, !block.isEmpty { contextParts.append(block) }
+            // Settings + recent glucose/treatment history refreshed every turn so the
+            // assistant always answers from current data (not a stale opening snapshot).
+            if let data = dataContextProvider?(), !data.isEmpty { contextParts.append(data) }
             if isFirstTurn {
-                if let data = dataContextProvider?(), !data.isEmpty { contextParts.append(data) }
                 let outcomes = MealLog.shared.outcomesSummary()
                 if !outcomes.isEmpty { contextParts.append(outcomes) }
             }

@@ -1,3 +1,4 @@
+import CoreData
 import PhotosUI
 import SwiftUI
 import Swinject
@@ -115,7 +116,66 @@ extension MealScan {
             {
                 parts.append("MY TRIO ALGORITHM PREFERENCES (JSON):\n\(json)")
             }
+            if let history = recentHistorySummary() {
+                parts.append(history)
+            }
             return parts.isEmpty ? nil : "MY TRIO DATA (for coaching questions):\n\n" + parts.joined(separator: "\n\n")
+        }
+
+        /// Last 24h of glucose (downsampled ~15 min), boluses, and carbs from the
+        /// phone's database, so the assistant can analyze recent/overnight patterns.
+        private func recentHistorySummary() -> String? {
+            let since = Date().addingTimeInterval(-24 * 3600)
+            let hm = DateFormatter()
+            hm.dateFormat = "HH:mm"
+            var out: [String] = []
+
+            // Glucose
+            let gReq: NSFetchRequest<GlucoseStored> = GlucoseStored.fetchRequest()
+            gReq.predicate = NSPredicate(format: "date >= %@", since as NSDate)
+            gReq.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
+            if let readings = try? moc.fetch(gReq) {
+                let pts = readings.compactMap { r -> (Date, Int)? in r.date.map { ($0, Int(r.glucose)) } }
+                if !pts.isEmpty {
+                    let vals = pts.map(\.1)
+                    let avg = vals.reduce(0, +) / vals.count
+                    var sampled: [(Date, Int)] = []
+                    var lastT: Date?
+                    for p in pts {
+                        if let lt = lastT, p.0.timeIntervalSince(lt) < 14 * 60 { continue }
+                        sampled.append(p)
+                        lastT = p.0
+                    }
+                    let timeline = sampled.map { "\(hm.string(from: $0.0)) \($0.1)" }.joined(separator: ", ")
+                    out.append(
+                        "GLUCOSE last 24h (mg/dL): avg \(avg), min \(vals.min() ?? 0), max \(vals.max() ?? 0), \(vals.count) readings.\nTimeline (~15 min): \(timeline)"
+                    )
+                }
+            }
+
+            // Boluses
+            let bReq: NSFetchRequest<BolusStored> = BolusStored.fetchRequest()
+            bReq.predicate = NSPredicate(format: "pumpEvent.timestamp >= %@", since as NSDate)
+            if let boluses = try? moc.fetch(bReq) {
+                let items = boluses.compactMap { b -> (Date, String)? in
+                    guard let t = b.pumpEvent?.timestamp, let amt = b.amount?.decimalValue else { return nil }
+                    return (t, "\(hm.string(from: t)) \(amt)U")
+                }.sorted { $0.0 < $1.0 }.map(\.1)
+                if !items.isEmpty { out.append("BOLUSES last 24h: " + items.joined(separator: ", ")) }
+            }
+
+            // Carbs
+            let cReq: NSFetchRequest<CarbEntryStored> = CarbEntryStored.fetchRequest()
+            cReq.predicate = NSPredicate(format: "date >= %@", since as NSDate)
+            if let carbs = try? moc.fetch(cReq) {
+                let items = carbs.compactMap { c -> (Date, String)? in
+                    guard let t = c.date else { return nil }
+                    return (t, "\(hm.string(from: t)) \(Int(c.carbs))g")
+                }.sorted { $0.0 < $1.0 }.map(\.1)
+                if !items.isEmpty { out.append("CARBS last 24h: " + items.joined(separator: ", ")) }
+            }
+
+            return out.isEmpty ? nil : "MY RECENT DATA (last 24h):\n\n" + out.joined(separator: "\n\n")
         }
 
         // MARK: - History

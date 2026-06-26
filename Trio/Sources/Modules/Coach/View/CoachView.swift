@@ -9,6 +9,9 @@ extension Coach {
     /// ADVISORY ONLY: there is no Apply button and no dose action anywhere here.
     struct CoachView: View {
         let resolver: Resolver
+        /// When shown as a tab (not a modal sheet) there's nothing to dismiss, so
+        /// the Close button is hidden.
+        var embedded: Bool = false
 
         @Environment(\.dismiss) var dismiss
 
@@ -37,8 +40,10 @@ extension Coach {
                     .navigationTitle("Trio Coach")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") { dismiss() }
+                        if !embedded {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { dismiss() }
+                            }
                         }
                         ToolbarItem(placement: .principal) {
                             Picker("View", selection: $state.selectedTab) {
@@ -60,8 +65,33 @@ extension Coach {
                     }
             }
             .task {
+                inbox.contextProvider = { buildCoachContext() }
                 await state.onAppear()
             }
+        }
+
+        /// One-time data snapshot handed to the coach on the first turn: the user's
+        /// full Trio settings + algorithm preferences. Glucose, treatments, and the
+        /// therapy profile (basal/ISF/CR/targets) come from Nightscout server-side.
+        private func buildCoachContext() -> String? {
+            guard let settingsManager = resolver.resolve(SettingsManager.self) else { return nil }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            var parts: [String] = []
+            if let data = try? encoder.encode(settingsManager.settings),
+               let json = String(data: data, encoding: .utf8)
+            {
+                parts.append("MY TRIO SETTINGS (JSON):\n\(json)")
+            }
+            if let data = try? encoder.encode(settingsManager.preferences),
+               let json = String(data: data, encoding: .utf8)
+            {
+                parts.append("MY TRIO ALGORITHM PREFERENCES (JSON):\n\(json)")
+            }
+            parts.append(
+                "My glucose readings, treatment history (carbs, boluses, basal), and therapy profile (basal rates, ISF, carb ratios, targets) are available to you via Nightscout — use them for trends, patterns, and any settings advice."
+            )
+            return parts.isEmpty ? nil : parts.joined(separator: "\n\n")
         }
 
         @ViewBuilder private var content: some View {

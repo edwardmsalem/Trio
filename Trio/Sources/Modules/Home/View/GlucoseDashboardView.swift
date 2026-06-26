@@ -28,6 +28,8 @@ extension Home {
         let notificationsDisabled: Bool
         let onCancelOverride: () -> Void
         let onCancelTempTarget: () -> Void
+        /// Opens the Adjustments screen (it moved off the tab bar to make room for Coach).
+        let onOpenAdjustments: () -> Void
 
         private func haptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
             UIImpactFeedbackGenerator(style: style).impactOccurred()
@@ -242,7 +244,7 @@ extension Home {
             }
             .padding(.vertical, 9)
             .contentShape(Rectangle())
-            .onTapGesture { selectedTab = 2 }
+            .onTapGesture { onOpenAdjustments() }
         }
 
         // MARK: - Hero (current + IOB/COB)

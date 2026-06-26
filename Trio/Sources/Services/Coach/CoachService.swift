@@ -47,15 +47,26 @@ final class CoachService {
     ///   data: {"type":"text_delta","text":"..."}
     ///   data: {"type":"done","thread_id":"<id>"}
     ///   data: {"type":"error","message":"..."}
-    func send(_ text: String) async throws -> AsyncStream<String> {
+    func send(_ text: String, context: String? = nil) async throws -> AsyncStream<String> {
         var request = URLRequest(url: try buildURL("/coach/chat"))
         request.httpMethod = "POST"
         request.setValue("Bearer \(proxySecret)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 180
 
+        // On the first turn we prepend a one-time snapshot of the user's phone-side
+        // data (settings/preferences). The agent already has Nightscout for glucose,
+        // treatments, and the therapy profile, and it replays thread context
+        // server-side, so this only needs to ride along once.
+        let content: String
+        if let context, !context.isEmpty {
+            content = "Here is a snapshot of my Trio data for your reference:\n\n\(context)\n\n-----\n\nMy message: \(text)"
+        } else {
+            content = text
+        }
+
         var body: [String: Any] = [
-            "messages": [["role": "user", "content": text]]
+            "messages": [["role": "user", "content": content]]
         ]
         if let tid = threadId {
             body["thread_id"] = tid

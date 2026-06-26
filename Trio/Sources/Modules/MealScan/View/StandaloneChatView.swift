@@ -174,11 +174,13 @@ extension MealScan {
                     .foregroundStyle(.blue.gradient)
                 Text("AI Meal Advisor")
                     .font(.headline)
-                Text("Tap ➕ to take a photo, scan a barcode or label, or just describe your meal. I'll estimate the carbs and talk it through with you.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                Text(
+                    "Tap ➕ to take a photo, scan a barcode or label, or just describe your meal. I'll estimate the carbs and talk it through with you."
+                )
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
             }
             .padding(.vertical, 60)
             .frame(maxWidth: .infinity)

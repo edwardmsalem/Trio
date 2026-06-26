@@ -35,6 +35,12 @@ struct CoachNote: Codable, Identifiable {
 
     @ObservationIgnored private let service = CoachService()
 
+    /// Builds a one-time snapshot of the user's phone-side data (settings/
+    /// preferences) to hand the coach on the first turn of a conversation. Set by
+    /// `CoachView` (which has the resolver). The agent already reads glucose,
+    /// treatments, and the therapy profile from Nightscout.
+    @ObservationIgnored var contextProvider: (() -> String?)?
+
     private let defaults = UserDefaults.standard
     private let storeKey = "coachStore.v1"
 
@@ -57,7 +63,9 @@ struct CoachNote: Codable, Identifiable {
         save()
 
         do {
-            let stream = try await service.send(trimmed)
+            // First turn of a fresh conversation: ride a one-time data snapshot along.
+            let context = (service.threadId == nil) ? contextProvider?() : nil
+            let stream = try await service.send(trimmed, context: context)
 
             messages.append(ChatMessage(role: .assistant, text: ""))
             let idx = messages.count - 1

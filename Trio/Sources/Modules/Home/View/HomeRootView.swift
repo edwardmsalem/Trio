@@ -31,6 +31,9 @@ extension Home {
         @State var isConfirmStopTempTargetShown = false
         @State var isMenuPresented = false
         @State var showTreatments = false
+        /// Adjustments moved out of the tab bar (replaced by Coach); the Home
+        /// override/temp-target chips present it as a sheet so nothing is lost.
+        @State var showAdjustments = false
         @State var selectedTab: Int = 0
         @State var showPumpSelection: Bool = false
         @State var showCGMSelection: Bool = false
@@ -989,7 +992,8 @@ extension Home {
                 },
                 onCancelTempTarget: {
                     if !latestTempTarget.isEmpty { isConfirmStopTempTargetShown = true }
-                }
+                },
+                onOpenAdjustments: { showAdjustments = true }
             )
             .confirmationDialog(
                 "Stop the Override \"\(latestOverride.first?.name ?? "")\"?",
@@ -1036,6 +1040,9 @@ extension Home {
             }
             .sheet(isPresented: $state.isLegendPresented) {
                 ChartLegendView(state: state)
+            }
+            .sheet(isPresented: $showAdjustments) {
+                NavigationStack { Adjustments.RootView(resolver: resolver) }
             }
             // PUMP RELATED
             .confirmationDialog("Pump Model", isPresented: $showPumpSelection) {
@@ -1134,11 +1141,11 @@ extension Home {
 
                     Spacer()
 
-                    NavigationStack { Adjustments.RootView(resolver: resolver) }
+                    Coach.CoachView(resolver: resolver, embedded: true)
                         .tabItem {
                             Label(
-                                "Adjustments",
-                                systemImage: "slider.horizontal.2.gobackward"
+                                "Coach",
+                                systemImage: "bubble.left.and.bubble.right.fill"
                             ) }.tag(2)
 
                     NavigationStack(path: self.$settingsPath) {

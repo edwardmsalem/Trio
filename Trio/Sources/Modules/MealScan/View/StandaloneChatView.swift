@@ -122,60 +122,94 @@ extension MealScan {
             return parts.isEmpty ? nil : "MY TRIO DATA (for coaching questions):\n\n" + parts.joined(separator: "\n\n")
         }
 
-        /// Last 24h of glucose (downsampled ~15 min), boluses, and carbs from the
-        /// phone's database, so the assistant can analyze recent/overnight patterns.
+        /// Glucose + treatment history from the phone's database: 14 days of daily
+        /// summaries (TIR/avg/lows, carbs, insulin) plus a detailed last-48h timeline.
+        /// This is what the app can practically hand a remote assistant in one message.
         private func recentHistorySummary() -> String? {
-            let since = Date().addingTimeInterval(-24 * 3600)
-            let hm = DateFormatter()
-            hm.dateFormat = "HH:mm"
+            let cal = Calendar.current
+            let now = Date()
+            let since14 = now.addingTimeInterval(-14 * 24 * 3600)
+            let since48 = now.addingTimeInterval(-48 * 3600)
+            let dayfmt = DateFormatter()
+            dayfmt.dateFormat = "EEE MMM d"
+            let stamp = DateFormatter()
+            stamp.dateFormat = "EEE HH:mm"
             var out: [String] = []
 
-            // Glucose
+            let sm = resolver.resolve(SettingsManager.self)
+            let lowT = sm.map { Int(truncating: $0.settings.low as NSNumber) } ?? 70
+            let highT = sm.map { Int(truncating: $0.settings.high as NSNumber) } ?? 180
+
+            // Glucose: daily summaries (14d) + detailed timeline (48h).
             let gReq: NSFetchRequest<GlucoseStored> = GlucoseStored.fetchRequest()
-            gReq.predicate = NSPredicate(format: "date >= %@", since as NSDate)
+            gReq.predicate = NSPredicate(format: "date >= %@", since14 as NSDate)
             gReq.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
             if let readings = try? moc.fetch(gReq) {
                 let pts = readings.compactMap { r -> (Date, Int)? in r.date.map { ($0, Int(r.glucose)) } }
                 if !pts.isEmpty {
-                    let vals = pts.map(\.1)
-                    let avg = vals.reduce(0, +) / vals.count
+                    let byDay = Dictionary(grouping: pts) { cal.startOfDay(for: $0.0) }
+                    let dailyLines = byDay.keys.sorted().compactMap { day -> String? in
+                        let vals = byDay[day]!.map(\.1)
+                        guard !vals.isEmpty else { return nil }
+                        let avg = vals.reduce(0, +) / vals.count
+                        let tir = Int(Double(vals.filter { $0 >= lowT && $0 <= highT }.count) / Double(vals.count) * 100)
+                        let lows = vals.filter { $0 < lowT }.count
+                        let highs = vals.filter { $0 > highT }.count
+                        return "\(dayfmt.string(from: day)): avg \(avg), min \(vals.min()!), max \(vals.max()!), TIR \(tir)%, \(lows) lows, \(highs) highs"
+                    }
+                    if !dailyLines.isEmpty {
+                        out
+                            .append(
+                                "GLUCOSE daily summary (last 14d, range \(lowT)-\(highT) mg/dL):\n" + dailyLines
+                                    .joined(separator: "\n")
+                            )
+                    }
                     var sampled: [(Date, Int)] = []
                     var lastT: Date?
-                    for p in pts {
+                    for p in pts where p.0 >= since48 {
                         if let lt = lastT, p.0.timeIntervalSince(lt) < 14 * 60 { continue }
                         sampled.append(p)
                         lastT = p.0
                     }
-                    let timeline = sampled.map { "\(hm.string(from: $0.0)) \($0.1)" }.joined(separator: ", ")
-                    out.append(
-                        "GLUCOSE last 24h (mg/dL): avg \(avg), min \(vals.min() ?? 0), max \(vals.max() ?? 0), \(vals.count) readings.\nTimeline (~15 min): \(timeline)"
-                    )
+                    if !sampled.isEmpty {
+                        let timeline = sampled.map { "\(stamp.string(from: $0.0)) \($0.1)" }.joined(separator: ", ")
+                        out.append("GLUCOSE detailed (last 48h, ~15 min): \(timeline)")
+                    }
                 }
             }
 
-            // Boluses
+            // Boluses: 14d total + detailed 48h.
             let bReq: NSFetchRequest<BolusStored> = BolusStored.fetchRequest()
-            bReq.predicate = NSPredicate(format: "pumpEvent.timestamp >= %@", since as NSDate)
+            bReq.predicate = NSPredicate(format: "pumpEvent.timestamp >= %@", since14 as NSDate)
             if let boluses = try? moc.fetch(bReq) {
-                let items = boluses.compactMap { b -> (Date, String)? in
+                let entries = boluses.compactMap { b -> (Date, Decimal)? in
                     guard let t = b.pumpEvent?.timestamp, let amt = b.amount?.decimalValue else { return nil }
-                    return (t, "\(hm.string(from: t)) \(amt)U")
-                }.sorted { $0.0 < $1.0 }.map(\.1)
-                if !items.isEmpty { out.append("BOLUSES last 24h: " + items.joined(separator: ", ")) }
+                    return (t, amt)
+                }.sorted { $0.0 < $1.0 }
+                if !entries.isEmpty {
+                    let total = entries.reduce(Decimal(0)) { $0 + $1.1 }
+                    out.append("INSULIN: \(entries.count) boluses over 14d, total \(total)U.")
+                    let recent = entries.filter { $0.0 >= since48 }.map { "\(stamp.string(from: $0.0)) \($0.1)U" }
+                    if !recent.isEmpty { out.append("BOLUSES (last 48h): " + recent.joined(separator: ", ")) }
+                }
             }
 
-            // Carbs
+            // Carbs: 14d total + detailed 48h.
             let cReq: NSFetchRequest<CarbEntryStored> = CarbEntryStored.fetchRequest()
-            cReq.predicate = NSPredicate(format: "date >= %@", since as NSDate)
+            cReq.predicate = NSPredicate(format: "date >= %@", since14 as NSDate)
             if let carbs = try? moc.fetch(cReq) {
-                let items = carbs.compactMap { c -> (Date, String)? in
-                    guard let t = c.date else { return nil }
-                    return (t, "\(hm.string(from: t)) \(Int(c.carbs))g")
-                }.sorted { $0.0 < $1.0 }.map(\.1)
-                if !items.isEmpty { out.append("CARBS last 24h: " + items.joined(separator: ", ")) }
+                let entries = carbs.compactMap { c -> (Date, Int)? in
+                    c.date.map { ($0, Int(c.carbs)) }
+                }.sorted { $0.0 < $1.0 }
+                if !entries.isEmpty {
+                    let total = entries.reduce(0) { $0 + $1.1 }
+                    out.append("CARBS: \(entries.count) entries over 14d, total \(total)g.")
+                    let recent = entries.filter { $0.0 >= since48 }.map { "\(stamp.string(from: $0.0)) \($0.1)g" }
+                    if !recent.isEmpty { out.append("CARBS (last 48h): " + recent.joined(separator: ", ")) }
+                }
             }
 
-            return out.isEmpty ? nil : "MY RECENT DATA (last 24h):\n\n" + out.joined(separator: "\n\n")
+            return out.isEmpty ? nil : "MY GLUCOSE & TREATMENT HISTORY:\n\n" + out.joined(separator: "\n\n")
         }
 
         // MARK: - History

@@ -25,6 +25,7 @@ enum NotificationAction: String {
 
     case snooze
     case pumpConfig
+    case splitBolus
     case none
 }
 
@@ -117,8 +118,22 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
 
             let glucoseCategory = NotificationCategoryFactory.createGlucoseCategory()
 
+            // Split-bolus reminder: a "Deliver" action that jumps straight to the
+            // pre-filled bolus screen.
+            let splitBolusCategory = UNNotificationCategory(
+                identifier: "TRIO_SPLIT_BOLUS",
+                actions: [UNNotificationAction(
+                    identifier: "SPLIT_DELIVER",
+                    title: String(localized: "Deliver"),
+                    options: [.foreground]
+                )],
+                intentIdentifiers: [],
+                options: []
+            )
+
             var categories = existingCategories
             categories.update(with: glucoseCategory)
+            categories.update(with: splitBolusCategory)
             // UNUserNotificationCenter methods should be called on main thread
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -706,6 +721,10 @@ extension BaseUserNotificationsManager: UNUserNotificationCenterDelegate {
             switch action {
             case .snooze:
                 self.router.mainModalScreen.send(.snooze)
+            case .splitBolus:
+                // Open the Add Treatment screen, which pre-fills the remaining split
+                // amount on appear and clears the reminder — one tap to deliver.
+                self.router.mainModalScreen.send(.treatmentView)
             case .pumpConfig:
                 let messageCont = MessageContent(
                     content: response.notification.request.content.body,

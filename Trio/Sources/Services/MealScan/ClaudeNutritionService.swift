@@ -41,6 +41,19 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
     private let proxyURL: String
     private let proxySecret: String
 
+    /// Coaching replies process a large context (settings + weeks of data + loop
+    /// decisions + knowledge base) and can take well over a minute. `URLSession.shared`
+    /// defaults to a 60s request timeout that silently truncated long streams (you'd
+    /// get the intro then nothing). A dedicated session with generous timeouts keeps
+    /// long answers from being cut off mid-stream.
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 240
+        config.timeoutIntervalForResource = 600
+        config.waitsForConnectivity = true
+        return URLSession(configuration: config)
+    }()
+
     /// Codex thread ID for the active chat session. nil = no active session.
     var activeThreadId: String?
     private var systemPromptForFirstTurn: String?
@@ -397,7 +410,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         request.httpMethod = "POST"
         request.setValue("Bearer \(proxySecret)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 120
+        request.timeoutInterval = 240
 
         var body: [String: Any] = [
             "messages": [["role": "user", "content": userText]]
@@ -415,7 +428,7 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        let (bytes, response) = try await session.bytes(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse, (200 ... 299).contains(httpResponse.statusCode) else {
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0

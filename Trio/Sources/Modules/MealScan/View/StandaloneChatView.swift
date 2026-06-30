@@ -303,8 +303,12 @@ extension MealScan {
                         }
 
                         ForEach(Array(session.current.messages.enumerated()), id: \.element.id) { index, message in
-                            messageRow(message, isLastInRun: isLastInRun(at: index))
-                                .id(message.id)
+                            // Don't render blank assistant bubbles (streaming placeholder is
+                            // covered by the typing indicator; orphaned empties are hidden).
+                            if !(message.role == .assistant && message.text.isEmpty) {
+                                messageRow(message, isLastInRun: isLastInRun(at: index))
+                                    .id(message.id)
+                            }
                         }
 
                         if session.isStreaming, session.current.messages.last?.text.isEmpty ?? false {

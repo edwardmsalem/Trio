@@ -142,6 +142,11 @@ struct MealConversation: Codable, Identifiable {
         isStreaming = true
         save()
 
+        // Ask iOS for extra execution time so a quick minimize doesn't instantly kill
+        // an in-flight reply. (A long background still gets suspended by the OS.)
+        let bgTask = UIApplication.shared.beginBackgroundTask(withName: "TrioAssistantChat")
+        defer { UIApplication.shared.endBackgroundTask(bgTask) }
+
         do {
             // Fresh live numbers on every turn; meal-outcome history only on the first.
             var contextParts: [String] = []
@@ -194,6 +199,11 @@ struct MealConversation: Codable, Identifiable {
                         }
                     }
                 }
+            }
+
+            // Never leave a blank bubble (reply stripped to nothing, or stream cut short).
+            if current.messages[idx].text.isEmpty {
+                current.messages[idx].text = "I didn't get a readable reply — tap send to try again."
             }
 
             current.threadId = provider.chatThreadId

@@ -498,8 +498,16 @@ extension MealScan {
                             carbs: totals.carbs, fat: totals.fat, protein: totals.protein,
                             source: "chat"
                         )
-                        onConfirm?(totals)
-                        dismiss()
+                        if let onConfirm {
+                            // Opened from the Add Treatment screen — apply to the form there.
+                            onConfirm(totals)
+                            dismiss()
+                        } else {
+                            // Opened from the Coach tab — no form here, so stash the numbers
+                            // and open Add Treatment, which applies them on appear.
+                            MealChatSession.pendingApplyTotals = totals
+                            resolver.resolve(Router.self)?.mainModalScreen.send(.treatmentView)
+                        }
                     }
                 } label: {
                     Text("Use These Numbers")

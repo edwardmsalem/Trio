@@ -57,6 +57,10 @@ struct MealConversation: Codable, Identifiable {
     /// Returns a FRESH physiology snapshot (BG/IOB/COB/trend/ISF/CR). Re-evaluated
     /// on every send so the AI never reasons from stale numbers, and reused to
     /// sanity-check the AI's advisory dose arithmetic.
+    /// Carbs/fat/protein the user accepted in the Coach-tab assistant ("Use These
+    /// Numbers"), waiting to be applied when the Add Treatment screen opens.
+    @ObservationIgnored static var pendingApplyTotals: NutritionTotals?
+
     @ObservationIgnored var mealContextProvider: (() -> MealContext?)?
 
     /// Full coaching snapshot (settings + therapy + recent data) sent once on the

@@ -818,6 +818,12 @@ extension Treatments {
                     state.amount = pending.remaining
                     SplitBolusReminder.clear()
                 }
+                // Arriving from "Use These Numbers" in the Coach-tab assistant: load the
+                // accepted meal macros into the form.
+                if let totals = MealChatSession.pendingApplyTotals {
+                    applyMealTotals(totals)
+                    MealChatSession.pendingApplyTotals = nil
+                }
                 configureView {
                     state.isActive = true
                     Task { @MainActor in

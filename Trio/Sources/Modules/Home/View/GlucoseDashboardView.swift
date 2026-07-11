@@ -102,6 +102,12 @@ extension Home {
         private var cob: Int { Int(state.enactedAndNonEnactedDeterminations.first?.cob ?? 0) }
         private var basal: Decimal? { state.enactedAndNonEnactedDeterminations.first?.tempBasal?.decimalValue }
 
+        /// The loop's predicted eventual glucose, read from the latest determination
+        /// (state.eventualBG is never populated — the determination record is the source).
+        private var eventualValue: Int? {
+            (state.enactedAndNonEnactedDeterminations.first?.eventualBG).map(\.intValue)
+        }
+
         // MARK: - Staleness / loop health (safety surface)
 
         /// Minutes since the most recent glucose reading (nil if none).
@@ -359,7 +365,7 @@ extension Home {
         private var statePillRow: some View {
             HStack(spacing: 11) {
                 GlassStatePill(text: pillLabel, color: pillColor)
-                if let eventual = state.eventualBG {
+                if let eventual = eventualValue {
                     HStack(spacing: 7) {
                         Image(systemName: "arrow.right")
                             .font(.system(size: 12, weight: .bold)).foregroundStyle(TrioGlass.label(0.4))

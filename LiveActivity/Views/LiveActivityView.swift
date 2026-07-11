@@ -129,6 +129,11 @@ struct LiveActivityView: View {
                                     context: context,
                                     additionalState: context.state.detailedViewState
                                 )
+                            case .eventualGlucose:
+                                LiveActivityEventualBGLabelView(
+                                    context: context,
+                                    additionalState: context.state.detailedViewState
+                                )
                             case .empty:
                                 Text("").frame(width: 50, height: 50)
                             }

@@ -33,3 +33,27 @@ struct LiveActivityIOBLabelView: View {
         }
     }
 }
+
+struct LiveActivityEventualBGLabelView: View {
+    var context: ActivityViewContext<LiveActivityAttributes>
+    var additionalState: LiveActivityAttributes.ContentAdditionalState
+
+    var body: some View {
+        VStack(spacing: 2) {
+            HStack {
+                Image(systemName: "arrow.forward")
+                    .font(.headline).fontWeight(.bold)
+                    .foregroundStyle(context.isStale ? .secondary : .primary)
+
+                Text(additionalState.eventualBG.isEmpty ? "--" : additionalState.eventualBG)
+                    .fontWeight(.bold)
+                    .font(.title3)
+                    .foregroundStyle(context.isStale ? .secondary : .primary)
+                    .strikethrough(context.isStale, pattern: .solid, color: .red.opacity(0.6))
+            }
+            Text("Eventual")
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+        }
+    }
+}

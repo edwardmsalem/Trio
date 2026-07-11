@@ -102,12 +102,20 @@ extension LiveActivityAttributes.ContentState {
         let trendString = bg.direction?.symbol as? String
         let change = Self.calculateChange(chart: chart, units: units)
 
+        let formattedEventualBG: String
+        if let eventualBG = determination?.eventualBG {
+            formattedEventualBG = Self.formatGlucose(eventualBG, units: units, forceSign: false)
+        } else {
+            formattedEventualBG = ""
+        }
+
         let detailedState = LiveActivityAttributes.ContentAdditionalState(
             chart: chart.map { LiveActivityAttributes.ChartItem(value: Decimal($0.glucose), date: $0.date) },
             rotationDegrees: rotationDegrees,
             cob: Decimal(determination?.cob ?? 0),
             iob: iob ?? 0 as Decimal,
             tdd: determination?.tdd ?? 0 as Decimal,
+            eventualBG: formattedEventualBG,
             isOverrideActive: override?.isActive ?? false,
             overrideName: override?.overrideName ?? "Override",
             overrideDate: override?.date ?? Date(),

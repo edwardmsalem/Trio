@@ -211,6 +211,8 @@ struct LiveActivityWidgetConfiguration: BaseView {
             return AnyView(updatedLabelPreview)
         case .totalDailyDose:
             return AnyView(totalDailyDosePreview)
+        case .eventualGlucose:
+            return AnyView(eventualGlucosePreview)
         }
     }
 
@@ -319,6 +321,18 @@ struct LiveActivityWidgetConfiguration: BaseView {
         }
     }
 
+    private var eventualGlucosePreview: some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 2) {
+                Image(systemName: "arrow.forward").font(.caption2)
+                Text("104")
+            }
+            .fontWeight(.bold).font(.caption)
+
+            Text("Eventual").font(.caption2).foregroundStyle(.primary)
+        }
+    }
+
     private func loadOrder() {
         if let savedItems = UserDefaults.standard.loadLiveActivityOrder() {
             selectedItems = savedItems.count == 4 ? savedItems : savedItems + Array(repeating: nil, count: 4 - savedItems.count)
@@ -373,6 +387,7 @@ enum LiveActivityItem: String, CaseIterable, Identifiable {
     case cob
     case updatedLabel
     case totalDailyDose
+    case eventualGlucose
 
     var id: String { rawValue }
 
@@ -403,6 +418,11 @@ enum LiveActivityItem: String, CaseIterable, Identifiable {
             return String(localized: "Last Updated", comment: "Live Activity widget icon label for Last Updated")
         case .totalDailyDose:
             return String(localized: "Total Daily Dose", comment: "Live Activity widget icon label for Total Daily Dose")
+        case .eventualGlucose:
+            return String(
+                localized: "Predicted Glucose",
+                comment: "Live Activity widget icon label for Predicted (eventual) Glucose"
+            )
         }
     }
 }

@@ -247,6 +247,15 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 if let latestDetermination = determinationObjects.first {
                     let cob = NSNumber(value: latestDetermination.cob)
                     watchState.cob = Formatter.integerFormatter.string(from: cob)
+
+                    // Loop's predicted eventual glucose, formatted in the display unit
+                    if let eventual = latestDetermination.eventualBG {
+                        if self.units == .mgdL {
+                            watchState.eventualBG = "\(eventual.intValue)"
+                        } else {
+                            watchState.eventualBG = "\(eventual.decimalValue.formattedAsMmolL)"
+                        }
+                    }
                 }
 
                 // Set TDD (Total Daily Dose)
@@ -484,6 +493,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchMessageKeys.iob: state.iob ?? "",
             WatchMessageKeys.cob: state.cob ?? "",
             WatchMessageKeys.tdd: state.tdd ?? "",
+            WatchMessageKeys.eventualBG: state.eventualBG ?? "",
             WatchMessageKeys.lastLoopTime: state.lastLoopTime ?? "",
             WatchMessageKeys.glucoseValues: state.glucoseValues.map { value in
                 [
@@ -581,6 +591,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 WatchMessageKeys.iob: state.iob ?? "",
                 WatchMessageKeys.cob: state.cob ?? "",
                 WatchMessageKeys.tdd: state.tdd ?? "",
+                WatchMessageKeys.eventualBG: state.eventualBG ?? "",
                 WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
                 WatchMessageKeys.date: state.date.timeIntervalSince1970
             ]

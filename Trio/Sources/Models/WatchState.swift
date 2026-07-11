@@ -14,6 +14,7 @@ struct WatchState: Hashable, Equatable, Sendable, Encodable, Decodable {
     var iob: String?
     var cob: String?
     var tdd: String? // Total Daily Dose
+    var eventualBG: String? // Loop's predicted eventual glucose (display unit)
     var lastLoopTime: String?
     var overridePresets: [OverridePresetWatch] = []
     var tempTargetPresets: [TempTargetPresetWatch] = []

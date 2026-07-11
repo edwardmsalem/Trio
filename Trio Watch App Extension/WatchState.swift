@@ -70,6 +70,7 @@ var sharedUserDefaults: UserDefaults? {
     var cob: String? = "--"
     var iob: String? = "--"
     var tdd: String? // Total Daily Dose
+    var eventualBG: String? // Loop's predicted eventual glucose
     var lastLoopTime: String? = "--"
     var overridePresets: [OverridePresetWatch] = []
     var tempTargetPresets: [TempTargetPresetWatch] = []
@@ -338,6 +339,7 @@ var sharedUserDefaults: UserDefaults? {
         let iob = userInfo[WatchMessageKeys.iob] as? String
         let cob = userInfo[WatchMessageKeys.cob] as? String
         let tdd = userInfo[WatchMessageKeys.tdd] as? String
+        let eventualBG = userInfo[WatchMessageKeys.eventualBG] as? String
         let colorString = userInfo[WatchMessageKeys.currentGlucoseColorString] as? String ?? "#ffffff"
         let timestamp = userInfo[WatchMessageKeys.date] as? TimeInterval
 
@@ -359,6 +361,7 @@ var sharedUserDefaults: UserDefaults? {
             iob: iob,
             cob: cob,
             tdd: tdd,
+            eventualBG: (eventualBG?.isEmpty ?? true) ? nil : eventualBG,
             glucoseDate: timestamp.map { Date(timeIntervalSince1970: $0) },
             lastLoopDate: timestamp.map { Date(timeIntervalSince1970: $0) },
             isUrgent: isUrgent
@@ -621,6 +624,10 @@ var sharedUserDefaults: UserDefaults? {
             self.tdd = tdd
         }
 
+        if let eventualBG = message[WatchMessageKeys.eventualBG] as? String {
+            self.eventualBG = eventualBG.isEmpty ? nil : eventualBG
+        }
+
         if let lastLoopTime = message[WatchMessageKeys.lastLoopTime] as? String {
             self.lastLoopTime = lastLoopTime
         }
@@ -731,6 +738,7 @@ var sharedUserDefaults: UserDefaults? {
             iob: iob,
             cob: cob,
             tdd: tdd,
+            eventualBG: (eventualBG?.isEmpty ?? true) ? nil : eventualBG,
             glucoseDate: glucoseDate,
             lastLoopDate: lastWatchStateUpdate.map { Date(timeIntervalSince1970: $0) },
             isUrgent: isUrgent
@@ -813,6 +821,7 @@ struct GlucoseComplicationData: Codable {
     let iob: String?
     let cob: String?
     let tdd: String? // Total Daily Dose
+    let eventualBG: String? // Loop's predicted eventual glucose
     let glucoseDate: Date?
     let lastLoopDate: Date?
     let isUrgent: Bool // true when glucose is out of range (high/low)
@@ -826,6 +835,7 @@ struct GlucoseComplicationData: Codable {
         iob: String?,
         cob: String?,
         tdd: String? = nil,
+        eventualBG: String? = nil,
         glucoseDate: Date?,
         lastLoopDate: Date?,
         isUrgent: Bool = false
@@ -836,6 +846,7 @@ struct GlucoseComplicationData: Codable {
         self.iob = iob
         self.cob = cob
         self.tdd = tdd
+        self.eventualBG = eventualBG
         self.glucoseDate = glucoseDate
         self.lastLoopDate = lastLoopDate
         self.isUrgent = isUrgent

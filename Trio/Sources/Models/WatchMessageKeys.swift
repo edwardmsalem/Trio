@@ -38,6 +38,7 @@ enum WatchMessageKeys {
     static let iob = "iob"
     static let cob = "cob"
     static let tdd = "tdd" // Total Daily Dose
+    static let eventualBG = "eventualBG" // Loop's predicted eventual glucose
     static let lastLoopTime = "lastLoopTime"
     static let glucoseValues = "glucoseValues"
     static let minYAxisValue = "minYAxisValue"

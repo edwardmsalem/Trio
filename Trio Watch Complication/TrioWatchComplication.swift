@@ -41,6 +41,7 @@ struct GlucoseComplicationData: Codable {
     let iob: String?
     let cob: String?
     let tdd: String? // Total Daily Dose
+    let eventualBG: String? // Loop's predicted eventual glucose
     let glucoseDate: Date?
     let lastLoopDate: Date?
     let isUrgent: Bool // true when glucose is out of range (high/low)
@@ -56,6 +57,7 @@ struct GlucoseComplicationData: Codable {
         iob = try container.decodeIfPresent(String.self, forKey: .iob)
         cob = try container.decodeIfPresent(String.self, forKey: .cob)
         tdd = try container.decodeIfPresent(String.self, forKey: .tdd)
+        eventualBG = try container.decodeIfPresent(String.self, forKey: .eventualBG)
         glucoseDate = try container.decodeIfPresent(Date.self, forKey: .glucoseDate)
         lastLoopDate = try container.decodeIfPresent(Date.self, forKey: .lastLoopDate)
         isUrgent = try container.decodeIfPresent(Bool.self, forKey: .isUrgent) ?? false
@@ -68,6 +70,7 @@ struct GlucoseComplicationData: Codable {
         iob: String?,
         cob: String?,
         tdd: String? = nil,
+        eventualBG: String? = nil,
         glucoseDate: Date?,
         lastLoopDate: Date?,
         isUrgent: Bool = false
@@ -78,6 +81,7 @@ struct GlucoseComplicationData: Codable {
         self.iob = iob
         self.cob = cob
         self.tdd = tdd
+        self.eventualBG = eventualBG
         self.glucoseDate = glucoseDate
         self.lastLoopDate = lastLoopDate
         self.isUrgent = isUrgent
@@ -276,8 +280,9 @@ struct AccessoryCornerView: View {
                 .foregroundColor(data.stalenessColor)
                 .widgetCurvesContent()
                 .widgetLabel {
-                    if let tdd = data.tdd, !tdd.isEmpty {
-                        Text("\(data.timeString) \(tdd)U")
+                    if let eventual = data.eventualBG, !eventual.isEmpty {
+                        // Loop's predicted eventual glucose — actionable at a glance
+                        Text("\(data.timeString) \u{2192}\(eventual)")
                     } else {
                         Text(data.timeString)
                     }

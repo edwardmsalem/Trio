@@ -104,12 +104,24 @@ struct LiveActivityView: View {
                                     )
 
                                     HStack {
-                                        LiveActivityGlucoseDeltaLabelView(
-                                            context: context,
-                                            glucoseColor: .primary
-                                        )
                                         if !context.isStale, let direction = context.state.direction {
                                             Text(direction).font(.headline)
+                                        }
+                                        // Under the glucose number, show the loop's predicted
+                                        // eventual glucose (not the last delta) — falls back to
+                                        // the delta when no prediction is available.
+                                        if !context.state.detailedViewState.eventualBG.isEmpty {
+                                            Text(context.state.detailedViewState.eventualBG)
+                                                .foregroundStyle(
+                                                    context
+                                                        .isStale ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
+                                                )
+                                                .strikethrough(context.isStale, pattern: .solid, color: .red.opacity(0.6))
+                                        } else {
+                                            LiveActivityGlucoseDeltaLabelView(
+                                                context: context,
+                                                glucoseColor: .primary
+                                            )
                                         }
                                     }
                                 }

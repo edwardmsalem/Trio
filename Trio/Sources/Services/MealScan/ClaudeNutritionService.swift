@@ -321,8 +321,18 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         )
     }
 
+    /// If there is no active server thread (fresh thread mid-conversation, e.g. after
+    /// an app relaunch or a dead thread), the new thread must carry the system prompt +
+    /// knowledge base — otherwise the assistant runs with no persona or reference.
+    private func ensureSystemForFreshThread() {
+        if activeThreadId == nil, systemPromptForFirstTurn == nil {
+            systemPromptForFirstTurn = composedSystemPrompt
+        }
+    }
+
     func sendMessage(_ text: String) async throws -> AsyncStream<String> {
-        try await streamChat(userText: text, image: nil, includeSystem: false)
+        ensureSystemForFreshThread()
+        return try await streamChat(userText: text, image: nil, includeSystem: activeThreadId == nil)
     }
 
     func sendMessage(_ text: String, image: UIImage?, contextBlock: String?) async throws -> AsyncStream<String> {
@@ -330,7 +340,8 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
         if let contextBlock, !contextBlock.isEmpty {
             userText = "\(contextBlock)\n\n\(text)"
         }
-        return try await streamChat(userText: userText, image: image, includeSystem: false)
+        ensureSystemForFreshThread()
+        return try await streamChat(userText: userText, image: image, includeSystem: activeThreadId == nil)
     }
 
     func resetSession() {

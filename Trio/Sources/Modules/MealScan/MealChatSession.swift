@@ -155,6 +155,11 @@ struct MealConversation: Codable, Identifiable {
         defer { UIApplication.shared.endBackgroundTask(bgTask) }
 
         do {
+            // Restore the server thread for THIS conversation before sending. The
+            // provider is recreated on app relaunch with a nil thread id, which was
+            // silently starting a fresh server conversation mid-chat (no memory).
+            provider.chatThreadId = current.threadId
+
             // Fresh live numbers on every turn; meal-outcome history only on the first.
             var contextParts: [String] = []
             // Live numbers (small) ride every turn.

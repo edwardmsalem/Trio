@@ -466,6 +466,9 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
                         case "error":
                             let msg = event["message"] as? String ?? "stream error"
                             debug(.default, "[codex-proxy] error: \(msg)")
+                            // Surface it in the chat instead of silently ending the
+                            // stream (which showed as a blank/no-response bubble).
+                            continuation.yield("⚠️ The server hit an error: \(msg). Tap send to retry.")
                             continuation.finish()
                             return
                         default:

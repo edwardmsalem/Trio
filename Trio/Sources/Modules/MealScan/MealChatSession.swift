@@ -67,6 +67,13 @@ struct MealConversation: Codable, Identifiable {
     /// first turn, so the one assistant can coach on real numbers, not just food.
     @ObservationIgnored var dataContextProvider: (() -> String?)?
 
+    /// When the heavy data snapshot was last attached. The server-side thread replays
+    /// every prior turn, so re-sending the full snapshot each message multiplies it
+    /// and blows the model's context after ~10 messages (replies start failing).
+    /// Send it once per conversation and refresh only when stale.
+    @ObservationIgnored private var lastDataContextDate: Date?
+    private static let dataContextRefreshInterval: TimeInterval = 15 * 60
+
     @ObservationIgnored private var provider: MealScan.MealScanProvider?
 
     private let defaults = UserDefaults.standard
@@ -150,10 +157,17 @@ struct MealConversation: Codable, Identifiable {
         do {
             // Fresh live numbers on every turn; meal-outcome history only on the first.
             var contextParts: [String] = []
+            // Live numbers (small) ride every turn.
             if let block = context?.promptBlock, !block.isEmpty { contextParts.append(block) }
-            // Settings + recent glucose/treatment history refreshed every turn so the
-            // assistant always answers from current data (not a stale opening snapshot).
-            if let data = dataContextProvider?(), !data.isEmpty { contextParts.append(data) }
+            // Heavy snapshot (settings + full history + loop decisions) rides the first
+            // turn only, refreshed when stale — never every turn (context explosion).
+            let dataIsStale = lastDataContextDate.map { Date().timeIntervalSince($0) > Self.dataContextRefreshInterval } ?? true
+            if isFirstTurn || dataIsStale {
+                if let data = dataContextProvider?(), !data.isEmpty {
+                    contextParts.append(data)
+                    lastDataContextDate = Date()
+                }
+            }
             if isFirstTurn {
                 let outcomes = MealLog.shared.outcomesSummary()
                 if !outcomes.isEmpty { contextParts.append(outcomes) }

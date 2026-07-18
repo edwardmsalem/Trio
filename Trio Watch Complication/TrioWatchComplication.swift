@@ -178,23 +178,32 @@ struct TrioWatchComplicationProvider: TimelineProvider {
 
     func getTimeline(in _: Context, completion: @escaping (Timeline<TrioWatchComplicationEntry>) -> Void) {
         let data = GlucoseComplicationData.load()
-        let currentDate = Date()
+        let now = Date()
 
-        // Create entries every 5 minutes for the next 15 minutes
-        // Aligned with the 15-minute background refresh schedule
-        var entries: [TrioWatchComplicationEntry] = []
-
-        // Entry for now
-        entries.append(TrioWatchComplicationEntry(date: currentDate, data: data))
-
-        // Entries at 5, 10, and 15 minutes - matches background refresh interval
-        for minutes in [5, 10, 15] {
-            let futureDate = currentDate.addingTimeInterval(Double(minutes * 60))
-            entries.append(TrioWatchComplicationEntry(date: futureDate, data: data))
+        // Pre-render a full hour of entries (every 5 min). Each entry re-evaluates
+        // the staleness color at its own display time, so even when watchOS grants
+        // no refresh for a long stretch, the complication keeps aging honestly
+        // instead of freezing green on old data.
+        var dates: [Date] = [now]
+        for minutes in stride(from: 5, through: 60, by: 5) {
+            dates.append(now.addingTimeInterval(Double(minutes * 60)))
         }
 
-        // Use .atEnd to request refresh as soon as timeline expires
-        let timeline = Timeline(entries: entries, policy: .atEnd)
+        // Exact staleness boundaries relative to the reading (10 min -> yellow,
+        // 15 min -> red) so the color flips on time, not at the next 5-min slot.
+        if let readingDate = data?.glucoseDate {
+            for boundaryMinutes in [10, 15] {
+                let d = readingDate.addingTimeInterval(Double(boundaryMinutes * 60) + 5)
+                if d > now { dates.append(d) }
+            }
+        }
+
+        let entries = dates.sorted().map { TrioWatchComplicationEntry(date: $0, data: data) }
+
+        // Ask WidgetKit to regenerate ~10 min out (about when the next reading has
+        // landed via background refresh) instead of only when the hour-long timeline
+        // ends; the long entry runway covers throttled periods.
+        let timeline = Timeline(entries: entries, policy: .after(now.addingTimeInterval(10 * 60)))
         completion(timeline)
     }
 }

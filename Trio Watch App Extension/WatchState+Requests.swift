@@ -1,5 +1,6 @@
 import Foundation
 import WatchConnectivity
+import WidgetKit
 
 // MARK: - Send Data to Phone
 
@@ -263,6 +264,133 @@ extension WatchState {
             Task {
                 await WatchLogger.shared.log("⌚️ Phone not reachable for WatchState update")
             }
+        }
+    }
+}
+
+// MARK: - Nightscout fallback fetch
+
+/// Lets the watch pull the latest glucose straight from Nightscout when the phone
+/// link is down (dormant app, wedged WCSession, phone away). Config arrives from
+/// the phone with each complication update (secret pre-hashed — never raw).
+/// Read-only; only ever writes newer data than what's already stored.
+enum NightscoutFetcher {
+    struct Config: Codable {
+        let url: String
+        let secretSHA1: String
+        let units: String
+        let low: Double
+        let high: Double
+    }
+
+    private static let configKey = "nsFetch.config.v1"
+
+    static func saveConfigIfPresent(from userInfo: [String: Any]) {
+        guard let url = userInfo[WatchMessageKeys.nsURL] as? String, !url.isEmpty else { return }
+        let config = Config(
+            url: url,
+            secretSHA1: userInfo[WatchMessageKeys.nsSecretSHA1] as? String ?? "",
+            units: userInfo[WatchMessageKeys.units] as? String ?? "mg/dL",
+            low: userInfo[WatchMessageKeys.lowThreshold] as? Double ?? 70,
+            high: userInfo[WatchMessageKeys.highThreshold] as? Double ?? 180
+        )
+        if let data = try? JSONEncoder().encode(config) {
+            UserDefaults.standard.set(data, forKey: configKey)
+        }
+    }
+
+    static func loadConfig() -> Config? {
+        guard let data = UserDefaults.standard.data(forKey: configKey),
+              let config = try? JSONDecoder().decode(Config.self, from: data) else { return nil }
+        return config
+    }
+
+    /// Fetches the two most recent readings and stores them for the complication
+    /// if they're newer than what we already have. Returns true when new data landed.
+    @discardableResult static func fetchAndStore() async -> Bool {
+        guard let config = loadConfig(),
+              var components = URLComponents(string: config.url.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+        else { return false }
+        components.path += "/api/v1/entries/sgv.json"
+        components.queryItems = [URLQueryItem(name: "count", value: "2")]
+        guard let url = components.url else { return false }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        if !config.secretSHA1.isEmpty {
+            request.addValue(config.secretSHA1, forHTTPHeaderField: "api-secret")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200 ... 299).contains(http.statusCode),
+                  let entries = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+                  let newest = entries.first,
+                  let sgv = newest["sgv"] as? Int
+            else { return false }
+
+            let dateMs = (newest["date"] as? Double) ?? 0
+            let readingDate = Date(timeIntervalSince1970: dateMs / 1000)
+
+            // Only overwrite when strictly newer than the stored reading.
+            if let existing = GlucoseComplicationData.load(),
+               let existingDate = existing.glucoseDate,
+               readingDate.timeIntervalSince(existingDate) < 30
+            {
+                return false
+            }
+
+            let isMmol = config.units != "mg/dL"
+            func display(_ mgdl: Int) -> String {
+                isMmol ? String(format: "%.1f", Double(mgdl) / 18.0182) : "\(mgdl)"
+            }
+            let displayValue = isMmol ? Double(sgv) / 18.0182 : Double(sgv)
+
+            var deltaString = "--"
+            if entries.count > 1, let prev = entries[1]["sgv"] as? Int {
+                let d = sgv - prev
+                deltaString = isMmol
+                    ? String(format: "%+.1f", Double(d) / 18.0182)
+                    : String(format: "%+d", d)
+            }
+
+            let trend: String
+            switch newest["direction"] as? String {
+            case "DoubleUp",
+                 "TripleUp": trend = "↑↑"
+            case "SingleUp": trend = "↑"
+            case "FortyFiveUp": trend = "↗"
+            case "Flat": trend = "→"
+            case "FortyFiveDown": trend = "↘"
+            case "SingleDown": trend = "↓"
+            case "DoubleDown",
+                 "TripleDown": trend = "↓↓"
+            default: trend = "→"
+            }
+
+            // IOB/COB/eventual come from the loop, not Nightscout entries — omit
+            // rather than show hours-old values as current.
+            let complicationData = GlucoseComplicationData(
+                glucose: display(sgv),
+                trend: trend,
+                delta: deltaString,
+                iob: nil,
+                cob: nil,
+                glucoseDate: readingDate,
+                lastLoopDate: nil,
+                isUrgent: displayValue <= config.low || displayValue >= config.high
+            )
+            complicationData.save()
+
+            Task { await WatchLogger.shared.log("🌐 NS fallback fetch stored \(sgv) @ \(readingDate)") }
+
+            await MainActor.run {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+            return true
+        } catch {
+            Task { await WatchLogger.shared.log("🌐 NS fallback fetch failed: \(error.localizedDescription)") }
+            return false
         }
     }
 }

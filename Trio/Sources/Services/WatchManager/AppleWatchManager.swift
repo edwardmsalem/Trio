@@ -24,6 +24,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     @Injected() private var determinationStorage: DeterminationStorage!
     @Injected() private var overrideStorage: OverrideStorage!
     @Injected() private var tempTargetStorage: TempTargetsStorage!
+    @Injected() private var keychain: Keychain!
     @Injected() private var bolusCalculationManager: BolusCalculationManager!
     @Injected() private var iobService: IOBService!
     @Injected() private var notificationsManager: UserNotificationsManager!
@@ -583,6 +584,10 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         // Send complication data via transferUserInfo (NOT transferCurrentComplicationUserInfo)
         // transferCurrentComplicationUserInfo is ClockKit-era and doesn't work with WidgetKit
         #if os(iOS)
+            // Nightscout credentials ride along (pre-hashed secret) so the watch can
+            // fetch glucose itself when the phone link is down.
+            let nsURLString = keychain.getValue(String.self, forKey: NightscoutConfig.Config.urlKey) ?? ""
+            let nsSecretRaw = keychain.getValue(String.self, forKey: NightscoutConfig.Config.secretKey) ?? ""
             let complicationData: [String: Any] = [
                 "complicationUpdate": true,
                 WatchMessageKeys.currentGlucose: state.currentGlucose ?? "--",
@@ -593,7 +598,12 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 WatchMessageKeys.tdd: state.tdd ?? "",
                 WatchMessageKeys.eventualBG: state.eventualBG ?? "",
                 WatchMessageKeys.currentGlucoseColorString: state.currentGlucoseColorString ?? "#ffffff",
-                WatchMessageKeys.date: state.date.timeIntervalSince1970
+                WatchMessageKeys.date: state.date.timeIntervalSince1970,
+                WatchMessageKeys.units: state.units.rawValue,
+                WatchMessageKeys.lowThreshold: displayThreshold(lowGlucose),
+                WatchMessageKeys.highThreshold: displayThreshold(highGlucose),
+                WatchMessageKeys.nsURL: nsURLString,
+                WatchMessageKeys.nsSecretSHA1: nsSecretRaw.isEmpty ? "" : nsSecretRaw.sha1()
             ]
             session.transferUserInfo(complicationData)
 

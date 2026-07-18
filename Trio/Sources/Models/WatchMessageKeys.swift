@@ -39,6 +39,10 @@ enum WatchMessageKeys {
     static let cob = "cob"
     static let tdd = "tdd" // Total Daily Dose
     static let eventualBG = "eventualBG" // Loop's predicted eventual glucose
+    // Nightscout fallback fetch (lets the watch pull glucose itself when the
+    // phone link is down; the secret is sent pre-hashed, never raw)
+    static let nsURL = "nsURL"
+    static let nsSecretSHA1 = "nsSecretSHA1"
     static let lastLoopTime = "lastLoopTime"
     static let glucoseValues = "glucoseValues"
     static let minYAxisValue = "minYAxisValue"

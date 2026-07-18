@@ -22,6 +22,8 @@ import WidgetKit
                 // App became active - schedule refresh and request fresh data
                 WatchAppDelegate.scheduleBackgroundRefresh()
                 WatchState.shared.requestWatchStateUpdate()
+                // Also pull straight from Nightscout in case the phone link is down.
+                Task { await NightscoutFetcher.fetchAndStore() }
             case .background:
                 Task {
                     await WatchLogger.shared.flushPersistedLogs()
@@ -118,9 +120,12 @@ class WatchAppDelegate: NSObject, WKApplicationDelegate {
                 // Schedule next refresh (do this immediately, not in the delayed block)
                 Self.scheduleBackgroundRefresh()
 
-                // Mark task complete after giving time for async work
-                // Background tasks have ~15 seconds, our work takes ~1 second
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // Independent Nightscout fetch: lands fresh glucose even when the
+                // phone link is down (the 3-hour-stale failure mode). Completes the
+                // background task when done (fetch itself times out at 8s; budget ~15s).
+                Task {
+                    _ = await NightscoutFetcher.fetchAndStore()
+                    try? await Task.sleep(nanoseconds: 500_000_000)
                     backgroundTask.setTaskCompletedWithSnapshot(false)
                 }
 

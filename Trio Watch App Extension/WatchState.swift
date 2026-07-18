@@ -340,6 +340,10 @@ var sharedUserDefaults: UserDefaults? {
         let cob = userInfo[WatchMessageKeys.cob] as? String
         let tdd = userInfo[WatchMessageKeys.tdd] as? String
         let eventualBG = userInfo[WatchMessageKeys.eventualBG] as? String
+
+        // Persist the Nightscout fallback-fetch config whenever it rides along, so
+        // the watch can pull glucose itself when the phone link is down.
+        NightscoutFetcher.saveConfigIfPresent(from: userInfo)
         let colorString = userInfo[WatchMessageKeys.currentGlucoseColorString] as? String ?? "#ffffff"
         let timestamp = userInfo[WatchMessageKeys.date] as? TimeInterval
 

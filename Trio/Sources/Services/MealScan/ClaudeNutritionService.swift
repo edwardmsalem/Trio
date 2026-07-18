@@ -38,6 +38,10 @@ struct NutritionLabelData {
 // rename if/when the protocol is also renamed.
 
 final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
+    /// Sentinel marking a chunk as a progress status (not message text). Zero-width
+    /// space + label makes an accidental collision with real text effectively impossible.
+    static let statusPrefix = "\u{200B}STATUS\u{200B}"
+
     private let proxyURL: String
     private let proxySecret: String
 
@@ -474,6 +478,13 @@ final class BaseClaudeNutritionService: ClaudeNutritionService, Injectable {
                             await MainActor.run { self.systemPromptForFirstTurn = nil }
                             continuation.finish()
                             return
+                        case "status":
+                            // Progress signal (Thinking… / Searching: …) — passed through
+                            // the text stream with a sentinel prefix; consumers show it as
+                            // a live status, never as message text.
+                            if let text = event["text"] as? String, !text.isEmpty {
+                                continuation.yield(Self.statusPrefix + text)
+                            }
                         case "error":
                             let msg = event["message"] as? String ?? "stream error"
                             debug(.default, "[codex-proxy] error: \(msg)")

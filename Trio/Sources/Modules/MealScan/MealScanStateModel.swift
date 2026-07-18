@@ -101,6 +101,7 @@ extension MealScan {
                 let messageIndex = chatMessages.count - 1
 
                 for await chunk in stream {
+                    if chunk.hasPrefix(BaseClaudeNutritionService.statusPrefix) { continue }
                     assistantText += chunk
                     chatMessages[messageIndex].text = BaseClaudeNutritionService.conversationalText(from: assistantText)
                 }
@@ -145,6 +146,7 @@ extension MealScan {
                 let messageIndex = chatMessages.count - 1
 
                 for await chunk in stream {
+                    if chunk.hasPrefix(BaseClaudeNutritionService.statusPrefix) { continue }
                     assistantText += chunk
                     chatMessages[messageIndex].text = BaseClaudeNutritionService.conversationalText(from: assistantText)
                 }

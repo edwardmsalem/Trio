@@ -50,6 +50,9 @@ struct MealConversation: Codable, Identifiable {
 
     var draftInput: String = ""
     var isStreaming: Bool = false
+    /// Live progress while the model works ("Thinking…", "Searching: …") — shown by
+    /// the typing indicator instead of bare dots. nil when idle or once text flows.
+    var statusText: String?
 
     /// Image staged for the next outgoing message. Observed but not persisted.
     var pendingImage: UIImage?
@@ -188,9 +191,15 @@ struct MealConversation: Codable, Identifiable {
             var assistantText = ""
 
             for await chunk in stream {
+                if chunk.hasPrefix(BaseClaudeNutritionService.statusPrefix) {
+                    statusText = String(chunk.dropFirst(BaseClaudeNutritionService.statusPrefix.count))
+                    continue
+                }
+                statusText = nil
                 assistantText += chunk
                 current.messages[idx].text = BaseClaudeNutritionService.conversationalText(from: assistantText)
             }
+            statusText = nil
 
             if assistantText.isEmpty {
                 current.messages[idx].text = "I didn't get a response. Try again."
@@ -231,6 +240,7 @@ struct MealConversation: Codable, Identifiable {
             save()
         } catch {
             isStreaming = false
+            statusText = nil
             if let last = current.messages.last, last.role == .assistant, last.text.isEmpty {
                 current.messages[current.messages.count - 1].text = "Something went wrong. Tap send to retry."
             } else {

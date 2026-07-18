@@ -440,11 +440,22 @@ extension MealScan {
 
         private var typingIndicator: some View {
             HStack {
-                HStack(spacing: 4) {
-                    ForEach(0 ..< 3) { _ in
-                        Circle()
-                            .fill(.secondary)
-                            .frame(width: 7, height: 7)
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        ForEach(0 ..< 3) { _ in
+                            Circle()
+                                .fill(.secondary)
+                                .frame(width: 7, height: 7)
+                        }
+                    }
+                    // Live progress ("Thinking…", "Searching: …") instead of bare dots.
+                    if let status = session.statusText, !status.isEmpty {
+                        Text(status)
+                            .font(.caption)
+                            .italic()
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .transition(.opacity)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -453,6 +464,7 @@ extension MealScan {
                 Spacer(minLength: 50)
             }
             .padding(.top, 4)
+            .animation(.easeInOut(duration: 0.2), value: session.statusText)
         }
 
         // MARK: - Totals bar

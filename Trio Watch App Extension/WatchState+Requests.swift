@@ -295,12 +295,14 @@ enum NightscoutFetcher {
             high: userInfo[WatchMessageKeys.highThreshold] as? Double ?? 180
         )
         if let data = try? JSONEncoder().encode(config) {
-            UserDefaults.standard.set(data, forKey: configKey)
+            // App Group so the complication's own timeline fetch can read it too.
+            (sharedUserDefaults ?? UserDefaults.standard).set(data, forKey: configKey)
+            sharedUserDefaults?.synchronize()
         }
     }
 
     static func loadConfig() -> Config? {
-        guard let data = UserDefaults.standard.data(forKey: configKey),
+        guard let data = (sharedUserDefaults ?? UserDefaults.standard).data(forKey: configKey),
               let config = try? JSONDecoder().decode(Config.self, from: data) else { return nil }
         return config
     }

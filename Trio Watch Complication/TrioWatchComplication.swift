@@ -163,6 +163,86 @@ struct TrioWatchComplicationEntry: TimelineEntry {
     }
 }
 
+// MARK: - Timeline self-fetch (Nightscout)
+
+/// Compact Nightscout fetch run inside the complication's own timeline refresh, so
+/// every WidgetKit regeneration lands a fresh reading without waiting for the watch
+/// app to wake (~4x/hour). Config is synced from the phone into the App Group.
+private enum ComplicationNSFetch {
+    private struct Config: Codable {
+        let url: String
+        let secretSHA1: String
+        let units: String
+        let low: Double
+        let high: Double
+    }
+
+    /// Fetch only when the stored reading is old enough to possibly be superseded.
+    static func fetchIfStale() async {
+        let existingDate = GlucoseComplicationData.load()?.glucoseDate
+        if let d = existingDate, Date().timeIntervalSince(d) < 4.5 * 60 { return }
+        guard let raw = sharedUserDefaults?.data(forKey: "nsFetch.config.v1"),
+              let config = try? JSONDecoder().decode(Config.self, from: raw),
+              !config.url.isEmpty,
+              var components = URLComponents(string: config.url.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+        else { return }
+        components.path += "/api/v1/entries/sgv.json"
+        components.queryItems = [URLQueryItem(name: "count", value: "2")]
+        guard let url = components.url else { return }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 5
+        if !config.secretSHA1.isEmpty { request.addValue(config.secretSHA1, forHTTPHeaderField: "api-secret") }
+
+        guard let (payload, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, (200 ... 299).contains(http.statusCode),
+              let entries = try? JSONSerialization.jsonObject(with: payload) as? [[String: Any]],
+              let newest = entries.first, let sgv = newest["sgv"] as? Int
+        else { return }
+
+        let dateMs = (newest["date"] as? Double) ?? 0
+        let readingDate = Date(timeIntervalSince1970: dateMs / 1000)
+        if let d = existingDate, readingDate.timeIntervalSince(d) < 30 { return }
+
+        let isMmol = config.units != "mg/dL"
+        func display(_ mgdl: Int) -> String { isMmol ? String(format: "%.1f", Double(mgdl) / 18.0182) : "\(mgdl)" }
+        let displayValue = isMmol ? Double(sgv) / 18.0182 : Double(sgv)
+
+        var deltaString = "--"
+        if entries.count > 1, let prev = entries[1]["sgv"] as? Int {
+            let d = sgv - prev
+            deltaString = isMmol ? String(format: "%+.1f", Double(d) / 18.0182) : String(format: "%+d", d)
+        }
+
+        let trend: String
+        switch newest["direction"] as? String {
+        case "DoubleUp",
+             "TripleUp": trend = "↑↑"
+        case "SingleUp": trend = "↑"
+        case "FortyFiveUp": trend = "↗"
+        case "Flat": trend = "→"
+        case "FortyFiveDown": trend = "↘"
+        case "SingleDown": trend = "↓"
+        case "DoubleDown",
+             "TripleDown": trend = "↓↓"
+        default: trend = "→"
+        }
+
+        // IOB/COB/eventual are loop data Nightscout entries don't carry — omit
+        // rather than present hours-old values as current.
+        GlucoseComplicationData(
+            glucose: display(sgv),
+            trend: trend,
+            delta: deltaString,
+            iob: nil,
+            cob: nil,
+            glucoseDate: readingDate,
+            lastLoopDate: nil,
+            isUrgent: displayValue <= config.low || displayValue >= config.high
+        ).save()
+    }
+}
+
 // MARK: - Provider
 
 struct TrioWatchComplicationProvider: TimelineProvider {
@@ -177,6 +257,15 @@ struct TrioWatchComplicationProvider: TimelineProvider {
     }
 
     func getTimeline(in _: Context, completion: @escaping (Timeline<TrioWatchComplicationEntry>) -> Void) {
+        Task {
+            // Pull the latest reading as part of this very refresh — every WidgetKit
+            // regeneration lands fresh data instead of re-rendering old storage.
+            await ComplicationNSFetch.fetchIfStale()
+            buildTimeline(completion: completion)
+        }
+    }
+
+    private func buildTimeline(completion: @escaping (Timeline<TrioWatchComplicationEntry>) -> Void) {
         let data = GlucoseComplicationData.load()
         let now = Date()
 

@@ -314,6 +314,20 @@ extension MealScan {
                         if session.isStreaming, session.current.messages.last?.text.isEmpty ?? false {
                             typingIndicator
                                 .id("typing")
+                        } else if session.isStreaming, let status = session.statusText, !status.isEmpty {
+                            // Status keeps showing even after partial text has landed in
+                            // the bubble (research turns send an intro first, then search).
+                            HStack(spacing: 6) {
+                                ProgressView().scaleEffect(0.7)
+                                Text(status)
+                                    .font(.caption).italic()
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                Spacer()
+                            }
+                            .padding(.leading, 10)
+                            .padding(.top, 2)
+                            .id("statusRow")
                         }
                     }
                     .padding(.horizontal, 12)
@@ -594,7 +608,9 @@ extension MealScan {
                             .padding(.vertical, 7)
 
                         Button {
-                            Task { await session.send() }
+                            let text = session.draftInput
+                            session.draftInput = ""
+                            Task { await session.send(text: text) }
                         } label: {
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.system(size: 28))

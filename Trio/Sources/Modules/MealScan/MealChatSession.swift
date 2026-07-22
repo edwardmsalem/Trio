@@ -135,9 +135,9 @@ struct MealConversation: Codable, Identifiable {
         }
     }
 
-    @MainActor func send() async {
+    @MainActor func send(text overrideText: String? = nil) async {
         guard let provider else { return }
-        let trimmed = draftInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = (overrideText ?? draftInput).trimmingCharacters(in: .whitespacesAndNewlines)
         let image = pendingImage
         guard !trimmed.isEmpty || image != nil else { return }
         guard !isStreaming else { return }

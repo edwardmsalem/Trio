@@ -68,7 +68,7 @@ struct MealConversation: Codable, Identifiable {
 
     /// Full coaching snapshot (settings + therapy + recent data) sent once on the
     /// first turn, so the one assistant can coach on real numbers, not just food.
-    @ObservationIgnored var dataContextProvider: (() -> String?)?
+    @ObservationIgnored var dataContextProvider: (() async -> String?)?
 
     /// When the heavy data snapshot was last attached. The server-side thread replays
     /// every prior turn, so re-sending the full snapshot each message multiplies it
@@ -171,7 +171,7 @@ struct MealConversation: Codable, Identifiable {
             // turn only, refreshed when stale — never every turn (context explosion).
             let dataIsStale = lastDataContextDate.map { Date().timeIntervalSince($0) > Self.dataContextRefreshInterval } ?? true
             if isFirstTurn || dataIsStale {
-                if let data = dataContextProvider?(), !data.isEmpty {
+                if let data = await dataContextProvider?(), !data.isEmpty {
                     contextParts.append(data)
                     lastDataContextDate = Date()
                 }

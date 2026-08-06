@@ -95,13 +95,17 @@ extension MealScan {
             .onAppear {
                 session.configure(resolver: resolver)
                 session.mealContextProvider = mealContextProvider
-                session.dataContextProvider = { buildAssistantData() }
+                session.dataContextProvider = { await buildAssistantData() }
             }
         }
 
         /// One-time coaching snapshot for the assistant: full Trio settings + algorithm
         /// preferences. Live glucose/IOB/COB come via the meal context each turn.
-        private func buildAssistantData() -> String? {
+        ///
+        /// Runs entirely on a background Core Data context. These fetches walk months of
+        /// history; doing them on the view context blocked the main thread long enough for
+        /// the iOS watchdog to kill the app, which looked like a random crash on send.
+        private func buildAssistantData() async -> String? {
             guard let settingsManager = resolver.resolve(SettingsManager.self) else { return nil }
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -116,12 +120,18 @@ extension MealScan {
             {
                 parts.append("MY TRIO ALGORITHM PREFERENCES (JSON):\n\(json)")
             }
-            if let history = recentHistorySummary() {
-                parts.append(history)
+
+            let low = Int(truncating: settingsManager.settings.low as NSNumber)
+            let high = Int(truncating: settingsManager.settings.high as NSNumber)
+            let ctx = CoreDataStack.shared.newTaskContext()
+            let dbParts: [String] = await ctx.perform {
+                var out: [String] = []
+                if let history = recentHistorySummary(ctx, lowT: low, highT: high) { out.append(history) }
+                if let decisions = algorithmDecisions(ctx) { out.append(decisions) }
+                return out
             }
-            if let decisions = algorithmDecisions() {
-                parts.append(decisions)
-            }
+            parts.append(contentsOf: dbParts)
+
             return parts.isEmpty ? nil : "MY TRIO DATA (for coaching questions):\n\n" + parts.joined(separator: "\n\n")
         }
 
@@ -129,12 +139,12 @@ extension MealScan {
         /// eventualBG, IOB, COB, the temp basal/SMB it chose, and the oref `reason`
         /// string — i.e. WHY it did what it did. This is what lets the assistant
         /// explain the algorithm instead of guessing.
-        private func algorithmDecisions() -> String? {
+        private func algorithmDecisions(_ ctx: NSManagedObjectContext) -> String? {
             let since = Date().addingTimeInterval(-24 * 3600)
             let req: NSFetchRequest<OrefDetermination> = OrefDetermination.fetchRequest()
             req.predicate = NSPredicate(format: "deliverAt >= %@", since as NSDate)
             req.sortDescriptors = [NSSortDescriptor(key: "deliverAt", ascending: true)]
-            guard let dets = try? moc.fetch(req), !dets.isEmpty else { return nil }
+            guard let dets = try? ctx.fetch(req), !dets.isEmpty else { return nil }
             let stamp = DateFormatter()
             stamp.dateFormat = "EEE HH:mm"
             var lines: [String] = []
@@ -164,27 +174,26 @@ extension MealScan {
         /// history as per-day summaries (TIR/avg/lows, carbs, insulin), plus a detailed
         /// last-48h minute-level timeline. (The phone only retains so much; anything
         /// older than that lives in Nightscout.)
-        private func recentHistorySummary() -> String? {
+        private func recentHistorySummary(_ ctx: NSManagedObjectContext, lowT: Int, highT: Int) -> String? {
             let cal = Calendar.current
             let now = Date()
             let since48 = now.addingTimeInterval(-48 * 3600)
+            // Hard ceiling on how far back any of these fetches reach. Unbounded fetches
+            // over the full store are what made this expensive enough to hang the app.
+            let historyWindow = now.addingTimeInterval(-90 * 24 * 3600)
             let dayfmt = DateFormatter()
             dayfmt.dateFormat = "EEE MMM d"
             let stamp = DateFormatter()
             stamp.dateFormat = "EEE HH:mm"
             var out: [String] = []
 
-            let sm = resolver.resolve(SettingsManager.self)
-            let lowT = sm.map { Int(truncating: $0.settings.low as NSNumber) } ?? 70
-            let highT = sm.map { Int(truncating: $0.settings.high as NSNumber) } ?? 180
-
-            // Glucose: ALL history on the phone as daily summaries + detailed 48h.
-            // Lightweight dictionary fetch keeps this fast even with months of data.
+            // Glucose: last 90 days as daily summaries + detailed 48h.
             let gReq = NSFetchRequest<NSDictionary>(entityName: "GlucoseStored")
             gReq.resultType = .dictionaryResultType
             gReq.propertiesToFetch = ["date", "glucose"]
+            gReq.predicate = NSPredicate(format: "date >= %@", historyWindow as NSDate)
             gReq.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
-            if let rows = try? moc.fetch(gReq) {
+            if let rows = try? ctx.fetch(gReq) {
                 let pts: [(Date, Int)] = rows.compactMap { dict in
                     guard let d = dict["date"] as? Date, let g = (dict["glucose"] as? NSNumber)?.intValue else { return nil }
                     return (d, g)
@@ -222,7 +231,11 @@ extension MealScan {
 
             // Boluses: all-time total + detailed 48h.
             let bReq: NSFetchRequest<BolusStored> = BolusStored.fetchRequest()
-            if let boluses = try? moc.fetch(bReq) {
+            bReq.predicate = NSPredicate(format: "pumpEvent.timestamp >= %@", historyWindow as NSDate)
+            // Each row reads pumpEvent.timestamp below; without prefetching, Core Data
+            // faults the relationship once per bolus (an N+1 query storm).
+            bReq.relationshipKeyPathsForPrefetching = ["pumpEvent"]
+            if let boluses = try? ctx.fetch(bReq) {
                 let entries = boluses.compactMap { b -> (Date, Decimal)? in
                     guard let t = b.pumpEvent?.timestamp, let amt = b.amount?.decimalValue else { return nil }
                     return (t, amt)
@@ -237,7 +250,8 @@ extension MealScan {
 
             // Carbs: all-time total + detailed 48h.
             let cReq: NSFetchRequest<CarbEntryStored> = CarbEntryStored.fetchRequest()
-            if let carbs = try? moc.fetch(cReq) {
+            cReq.predicate = NSPredicate(format: "date >= %@", historyWindow as NSDate)
+            if let carbs = try? ctx.fetch(cReq) {
                 let entries = carbs.compactMap { c -> (Date, Int)? in
                     c.date.map { ($0, Int(c.carbs)) }
                 }.sorted { $0.0 < $1.0 }

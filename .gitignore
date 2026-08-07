@@ -83,3 +83,4 @@ ConfigOverride.xcconfig
 
 # MealScan dev API keys
 MealScanDevKeys.swift
+AAPSDevKeys.swift

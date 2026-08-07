@@ -250,6 +250,22 @@ jobs:
           CODEX_PROXY_URL: ${{ secrets.CODEX_PROXY_URL }}
           CODEX_PROXY_SECRET: ${{ secrets.CODEX_PROXY_SECRET }}
 
+      # Generate the watch app's relay credentials from secrets. The file is
+      # gitignored because it holds a shared secret, so CI writes it the same way
+      # MealScanDevKeys is written above.
+      - name: Generate AAPS Watch Dev Keys
+        run: |
+          mkdir -p "Trio Watch App Extension/AAPS"
+          cat > "Trio Watch App Extension/AAPS/AAPSDevKeys.swift" << SWIFT
+          import Foundation
+
+          enum AAPSDevKeys {
+              static let relaySecret = "${CODEX_PROXY_SECRET}"
+          }
+          SWIFT
+        env:
+          CODEX_PROXY_SECRET: ${{ secrets.CODEX_PROXY_SECRET }}
+
       # Build signed Trio IPA file
       - name: Fastlane Build & Archive
         run: bundle exec fastlane build_trio

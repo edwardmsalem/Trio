@@ -195,6 +195,12 @@ struct WatchConfigGarminAppConfigView: View {
                     }.padding(.bottom)
                 }
             ).listRowBackground(Color.chart)
+
+            // MARK: - Bolus from the watch
+
+            Section(header: Text("Garmin Bolus App")) {
+                NavigationLink("Watch Bolus", destination: GarminBolusSettingsView())
+            }.listRowBackground(Color.chart)
         }
         .listSectionSpacing(sectionSpacing)
         .scrollContentBackground(.hidden)

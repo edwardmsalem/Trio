@@ -67,6 +67,9 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// Keeps references to watch apps (both watchface & data field) for each registered device.
     private var watchApps: [IQApp] = []
 
+    /// Answers the Garmin Bolus app. One instance, so its quote and replay state persist.
+    private let garminBolus = GarminBolusHandler()
+
     /// A set of Combine cancellables for managing the lifecycle of various subscriptions.
     private var cancellables = Set<AnyCancellable>()
 
@@ -246,6 +249,11 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         currentWatchface == .swissalpine
     }
 
+    /// The Garmin Bolus watch app (garmin-glance, bolus-trio.jungle). It is registered
+    /// for messages alongside whatever face and data field are selected, never in their
+    /// place, and it is the only app Trio takes a bolus, carbs or pairing request from.
+    private static let bolusAppUUID = UUID(uuidString: "4577D83B-4C6D-422A-BAB0-2D4856E79367")!
+
     /// Returns the display name for an app UUID (watchface or datafield).
     /// Use this for routine log messages where UUID adds noise.
     private func appDisplayName(for uuid: UUID) -> String {
@@ -253,6 +261,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             return "watchface:\(currentWatchface.displayName)"
         } else if uuid == currentDatafield.datafieldUUID {
             return "datafield:\(currentDatafield.displayName)"
+        } else if uuid == Self.bolusAppUUID {
+            return "app:Bolus"
         } else {
             return "unknown app"
         }
@@ -266,6 +276,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             return "watchface:\(currentWatchface.displayName) (\(uuid.uuidString))"
         } else if uuid == currentDatafield.datafieldUUID {
             return "datafield:\(currentDatafield.displayName) (\(uuid.uuidString))"
+        } else if uuid == Self.bolusAppUUID {
+            return "app:Bolus (\(uuid.uuidString))"
         } else {
             return "unknown app (\(uuid.uuidString))"
         }
@@ -751,6 +763,13 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 watchApps.append(datafieldApp)
                 connectIQ?.register(forAppMessages: datafieldApp, delegate: self)
             }
+
+            // The Bolus app only ever talks first, so it is listened to but not sent the
+            // watch-state broadcast the face and data field get.
+            if let bolusApp = IQApp(uuid: Self.bolusAppUUID, store: UUID(), device: device) {
+                debugGarmin("Garmin: Registered \(appDetailedName(for: Self.bolusAppUUID))")
+                connectIQ?.register(forAppMessages: bolusApp, delegate: self)
+            }
         }
     }
 
@@ -1027,6 +1046,26 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
             return
         }
         let appName = appDisplayName(for: appUUID)
+
+        // Bolus, carbs and pairing requests carry signatures. Only their type is
+        // logged, never their contents, since a shared log would otherwise hand out
+        // material to attack them with.
+        if let kind = GarminBolusProtocol.kind(of: message) {
+            guard appUUID == Self.bolusAppUUID else {
+                debug(.watchManager, "Garmin: ignoring a \(kind.rawValue) request from \(appName)")
+                return
+            }
+            debug(.watchManager, "Garmin: \(kind.rawValue) request from \(appName)")
+            let handler = garminBolus
+            Task { @MainActor [weak self] in
+                await handler.handle(message, kind: kind) { reply in
+                    DispatchQueue.main.async {
+                        self?.sendMessage(reply, to: app, appName: appName)
+                    }
+                }
+            }
+            return
+        }
         debugGarmin("Garmin: Received message '\(message)' from \(appName)")
 
         // If watch requests status update, send current data via unified path

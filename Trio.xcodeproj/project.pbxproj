@@ -7,24 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		DD3000000000000000000002 /* GlucoseDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3000000000000000000003 /* GlucoseDashboardView.swift */; };
-		DD2000000000000000000002 /* TrioGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2000000000000000000003 /* TrioGlass.swift */; };
-		DD1000000000000000000002 /* SplitBolusReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000003 /* SplitBolusReminder.swift */; };
-		DD0000000000000000000002 /* CoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000003 /* CoachService.swift */; };
-		DD0000000000000000000004 /* CoachDevKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000005 /* CoachDevKeys.swift */; };
-		DD0000000000000000000006 /* CoachInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000007 /* CoachInbox.swift */; };
-		DD0000000000000000000008 /* CoachStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000009 /* CoachStateModel.swift */; };
-		DD000000000000000000000A /* CoachView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD000000000000000000000B /* CoachView.swift */; };
-		CC0000000000000000000003 /* MealPredictionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000004 /* MealPredictionView.swift */; };
-		CC0000000000000000000005 /* MealHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000006 /* MealHistoryView.swift */; };
-		CC0000000000000000000007 /* PortionVolumeEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000008 /* PortionVolumeEstimator.swift */; };
-		CC0000000000000000000009 /* DepthCameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000A /* DepthCameraCaptureView.swift */; };
-		CC000000000000000000000B /* PDFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000C /* PDFExportService.swift */; };
-		CC000000000000000000000D /* InsightsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000E /* InsightsModel.swift */; };
-		CC000000000000000000000F /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000010 /* InsightsView.swift */; };
-		CC0000000000000000000011 /* SettingsBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000012 /* SettingsBackupService.swift */; };
-		CC0000000000000000000013 /* SettingsBackupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000014 /* SettingsBackupView.swift */; };
-		CC0000000000000000000015 /* MealOutcomeV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000016 /* MealOutcomeV2Tests.swift */; };
+		00C0F3972AA724BB9140EEC9 /* GarminBolusProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CD010D88BA4CFE1CFDAC0C /* GarminBolusProtocolTests.swift */; };
 		041D1E995A6AE92E9289DC49 /* TreatmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D1A7CA8C10C4403D4BBFA7 /* TreatmentsDataFlow.swift */; };
 		0437CE46C12535A56504EC19 /* SnoozeRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5822B15939E719628E9FF7C /* SnoozeRootView.swift */; };
 		05801FCFDF91B09F76423197 /* HistoryStateModel+CarbEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B83754E05AF541C961ABBD /* HistoryStateModel+CarbEditing.swift */; };
@@ -335,6 +318,7 @@
 		5A2325582BFCC168003518CA /* NightscoutConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A2325572BFCC168003518CA /* NightscoutConnectView.swift */; };
 		5D16287A969E64D18CE40E44 /* PumpConfigStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F60E97100041040446F44E7 /* PumpConfigStateModel.swift */; };
 		5DD3F569367C281267BFD6B5 /* HistoryDataFlow+Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02101290E4DA113C038E5FD3 /* HistoryDataFlow+Models.swift */; };
+		5F28041CD21E57F6D222766D /* GarminBolusHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 546F579058D6E9AA2095108C /* GarminBolusHandler.swift */; };
 		60C2DD3FA0183D18EA9CBEA3 /* GlucoseWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048796E0FB0CB80D4A4D27E1 /* GlucoseWidgetData.swift */; };
 		61A7D479F5FAD8023415E84B /* GlucoseWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3BD5B1AE779812D7F0B4124 /* GlucoseWidget.swift */; };
 		63E890B4D951EAA91C071D5C /* BasalProfileEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFF91130F2FCCC7EBBA11AD /* BasalProfileEditorStateModel.swift */; };
@@ -391,6 +375,9 @@
 		AA00020000000000000008B1 /* DataExportProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010000000000000008A1 /* DataExportProvider.swift */; };
 		AA00020000000000000009B1 /* DataExportStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010000000000000009A1 /* DataExportStateModel.swift */; };
 		AA0002000000000000000AB1 /* DataExportRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001000000000000000AA1 /* DataExportRootView.swift */; };
+		AA95E10502D000000000AA50 /* AAPSRemote.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA95E10002D000000000AA00 /* AAPSRemote.swift */; };
+		AA95E10512D000000000AA51 /* AAPSDevKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA95E10012D000000000AA01 /* AAPSDevKeys.swift */; };
+		AA95E10522D000000000AA52 /* AAPSBolusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA95E10022D000000000AA02 /* AAPSBolusView.swift */; };
 		AC19EF2C94084B5BA0175D1D /* SettingsSearchHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B83503461B4F8D97B30115 /* SettingsSearchHighlight.swift */; };
 		AD3D2CD42CD01B9EB8F26522 /* PumpConfigDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF65DA88F972B56090AD6AC3 /* PumpConfigDataFlow.swift */; };
 		B015AFE32E500000000D7351 /* BolusSafetyValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B015AFE12E500000000D7351 /* BolusSafetyValidator.swift */; };
@@ -480,9 +467,6 @@
 		BDA25F1C2D26BD0700035F34 /* TrendShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDA25F1B2D26BD0300035F34 /* TrendShape.swift */; };
 		BDA25F1E2D26D5DD00035F34 /* GlucoseChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDA25F1D2D26D5D800035F34 /* GlucoseChartView.swift */; };
 		BDA25F202D26D5FE00035F34 /* CarbsInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDA25F1F2D26D5FB00035F34 /* CarbsInputView.swift */; };
-		AA95E10502D000000000AA50 /* AAPSRemote.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA95E10002D000000000AA00 /* AAPSRemote.swift */; };
-		AA95E10512D000000000AA51 /* AAPSDevKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA95E10012D000000000AA01 /* AAPSDevKeys.swift */; };
-		AA95E10522D000000000AA52 /* AAPSBolusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA95E10022D000000000AA02 /* AAPSBolusView.swift */; };
 		BDA25F222D26D62800035F34 /* BolusInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDA25F212D26D62200035F34 /* BolusInputView.swift */; };
 		BDA6CC882CAF219B00F942F9 /* TempTargetSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDA6CC872CAF219800F942F9 /* TempTargetSetup.swift */; };
 		BDA7593E2D37CFC400E649A4 /* CarbEntryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDA7593D2D37CFC000E649A4 /* CarbEntryEditorView.swift */; };
@@ -527,8 +511,20 @@
 		C2AA6CF72E1A734A00BF6C16 /* SettingsExportProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2AA6CF32E1A734A00BF6C16 /* SettingsExportProvider.swift */; };
 		C2AA6CF82E1A734A00BF6C16 /* SettingsExportDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2AA6CF22E1A734A00BF6C16 /* SettingsExportDataFlow.swift */; };
 		C2AA6CF92E1A734A00BF6C16 /* SettingsExportStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2AA6CF42E1A734A00BF6C16 /* SettingsExportStateModel.swift */; };
+		C6C6CCCF3A3CE91608505C00 /* GarminBolusSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC5DB798F72BD7421E52FCBB /* GarminBolusSettings.swift */; };
 		C967DACD3B1E638F8B43BE06 /* ManualTempBasalStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFCFE0781F9074C2917890E8 /* ManualTempBasalStateModel.swift */; };
+		CA02000000000000000010C2 /* DeliveryLimitsSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA02000000000000000010C1 /* DeliveryLimitsSyncTests.swift */; };
 		CA370FC152BC98B3D1832968 /* BasalProfileEditorRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8BCB0C37DEB5EC377B9612 /* BasalProfileEditorRootView.swift */; };
+		CC0000000000000000000003 /* MealPredictionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000004 /* MealPredictionView.swift */; };
+		CC0000000000000000000005 /* MealHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000006 /* MealHistoryView.swift */; };
+		CC0000000000000000000007 /* PortionVolumeEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000008 /* PortionVolumeEstimator.swift */; };
+		CC0000000000000000000009 /* DepthCameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000A /* DepthCameraCaptureView.swift */; };
+		CC000000000000000000000B /* PDFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000C /* PDFExportService.swift */; };
+		CC000000000000000000000D /* InsightsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000E /* InsightsModel.swift */; };
+		CC000000000000000000000F /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000010 /* InsightsView.swift */; };
+		CC0000000000000000000011 /* SettingsBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000012 /* SettingsBackupService.swift */; };
+		CC0000000000000000000013 /* SettingsBackupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000014 /* SettingsBackupView.swift */; };
+		CC0000000000000000000015 /* MealOutcomeV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000016 /* MealOutcomeV2Tests.swift */; };
 		CC6C406E2ACDD69E009B8058 /* RawFetchedProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6C406D2ACDD69E009B8058 /* RawFetchedProfile.swift */; };
 		CC76E9512BD4812E008BEB61 /* Forecast+helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC76E9502BD4812E008BEB61 /* Forecast+helper.swift */; };
 		CD78BB94E43B249D60CC1A1B /* GlucoseNotificationSettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22963BD06A9C83959D4914E4 /* GlucoseNotificationSettingsRootView.swift */; };
@@ -582,7 +578,6 @@
 		CEE9A6592BBB418300EB5194 /* CalibrationsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEE9A6542BBB418300EB5194 /* CalibrationsDataFlow.swift */; };
 		CEE9A65C2BBB41C800EB5194 /* CalibrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEE9A65B2BBB41C800EB5194 /* CalibrationService.swift */; };
 		CEE9A65E2BBC9F6500EB5194 /* CalibrationsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEE9A65D2BBC9F6500EB5194 /* CalibrationsTests.swift */; };
-		CA02000000000000000010C2 /* DeliveryLimitsSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA02000000000000000010C1 /* DeliveryLimitsSyncTests.swift */; };
 		CEF1ED6B2D58FB5800FAF41E /* CGMOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF1ED6A2D58FB4600FAF41E /* CGMOptions.swift */; };
 		CF004748AB91DC9B391F4B89 /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08114F8784D1B6289FF1764A /* CameraCaptureView.swift */; };
 		D6BE4CAABC7413D3CB9345A9 /* MealScanModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF64F61A012FC68A6EE5921 /* MealScanModels.swift */; };
@@ -592,6 +587,11 @@
 		DABD45A0AC0C3F1E0AF3DD9F /* MealScanRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81494DA1A7D009D0F102E222 /* MealScanRootView.swift */; };
 		DBA5254DBB2586C98F61220C /* ISFEditorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F9F137F126D9F8DEB799F26 /* ISFEditorProvider.swift */; };
 		DBFD89E66DD343150036EF67 /* GlucoseWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048796E0FB0CB80D4A4D27E1 /* GlucoseWidgetData.swift */; };
+		DD0000000000000000000002 /* CoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000003 /* CoachService.swift */; };
+		DD0000000000000000000004 /* CoachDevKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000005 /* CoachDevKeys.swift */; };
+		DD0000000000000000000006 /* CoachInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000007 /* CoachInbox.swift */; };
+		DD0000000000000000000008 /* CoachStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000009 /* CoachStateModel.swift */; };
+		DD000000000000000000000A /* CoachView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD000000000000000000000B /* CoachView.swift */; };
 		DD09D47B2C5986D1003FEA5D /* CalendarEventSettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D47A2C5986D1003FEA5D /* CalendarEventSettingsDataFlow.swift */; };
 		DD09D47D2C5986DA003FEA5D /* CalendarEventSettingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D47C2C5986DA003FEA5D /* CalendarEventSettingsProvider.swift */; };
 		DD09D47F2C5986E5003FEA5D /* CalendarEventSettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D47E2C5986E5003FEA5D /* CalendarEventSettingsStateModel.swift */; };
@@ -600,6 +600,7 @@
 		DD09D5C92D29F3D0000D82C9 /* AcknowledgementPendingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D5C82D29F3D0000D82C9 /* AcknowledgementPendingView.swift */; };
 		DD09D6442D2B553A000D82C9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DD09D6412D2B553A000D82C9 /* Assets.xcassets */; };
 		DD09D6462D2B553A000D82C9 /* TrioWatchComplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D6432D2B553A000D82C9 /* TrioWatchComplication.swift */; };
+		DD1000000000000000000002 /* SplitBolusReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000003 /* SplitBolusReminder.swift */; };
 		DD1745132C54169400211FAC /* DevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745122C54169400211FAC /* DevicesView.swift */; };
 		DD1745152C54388A00211FAC /* TherapySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745142C54388A00211FAC /* TherapySettingsView.swift */; };
 		DD1745172C54389F00211FAC /* FeatureSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745162C54389F00211FAC /* FeatureSettingsView.swift */; };
@@ -632,9 +633,11 @@
 		DD17A0322E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD17A0312E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift */; };
 		DD1DB7CC2BECCA1F0048B367 /* BuildDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1DB7CB2BECCA1F0048B367 /* BuildDetails.swift */; };
 		DD1E53592D273F26008F32A4 /* LoopStatusHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1E53582D273F20008F32A4 /* LoopStatusHelpView.swift */; };
+		DD2000000000000000000002 /* TrioGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2000000000000000000003 /* TrioGlass.swift */; };
 		DD21FCB52C6952AD00AF2C25 /* DecimalPickerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD21FCB42C6952AD00AF2C25 /* DecimalPickerSettings.swift */; };
 		DD246F062D2836AA0027DDE0 /* GlucoseTrendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD246F052D2836AA0027DDE0 /* GlucoseTrendView.swift */; };
 		DD2CC85C2D25DA1000445446 /* GlucoseTargetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2CC85B2D25D9CE00445446 /* GlucoseTargetsView.swift */; };
+		DD3000000000000000000002 /* GlucoseDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3000000000000000000003 /* GlucoseDashboardView.swift */; };
 		DD3078682D42F5CE00DE0490 /* WatchGlucoseObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3078672D42F5CE00DE0490 /* WatchGlucoseObject.swift */; };
 		DD30786A2D42F94000DE0490 /* GarminDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3078692D42F94000DE0490 /* GarminDevice.swift */; };
 		DD32CF982CC82463003686D6 /* TrioRemoteControl+Bolus.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD32CF972CC82460003686D6 /* TrioRemoteControl+Bolus.swift */; };
@@ -805,7 +808,9 @@
 		E592A3792CEEC038009A472C /* ContactImageRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E592A3712CEEC038009A472C /* ContactImageRootView.swift */; };
 		E592A37A2CEEC038009A472C /* ContactImageProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E592A3742CEEC038009A472C /* ContactImageProvider.swift */; };
 		E974172296125A5AE99E634C /* PumpConfigRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD22C985B79A2F0D2EA3D9D /* PumpConfigRootView.swift */; };
+		EA7207AA3C83C04F2185900C /* GarminBolusProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C50852CB4714A9E1DD6104C /* GarminBolusProtocol.swift */; };
 		EF8E11EF420EAA1F32900C11 /* HistoryRootView+Glucose.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6EBB88CB65D271CA39C004 /* HistoryRootView+Glucose.swift */; };
+		F4DBC962B616CAF647718CEB /* GarminBolusSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1154E6F0B1C225784DC14D6 /* GarminBolusSettingsView.swift */; };
 		F55D4D1DB1E23006C73415CC /* MealScanDevKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45B44B12AF615700CB19CD3B /* MealScanDevKeys.swift */; };
 		F5CA3DB1F9DC8B05792BBFAA /* CGMSettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B5C0607505A38F256BF99A /* CGMSettingsDataFlow.swift */; };
 		F5F7E6C1B7F098F59EB67EC5 /* TargetsEditorDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA49538D56989D8DA6FCF538 /* TargetsEditorDataFlow.swift */; };
@@ -934,30 +939,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		DD3000000000000000000003 /* GlucoseDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GlucoseDashboardView.swift; path = Trio/Sources/Modules/Home/View/GlucoseDashboardView.swift; sourceTree = SOURCE_ROOT; };
-		DD2000000000000000000003 /* TrioGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TrioGlass.swift; path = Trio/Sources/Views/DesignSystem/TrioGlass.swift; sourceTree = SOURCE_ROOT; };
-		DD1000000000000000000003 /* SplitBolusReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplitBolusReminder.swift; path = Trio/Sources/Modules/Treatments/SplitBolusReminder.swift; sourceTree = SOURCE_ROOT; };
-		DD0000000000000000000003 /* CoachService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachService.swift; path = Trio/Sources/Services/Coach/CoachService.swift; sourceTree = SOURCE_ROOT; };
-		DD0000000000000000000005 /* CoachDevKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachDevKeys.swift; path = Trio/Sources/Services/Coach/CoachDevKeys.swift; sourceTree = SOURCE_ROOT; };
-		DD0000000000000000000007 /* CoachInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachInbox.swift; path = Trio/Sources/Modules/Coach/CoachInbox.swift; sourceTree = SOURCE_ROOT; };
-		DD0000000000000000000009 /* CoachStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachStateModel.swift; path = Trio/Sources/Modules/Coach/CoachStateModel.swift; sourceTree = SOURCE_ROOT; };
-		DD000000000000000000000B /* CoachView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachView.swift; path = Trio/Sources/Modules/Coach/View/CoachView.swift; sourceTree = SOURCE_ROOT; };
-		CC0000000000000000000004 /* MealPredictionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealPredictionView.swift; path = Trio/Sources/Modules/MealScan/View/MealPredictionView.swift; sourceTree = SOURCE_ROOT; };
-		CC0000000000000000000006 /* MealHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealHistoryView.swift; path = Trio/Sources/Modules/MealScan/View/MealHistoryView.swift; sourceTree = SOURCE_ROOT; };
-		CC0000000000000000000008 /* PortionVolumeEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PortionVolumeEstimator.swift; path = Trio/Sources/Modules/MealScan/View/PortionVolumeEstimator.swift; sourceTree = SOURCE_ROOT; };
-		CC000000000000000000000A /* DepthCameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DepthCameraCaptureView.swift; path = Trio/Sources/Modules/MealScan/View/DepthCameraCaptureView.swift; sourceTree = SOURCE_ROOT; };
-		CC000000000000000000000C /* PDFExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PDFExportService.swift; path = Trio/Sources/Modules/DataExport/PDFExportService.swift; sourceTree = SOURCE_ROOT; };
-		CC000000000000000000000E /* InsightsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InsightsModel.swift; path = Trio/Sources/Modules/Insights/InsightsModel.swift; sourceTree = SOURCE_ROOT; };
-		CC0000000000000000000010 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InsightsView.swift; path = Trio/Sources/Modules/Insights/InsightsView.swift; sourceTree = SOURCE_ROOT; };
-		CC0000000000000000000012 /* SettingsBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsBackupService.swift; path = Trio/Sources/Modules/SettingsBackup/SettingsBackupService.swift; sourceTree = SOURCE_ROOT; };
-		CC0000000000000000000014 /* SettingsBackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsBackupView.swift; path = Trio/Sources/Modules/SettingsBackup/SettingsBackupView.swift; sourceTree = SOURCE_ROOT; };
-		CC0000000000000000000016 /* MealOutcomeV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealOutcomeV2Tests.swift; path = TrioTests/MealOutcomeV2Tests.swift; sourceTree = SOURCE_ROOT; };
 		02101290E4DA113C038E5FD3 /* HistoryDataFlow+Models.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryDataFlow+Models.swift"; sourceTree = "<group>"; };
 		048796E0FB0CB80D4A4D27E1 /* GlucoseWidgetData.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GlucoseWidgetData.swift; path = LiveActivity/Shared/GlucoseWidgetData.swift; sourceTree = SOURCE_ROOT; };
 		0786154493A49D67476D5EE4 /* BarcodeScanView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BarcodeScanView.swift; path = Trio/Sources/Modules/MealScan/View/BarcodeScanView.swift; sourceTree = SOURCE_ROOT; };
 		08114F8784D1B6289FF1764A /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraCaptureView.swift; path = Trio/Sources/Modules/MealScan/View/CameraCaptureView.swift; sourceTree = SOURCE_ROOT; };
 		088248DAAE3F9B9660C156A2 /* ClaudeNutritionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClaudeNutritionService.swift; path = Trio/Sources/Services/MealScan/ClaudeNutritionService.swift; sourceTree = SOURCE_ROOT; };
 		0B8843A5B79BEBAED1697136 /* MealScanDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealScanDataFlow.swift; path = Trio/Sources/Modules/MealScan/MealScanDataFlow.swift; sourceTree = SOURCE_ROOT; };
+		0C50852CB4714A9E1DD6104C /* GarminBolusProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GarminBolusProtocol.swift; sourceTree = "<group>"; };
 		0F3F2F397A80CCFC6E99BE39 /* HistoryStateModel+Insulin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryStateModel+Insulin.swift"; sourceTree = "<group>"; };
 		110AEDE02C5193D100615CC9 /* BolusIntent.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BolusIntent.swift; sourceTree = "<group>"; };
 		110AEDE12C5193D100615CC9 /* BolusIntentRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BolusIntentRequest.swift; sourceTree = "<group>"; };
@@ -989,6 +977,7 @@
 		199561C0275E61A50077B976 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS8.0.sdk/System/Library/Frameworks/HealthKit.framework; sourceTree = DEVELOPER_DIR; };
 		19A910352A24D6D700C8951B /* DateFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFilter.swift; sourceTree = "<group>"; };
 		19B0EF2028F6D66200069496 /* Statistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Statistics.swift; sourceTree = "<group>"; };
+		19CD010D88BA4CFE1CFDAC0C /* GarminBolusProtocolTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GarminBolusProtocolTests.swift; sourceTree = "<group>"; };
 		19D466A229AA2B80004D5F33 /* MealSettingsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealSettingsDataFlow.swift; sourceTree = "<group>"; };
 		19D466A429AA2BD4004D5F33 /* MealSettingsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealSettingsProvider.swift; sourceTree = "<group>"; };
 		19D466A629AA2C22004D5F33 /* MealSettingsStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealSettingsStateModel.swift; sourceTree = "<group>"; };
@@ -1228,6 +1217,7 @@
 		4EB6C153C025FBED5A7273E0 /* BolusControl.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BolusControl.swift; path = LiveActivity/BolusControl.swift; sourceTree = SOURCE_ROOT; };
 		4EC54D4D9D8B84E99492EB93 /* MealScanWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealScanWidget.swift; path = LiveActivity/MealScanWidget.swift; sourceTree = SOURCE_ROOT; };
 		505E09DC17A0C3D0AF4B66FE /* ISFEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorStateModel.swift; sourceTree = "<group>"; };
+		546F579058D6E9AA2095108C /* GarminBolusHandler.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GarminBolusHandler.swift; sourceTree = "<group>"; };
 		54FCA8985AFD7BA7B5EB071E /* LiveActivityExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = LiveActivityExtension.entitlements; path = LiveActivity/LiveActivityExtension.entitlements; sourceTree = SOURCE_ROOT; };
 		581516A32BCED84A00BF67D7 /* DebuggingIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebuggingIdentifiers.swift; sourceTree = "<group>"; };
 		581516A82BCEEDF800BF67D7 /* NSPredicates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSPredicates.swift; sourceTree = "<group>"; };
@@ -1327,10 +1317,14 @@
 		AA00010000000000000008A1 /* DataExportProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataExportProvider.swift; sourceTree = "<group>"; };
 		AA00010000000000000009A1 /* DataExportStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataExportStateModel.swift; sourceTree = "<group>"; };
 		AA0001000000000000000AA1 /* DataExportRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataExportRootView.swift; sourceTree = "<group>"; };
+		AA95E10002D000000000AA00 /* AAPSRemote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../AAPS/AAPSRemote.swift; sourceTree = "<group>"; };
+		AA95E10012D000000000AA01 /* AAPSDevKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../AAPS/AAPSDevKeys.swift; sourceTree = "<group>"; };
+		AA95E10022D000000000AA02 /* AAPSBolusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AAPSBolusView.swift; sourceTree = "<group>"; };
 		AAFF91130F2FCCC7EBBA11AD /* BasalProfileEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BasalProfileEditorStateModel.swift; sourceTree = "<group>"; };
 		AF65DA88F972B56090AD6AC3 /* PumpConfigDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PumpConfigDataFlow.swift; sourceTree = "<group>"; };
 		B015AFE12E500000000D7351 /* BolusSafetyValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusSafetyValidator.swift; sourceTree = "<group>"; };
 		B015AFE42E500000000D7351 /* BolusSafetyValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusSafetyValidatorTests.swift; sourceTree = "<group>"; };
+		B1154E6F0B1C225784DC14D6 /* GarminBolusSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GarminBolusSettingsView.swift; sourceTree = "<group>"; };
 		B3919BBB515547118D684CA2 /* SettingsSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSearchTests.swift; sourceTree = "<group>"; };
 		B5822B15939E719628E9FF7C /* SnoozeRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SnoozeRootView.swift; sourceTree = "<group>"; };
 		B6E925122EB3932A0076D719 /* OmnipodKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = OmnipodKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1405,9 +1399,6 @@
 		BDA25F1B2D26BD0300035F34 /* TrendShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendShape.swift; sourceTree = "<group>"; };
 		BDA25F1D2D26D5D800035F34 /* GlucoseChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseChartView.swift; sourceTree = "<group>"; };
 		BDA25F1F2D26D5FB00035F34 /* CarbsInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbsInputView.swift; sourceTree = "<group>"; };
-		AA95E10002D000000000AA00 /* AAPSRemote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../AAPS/AAPSRemote.swift"; sourceTree = "<group>"; };
-		AA95E10012D000000000AA01 /* AAPSDevKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../AAPS/AAPSDevKeys.swift"; sourceTree = "<group>"; };
-		AA95E10022D000000000AA02 /* AAPSBolusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AAPSBolusView.swift; sourceTree = "<group>"; };
 		BDA25F212D26D62200035F34 /* BolusInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusInputView.swift; sourceTree = "<group>"; };
 		BDA6CC872CAF219800F942F9 /* TempTargetSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TempTargetSetup.swift; sourceTree = "<group>"; };
 		BDA7593D2D37CFC000E649A4 /* CarbEntryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbEntryEditorView.swift; sourceTree = "<group>"; };
@@ -1458,6 +1449,17 @@
 		C2AA6CF42E1A734A00BF6C16 /* SettingsExportStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsExportStateModel.swift; sourceTree = "<group>"; };
 		C377490C77661D75E8C50649 /* ManualTempBasalRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ManualTempBasalRootView.swift; sourceTree = "<group>"; };
 		C8D1A7CA8C10C4403D4BBFA7 /* TreatmentsDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TreatmentsDataFlow.swift; sourceTree = "<group>"; };
+		CA02000000000000000010C1 /* DeliveryLimitsSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeliveryLimitsSyncTests.swift; sourceTree = "<group>"; };
+		CC0000000000000000000004 /* MealPredictionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealPredictionView.swift; path = Trio/Sources/Modules/MealScan/View/MealPredictionView.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000006 /* MealHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealHistoryView.swift; path = Trio/Sources/Modules/MealScan/View/MealHistoryView.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000008 /* PortionVolumeEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PortionVolumeEstimator.swift; path = Trio/Sources/Modules/MealScan/View/PortionVolumeEstimator.swift; sourceTree = SOURCE_ROOT; };
+		CC000000000000000000000A /* DepthCameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DepthCameraCaptureView.swift; path = Trio/Sources/Modules/MealScan/View/DepthCameraCaptureView.swift; sourceTree = SOURCE_ROOT; };
+		CC000000000000000000000C /* PDFExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PDFExportService.swift; path = Trio/Sources/Modules/DataExport/PDFExportService.swift; sourceTree = SOURCE_ROOT; };
+		CC000000000000000000000E /* InsightsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InsightsModel.swift; path = Trio/Sources/Modules/Insights/InsightsModel.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000010 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InsightsView.swift; path = Trio/Sources/Modules/Insights/InsightsView.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000012 /* SettingsBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsBackupService.swift; path = Trio/Sources/Modules/SettingsBackup/SettingsBackupService.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000014 /* SettingsBackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsBackupView.swift; path = Trio/Sources/Modules/SettingsBackup/SettingsBackupView.swift; sourceTree = SOURCE_ROOT; };
+		CC0000000000000000000016 /* MealOutcomeV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MealOutcomeV2Tests.swift; path = TrioTests/MealOutcomeV2Tests.swift; sourceTree = SOURCE_ROOT; };
 		CC6C406D2ACDD69E009B8058 /* RawFetchedProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawFetchedProfile.swift; sourceTree = "<group>"; };
 		CC76E9502BD4812E008BEB61 /* Forecast+helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Forecast+helper.swift"; sourceTree = "<group>"; };
 		CE1856F42ADC4858007E39C7 /* AddCarbPresetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarbPresetIntent.swift; sourceTree = "<group>"; };
@@ -1512,13 +1514,17 @@
 		CEE9A6542BBB418300EB5194 /* CalibrationsDataFlow.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CalibrationsDataFlow.swift; sourceTree = "<group>"; };
 		CEE9A65B2BBB41C800EB5194 /* CalibrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationService.swift; sourceTree = "<group>"; };
 		CEE9A65D2BBC9F6500EB5194 /* CalibrationsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationsTests.swift; sourceTree = "<group>"; };
-		CA02000000000000000010C1 /* DeliveryLimitsSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeliveryLimitsSyncTests.swift; sourceTree = "<group>"; };
 		CEF1ED6A2D58FB4600FAF41E /* CGMOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGMOptions.swift; sourceTree = "<group>"; };
 		CFCFE0781F9074C2917890E8 /* ManualTempBasalStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ManualTempBasalStateModel.swift; sourceTree = "<group>"; };
 		D0BDC6993C1087310EDFC428 /* CarbRatioEditorRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CarbRatioEditorRootView.swift; sourceTree = "<group>"; };
 		D0CE9A4F630836174DC170CE /* WatchConfigGarminAppConfigView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchConfigGarminAppConfigView.swift; sourceTree = "<group>"; };
 		D0E0E5ED9ABC43BAB91C568C /* HistoryRootView+Filters.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+Filters.swift"; sourceTree = "<group>"; };
 		DC2C6489D29ECCCAD78E0721 /* GlucoseNotificationSettingsStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlucoseNotificationSettingsStateModel.swift; sourceTree = "<group>"; };
+		DD0000000000000000000003 /* CoachService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachService.swift; path = Trio/Sources/Services/Coach/CoachService.swift; sourceTree = SOURCE_ROOT; };
+		DD0000000000000000000005 /* CoachDevKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachDevKeys.swift; path = Trio/Sources/Services/Coach/CoachDevKeys.swift; sourceTree = SOURCE_ROOT; };
+		DD0000000000000000000007 /* CoachInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachInbox.swift; path = Trio/Sources/Modules/Coach/CoachInbox.swift; sourceTree = SOURCE_ROOT; };
+		DD0000000000000000000009 /* CoachStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachStateModel.swift; path = Trio/Sources/Modules/Coach/CoachStateModel.swift; sourceTree = SOURCE_ROOT; };
+		DD000000000000000000000B /* CoachView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CoachView.swift; path = Trio/Sources/Modules/Coach/View/CoachView.swift; sourceTree = SOURCE_ROOT; };
 		DD09D47A2C5986D1003FEA5D /* CalendarEventSettingsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEventSettingsDataFlow.swift; sourceTree = "<group>"; };
 		DD09D47C2C5986DA003FEA5D /* CalendarEventSettingsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEventSettingsProvider.swift; sourceTree = "<group>"; };
 		DD09D47E2C5986E5003FEA5D /* CalendarEventSettingsStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEventSettingsStateModel.swift; sourceTree = "<group>"; };
@@ -1529,6 +1535,7 @@
 		DD09D6412D2B553A000D82C9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DD09D6422D2B553A000D82C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DD09D6432D2B553A000D82C9 /* TrioWatchComplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrioWatchComplication.swift; sourceTree = "<group>"; };
+		DD1000000000000000000003 /* SplitBolusReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplitBolusReminder.swift; path = Trio/Sources/Modules/Treatments/SplitBolusReminder.swift; sourceTree = SOURCE_ROOT; };
 		DD1745122C54169400211FAC /* DevicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicesView.swift; sourceTree = "<group>"; };
 		DD1745142C54388A00211FAC /* TherapySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TherapySettingsView.swift; sourceTree = "<group>"; };
 		DD1745162C54389F00211FAC /* FeatureSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureSettingsView.swift; sourceTree = "<group>"; };
@@ -1560,9 +1567,11 @@
 		DD17A0312E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteNotificationResponseManager.swift; sourceTree = "<group>"; };
 		DD1DB7CB2BECCA1F0048B367 /* BuildDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildDetails.swift; sourceTree = "<group>"; };
 		DD1E53582D273F20008F32A4 /* LoopStatusHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopStatusHelpView.swift; sourceTree = "<group>"; };
+		DD2000000000000000000003 /* TrioGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TrioGlass.swift; path = Trio/Sources/Views/DesignSystem/TrioGlass.swift; sourceTree = SOURCE_ROOT; };
 		DD21FCB42C6952AD00AF2C25 /* DecimalPickerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecimalPickerSettings.swift; sourceTree = "<group>"; };
 		DD246F052D2836AA0027DDE0 /* GlucoseTrendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseTrendView.swift; sourceTree = "<group>"; };
 		DD2CC85B2D25D9CE00445446 /* GlucoseTargetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseTargetsView.swift; sourceTree = "<group>"; };
+		DD3000000000000000000003 /* GlucoseDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GlucoseDashboardView.swift; path = Trio/Sources/Modules/Home/View/GlucoseDashboardView.swift; sourceTree = SOURCE_ROOT; };
 		DD3078672D42F5CE00DE0490 /* WatchGlucoseObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchGlucoseObject.swift; sourceTree = "<group>"; };
 		DD3078692D42F94000DE0490 /* GarminDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GarminDevice.swift; sourceTree = "<group>"; };
 		DD32CF972CC82460003686D6 /* TrioRemoteControl+Bolus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrioRemoteControl+Bolus.swift"; sourceTree = "<group>"; };
@@ -1728,6 +1737,7 @@
 		E592A3752CEEC038009A472C /* ContactImageStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImageStateModel.swift; sourceTree = "<group>"; };
 		E625985B47742D498CB1681A /* GlucoseNotificationSettingsProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlucoseNotificationSettingsProvider.swift; sourceTree = "<group>"; };
 		E7A9757FE91F4B523F53578D /* MealLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealLog.swift; path = Trio/Sources/Modules/MealScan/MealLog.swift; sourceTree = SOURCE_ROOT; };
+		EC5DB798F72BD7421E52FCBB /* GarminBolusSettings.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GarminBolusSettings.swift; sourceTree = "<group>"; };
 		F05E70DAC3CE0CD95982C170 /* AlgorithmGlucose.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AlgorithmGlucose.swift; sourceTree = "<group>"; };
 		F816825D28DB441200054060 /* HeartBeatManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HeartBeatManager.swift; sourceTree = "<group>"; };
 		F816825F28DB441800054060 /* BluetoothTransmitter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BluetoothTransmitter.swift; sourceTree = "<group>"; };
@@ -1854,36 +1864,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		DD0000000000000000000001 /* Coach */ = {
-			isa = PBXGroup;
-			children = (
-				DD0000000000000000000003 /* CoachService.swift */,
-				DD0000000000000000000005 /* CoachDevKeys.swift */,
-				DD0000000000000000000007 /* CoachInbox.swift */,
-				DD0000000000000000000009 /* CoachStateModel.swift */,
-				DD000000000000000000000B /* CoachView.swift */,
-			);
-			name = Coach;
-			sourceTree = "<group>";
-		};
-		CC0000000000000000000001 /* Insights */ = {
-			isa = PBXGroup;
-			children = (
-				CC000000000000000000000E /* InsightsModel.swift */,
-				CC0000000000000000000010 /* InsightsView.swift */,
-			);
-			name = Insights;
-			sourceTree = "<group>";
-		};
-		CC0000000000000000000002 /* SettingsBackup */ = {
-			isa = PBXGroup;
-			children = (
-				CC0000000000000000000012 /* SettingsBackupService.swift */,
-				CC0000000000000000000014 /* SettingsBackupView.swift */,
-			);
-			name = SettingsBackup;
-			sourceTree = "<group>";
-		};
 		0610F7D6D2EC00E3BA1569F0 /* ConfigEditor */ = {
 			isa = PBXGroup;
 			children = (
@@ -2828,6 +2808,7 @@
 			children = (
 				BDA25EE32D260CCF00035F34 /* AppleWatchManager.swift */,
 				CE94597D29E9E1EE0047C9C6 /* GarminManager.swift */,
+				5BDE371D254A77D5A3B7DB30 /* GarminBolus */,
 			);
 			path = WatchManager;
 			sourceTree = "<group>";
@@ -2884,6 +2865,7 @@
 				D1CBA5184EB5DA9B3E37773C /* Mocks */,
 				9C9343694B749BAF51B26F30 /* MealScanParsingTests.swift */,
 				256A5799A087A6101999CF77 /* ISFCarbTierTests.swift */,
+				49015F74B5CA46895533DE37 /* GarminBolusTests */,
 			);
 			path = TrioTests;
 			sourceTree = "<group>";
@@ -2908,6 +2890,15 @@
 				3BF85FE12E427312000D7351 /* IOBService.swift */,
 			);
 			path = IOB;
+			sourceTree = "<group>";
+		};
+		49015F74B5CA46895533DE37 /* GarminBolusTests */ = {
+			isa = PBXGroup;
+			children = (
+				19CD010D88BA4CFE1CFDAC0C /* GarminBolusProtocolTests.swift */,
+			);
+			name = GarminBolusTests;
+			path = GarminBolusTests;
 			sourceTree = "<group>";
 		};
 		4D61F1E2A29E95BAA31C9A17 /* HistoryStateModel+Deletion */ = {
@@ -3025,6 +3016,17 @@
 				5825D1622BD405AE00F36E9B /* Helper */,
 			);
 			path = Model;
+			sourceTree = "<group>";
+		};
+		5BDE371D254A77D5A3B7DB30 /* GarminBolus */ = {
+			isa = PBXGroup;
+			children = (
+				EC5DB798F72BD7421E52FCBB /* GarminBolusSettings.swift */,
+				0C50852CB4714A9E1DD6104C /* GarminBolusProtocol.swift */,
+				546F579058D6E9AA2095108C /* GarminBolusHandler.swift */,
+			);
+			name = GarminBolus;
+			path = GarminBolus;
 			sourceTree = "<group>";
 		};
 		6517011F19F244F64E1FF14B /* TargetsEditor */ = {
@@ -3442,6 +3444,24 @@
 			path = Treatments;
 			sourceTree = "<group>";
 		};
+		CC0000000000000000000001 /* Insights */ = {
+			isa = PBXGroup;
+			children = (
+				CC000000000000000000000E /* InsightsModel.swift */,
+				CC0000000000000000000010 /* InsightsView.swift */,
+			);
+			name = Insights;
+			sourceTree = "<group>";
+		};
+		CC0000000000000000000002 /* SettingsBackup */ = {
+			isa = PBXGroup;
+			children = (
+				CC0000000000000000000012 /* SettingsBackupService.swift */,
+				CC0000000000000000000014 /* SettingsBackupView.swift */,
+			);
+			name = SettingsBackup;
+			sourceTree = "<group>";
+		};
 		CE1856F32ADC4835007E39C7 /* Carbs */ = {
 			isa = PBXGroup;
 			children = (
@@ -3505,6 +3525,7 @@
 				DDF847E72C5DABA30049BB3B /* WatchConfigAppleWatchView.swift */,
 				DDF847E92C5DABAC0049BB3B /* WatchConfigGarminView.swift */,
 				D0CE9A4F630836174DC170CE /* WatchConfigGarminAppConfigView.swift */,
+				B1154E6F0B1C225784DC14D6 /* GarminBolusSettingsView.swift */,
 			);
 			path = View;
 			sourceTree = "<group>";
@@ -3574,6 +3595,18 @@
 				EEC747824D6593B5CD87E195 /* View */,
 			);
 			path = ISFEditor;
+			sourceTree = "<group>";
+		};
+		DD0000000000000000000001 /* Coach */ = {
+			isa = PBXGroup;
+			children = (
+				DD0000000000000000000003 /* CoachService.swift */,
+				DD0000000000000000000005 /* CoachDevKeys.swift */,
+				DD0000000000000000000007 /* CoachInbox.swift */,
+				DD0000000000000000000009 /* CoachStateModel.swift */,
+				DD000000000000000000000B /* CoachView.swift */,
+			);
+			name = Coach;
 			sourceTree = "<group>";
 		};
 		DD07CA5A2CE950B9002D45A9 /* MealPreset */ = {
@@ -5190,6 +5223,10 @@
 				2DD336B8E68B34FC1BB0884C /* MealOutcomeService.swift in Sources */,
 				21E469E5C3FC3523D6778F45 /* BarcodeScanView.swift in Sources */,
 				DBFD89E66DD343150036EF67 /* GlucoseWidgetData.swift in Sources */,
+				C6C6CCCF3A3CE91608505C00 /* GarminBolusSettings.swift in Sources */,
+				EA7207AA3C83C04F2185900C /* GarminBolusProtocol.swift in Sources */,
+				5F28041CD21E57F6D222766D /* GarminBolusHandler.swift in Sources */,
+				F4DBC962B616CAF647718CEB /* GarminBolusSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5221,6 +5258,7 @@
 				BD8FC0712D661B0000B95AED /* TidepoolTherapySettingsTests.swift in Sources */,
 				E1508EC09A307C84D36F45D2 /* MealScanParsingTests.swift in Sources */,
 				F885581C664621EBA050224F /* ISFCarbTierTests.swift in Sources */,
+				00C0F3972AA724BB9140EEC9 /* GarminBolusProtocolTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5611,11 +5649,11 @@
 		6B1A8D2A2B14D91800E76752 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_ID = "$(TRIO_APP_GROUP_ID)";
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				APP_GROUP_ID = "$(TRIO_APP_GROUP_ID)";
 				CODE_SIGN_ENTITLEMENTS = LiveActivity/LiveActivityExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(APP_BUILD_NUMBER)";
@@ -5654,11 +5692,11 @@
 		6B1A8D2B2B14D91800E76752 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_ID = "$(TRIO_APP_GROUP_ID)";
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				APP_GROUP_ID = "$(TRIO_APP_GROUP_ID)";
 				CODE_SIGN_ENTITLEMENTS = LiveActivity/LiveActivityExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(APP_BUILD_NUMBER)";

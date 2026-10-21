@@ -12,11 +12,15 @@ enum GarminBolusSettings {
     static let maxBolusKey = "GarminBolus.maxBolus"
     static let maxCarbsKey = "GarminBolus.maxCarbs"
     static let failuresKey = "GarminBolus.authFailures"
+    static let pinFailuresKey = "GarminBolus.pinFailures"
     static let pairingUntilKey = "GarminBolus.pairingUntil"
     static let defaultMaxBolus: Double = 3
     static let defaultMaxCarbs: Double = 60
     /// Wrong PINs or signatures in a row before watch bolus switches itself off.
     static let maxAuthFailures = 5
+    /// Wrong PINs before the pairing window closes. Its own count, so a correctly
+    /// signed request from an already paired watch cannot reset it.
+    static let maxPinFailures = 3
     static let pairingWindow: TimeInterval = 120
 
     private static let pinKey = "GarminBolus.pin"
@@ -93,11 +97,17 @@ enum GarminBolusSettings {
     }
 
     static func openPairing() {
+        pinFailures = 0
         UserDefaults.standard.set(Date().timeIntervalSince1970 + pairingWindow, forKey: pairingUntilKey)
     }
 
     static func closePairing() {
         UserDefaults.standard.set(0, forKey: pairingUntilKey)
+    }
+
+    static var pinFailures: Int {
+        get { UserDefaults.standard.integer(forKey: pinFailuresKey) }
+        set { UserDefaults.standard.set(newValue, forKey: pinFailuresKey) }
     }
 
     static var authFailures: Int {

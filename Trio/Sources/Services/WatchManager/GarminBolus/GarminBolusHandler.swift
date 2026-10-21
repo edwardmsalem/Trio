@@ -115,7 +115,13 @@ import UserNotifications
         }
         let pinKey = SymmetricKey(data: Data(pin.utf8))
         guard GarminBolusProtocol.isSignatureValid(request.signature, for: request.signedString, key: pinKey) else {
-            recordAuthFailure()
+            // Counted apart from bad request signatures, which a good request from
+            // an already paired watch resets. Three wrong PINs close the window.
+            GarminBolusSettings.pinFailures += 1
+            if GarminBolusSettings.pinFailures >= GarminBolusSettings.maxPinFailures {
+                GarminBolusSettings.closePairing()
+                notify("Garmin pairing closed", "Three wrong PINs. Tap Pair Watch again if this was you.")
+            }
             return reject("Wrong PIN")
         }
         guard isFresh(request.timestamp), seenIDs[request.id] == nil else {
@@ -126,6 +132,7 @@ import UserNotifications
         let key = GarminBolusSettings.makeWatchKey()
         GarminBolusSettings.closePairing()
         GarminBolusSettings.authFailures = 0
+        GarminBolusSettings.pinFailures = 0
         debug(.watchManager, "Garmin pairing: watch paired")
         notify("Garmin watch paired", "The Bolus app on your watch can now ask Trio for a bolus.")
         answer(200, ["ok": true, "key": key, "msg": "Paired"])
@@ -187,11 +194,17 @@ import UserNotifications
     }
 
     /// Why the pump cannot take a bolus right now, or nil when it can.
+    ///
+    /// A watch bolus counts from the moment it is handed over, not from when the
+    /// pump says it is bolusing: in the second or two between, the pump's flag and
+    /// its stored record both still read idle, and a quick second request would
+    /// otherwise sail through every check.
     private func pumpRefusal() -> String? {
         guard let aps = apsManager else { return "Trio isn't ready" }
         guard let pump = aps.pumpManager else { return "No pump connected" }
         if aps.isSuspended { return "Pump suspended" }
-        if pump.status.pumpStatus.bolusing { return "Bolus in progress" }
+        if pump.status.pumpStatus.bolusing || aps.bolusProgress.value != nil { return "Bolus in progress" }
+        if awaitingStart, Date().timeIntervalSince(awaitingSince) <= 60 { return "Bolus in progress" }
         return nil
     }
 
@@ -368,6 +381,10 @@ import UserNotifications
             return ["ok": true]
         }
 
+        // Counted as given now, before the pump is asked, so the recent-bolus check
+        // sees it however late the pump's record lands. Taken back if it fails.
+        let handedAt = Date()
+        recentWatchBoluses.append((handedAt, quote.insulin))
         lastBolus = Outcome(quoteID: quote.id, requested: quote.insulin, state: .accepted)
         activeUnits = quote.insulin
         lastProgress = 0
@@ -388,12 +405,12 @@ import UserNotifications
                     self.awaitingStart = false
                     debug(.watchManager, "Garmin bolus: \(quoteID) \(success ? "started" : "failed")")
                     if success {
-                        self.recentWatchBoluses.append((Date(), units))
                         self.notify(
                             "Bolus from Garmin watch",
                             "\(units) U started" + (carbs > 0 ? " with \(carbs) g carbs." : ".")
                         )
                     } else {
+                        self.recentWatchBoluses.removeAll { $0.date == handedAt }
                         self.lastBolus?.state = .failed
                         self.lastBolus?.error = msg
                         self.activeUnits = 0

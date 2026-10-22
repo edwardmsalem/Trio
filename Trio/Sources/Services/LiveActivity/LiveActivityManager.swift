@@ -4,6 +4,7 @@ import CoreData
 import Foundation
 import Swinject
 import UIKit
+import WidgetKit
 
 @available(iOS 16.2, *) private struct ActiveActivity {
     let activity: Activity<LiveActivityAttributes>
@@ -69,6 +70,10 @@ final class LiveActivityData: ObservableObject {
     /// The current active live activity.
     private var currentActivity: ActiveActivity?
 
+    /// Reading time (plus units) of the last home/lock-screen widget reload, so
+    /// duplicate pushes for the same reading do not spend iOS's reload budget.
+    @MainActor private var lastWidgetReloadKey: String?
+
     private var data = LiveActivityData()
 
     /// A dispatch queue for handling Core Data change notifications.
@@ -96,6 +101,10 @@ final class LiveActivityData: ObservableObject {
             Task { @MainActor in
                 // by the time this runs, the object change is done, so we see the new data here
                 await self?.pushCurrentContent()
+                // Home/lock-screen widgets ride the same trigger as the Live Activity,
+                // so they get every reading in the background too (not only when an
+                // Apple Watch is paired, which is where they used to be fed from).
+                self?.updateGlucoseWidgets()
             }
         }.store(in: &subscriptions)
         loadInitialData()
@@ -131,6 +140,7 @@ final class LiveActivityData: ObservableObject {
     func settingsDidChange(_: TrioSettings) {
         Task { @MainActor in
             await self.pushCurrentContent()
+            self.updateGlucoseWidgets()
         }
     }
 
@@ -427,5 +437,71 @@ final class LiveActivityData: ObservableObject {
         )
 
         await pushUpdate(content)
+    }
+}
+
+// MARK: - Home and lock-screen glucose widgets
+
+@available(iOS 16.2, *) extension LiveActivityManager {
+    static let glucoseWidgetKinds = ["TrioGlucoseLockWidget", "TrioGlucoseHomeWidget"]
+
+    /// Writes the latest reading to the App Group for the glucose widgets and
+    /// reloads them when the reading itself is new. IOB, COB and loop time are
+    /// refreshed in the snapshot on every call, but only a new reading (or a unit
+    /// change) triggers a reload, because background reloads count against the
+    /// widget's daily budget.
+    @MainActor func updateGlucoseWidgets() {
+        guard let readings = data.glucoseFromPersistence, let latest = readings.first else { return }
+        let units = settings.units
+
+        func display(_ mgdl: Int) -> Double {
+            units == .mmolL ? Double(truncating: Decimal(mgdl).asMmolL as NSNumber) : Double(mgdl)
+        }
+
+        func displayThreshold(_ mgdl: Decimal) -> Double {
+            Double(truncating: (units == .mmolL ? mgdl.asMmolL : mgdl) as NSNumber)
+        }
+
+        // Delta only against the reading right before it (within 12 min), so a
+        // gap after a sensor change never shows a misleading jump.
+        var delta = ""
+        if let previous = readings.dropFirst().first,
+           latest.date.timeIntervalSince(previous.date) <= 12 * 60
+        {
+            delta = LiveActivityAttributes.ContentState.formatGlucose(
+                latest.glucose - previous.glucose,
+                units: units,
+                forceSign: true
+            )
+        }
+
+        let inRange = Decimal(latest.glucose) >= settings.low && Decimal(latest.glucose) <= settings.high
+        let history = readings.prefix(48).reversed().map {
+            WidgetGlucosePoint(date: $0.date, glucose: display($0.glucose))
+        }
+        let iob = data.iob.flatMap { Formatter.decimalFormatterWithTwoFractionDigits.string(from: $0 as NSNumber) }
+        let cob = data.determination.flatMap { Formatter.integerFormatter.string(from: NSNumber(value: $0.cob)) }
+
+        GlucoseWidgetData(
+            glucose: LiveActivityAttributes.ContentState.formatGlucose(latest.glucose, units: units, forceSign: false),
+            trend: (latest.direction?.symbol as? String) ?? "",
+            delta: delta,
+            iob: iob,
+            cob: cob,
+            colorString: inRange ? "#ffffff" : "#ff0000",
+            date: latest.date,
+            history: history.count >= 2 ? Array(history) : nil,
+            low: displayThreshold(settings.low),
+            high: displayThreshold(settings.high),
+            lastLoopDate: data.determination?.date
+        ).save()
+
+        let key = "\(latest.date.timeIntervalSince1970)|\(units.rawValue)"
+        guard key != lastWidgetReloadKey else { return }
+        lastWidgetReloadKey = key
+        for kind in Self.glucoseWidgetKinds {
+            WidgetCenter.shared.reloadTimelines(ofKind: kind)
+        }
+        debug(.default, "[LiveActivityManager] Glucose widgets reloaded for reading at \(latest.date)")
     }
 }

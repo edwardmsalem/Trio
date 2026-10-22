@@ -710,36 +710,11 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WidgetCenter.shared.reloadTimelines(ofKind: "TrioWatchComplication")
             debug(.watchManager, "⌚️✅ Triggered watch complication refresh")
 
-            // Mirror the same glucose snapshot to the iPhone home/lock-screen widgets
-            // via the App Group, then refresh their timelines.
-            //
-            // Only write when we actually have a reading. Each widget size refreshes
-            // on its own schedule, so a single no-data ("--") push could otherwise
-            // clobber the last good value and leave one size (e.g. the wide one)
-            // stuck on "--" while another still shows the real number. Skipping the
-            // save here keeps the previous good snapshot intact.
-            if let currentGlucose = state.currentGlucose, currentGlucose != "--", !currentGlucose.isEmpty {
-                // The large widget draws a trend chart, so include the recent readings
-                // (already in the user's display unit) plus the low/high target band.
-                let widgetHistory = state.glucoseValues
-                    .sorted { $0.date < $1.date }
-                    .suffix(48)
-                    .map { WidgetGlucosePoint(date: $0.date, glucose: $0.glucose) }
-                GlucoseWidgetData(
-                    glucose: currentGlucose,
-                    trend: state.trend ?? "",
-                    delta: state.delta ?? "",
-                    iob: state.iob,
-                    cob: state.cob,
-                    colorString: state.currentGlucoseColorString ?? "#ffffff",
-                    date: state.date,
-                    history: widgetHistory.isEmpty ? nil : Array(widgetHistory),
-                    low: displayThreshold(lowGlucose),
-                    high: displayThreshold(highGlucose)
-                ).save()
-                WidgetCenter.shared.reloadTimelines(ofKind: "TrioGlucoseLockWidget")
-                WidgetCenter.shared.reloadTimelines(ofKind: "TrioGlucoseHomeWidget")
-            }
+            // The iPhone home/lock-screen glucose widgets are no longer fed from here.
+            // This path only runs with a paired Apple Watch, stamped the snapshot with
+            // the send time instead of the reading time, and reloaded the widgets on
+            // every IOB/loop/override push, which exhausted iOS's widget reload budget.
+            // LiveActivityManager.updateGlucoseWidgets() now owns them.
         #endif
 
         WatchStateSnapshot.saveLatestDateToDisk(state.date)

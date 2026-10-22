@@ -3,8 +3,9 @@ import SwiftUI
 import WidgetKit
 
 /// Snapshot of current glucose shared from the main Trio app to the home-screen
-/// and lock-screen WidgetKit widgets via the App Group. Mirrors what the watch
-/// complication receives. Written by AppleWatchManager on every glucose push.
+/// and lock-screen WidgetKit widgets via the App Group. Written by
+/// LiveActivityManager (the same Core Data trigger that keeps the Live Activity
+/// current, foreground and background) on every new reading.
 /// One sampled glucose point for the large widget's trend chart. `glucose` is in
 /// the user's display unit (mg/dL or mmol/L), matching the big number shown.
 struct WidgetGlucosePoint: Codable, Identifiable {
@@ -20,10 +21,11 @@ struct GlucoseWidgetData: Codable {
     var iob: String?
     var cob: String?
     var colorString: String // "#ffffff" in-range; other = out of range
-    var date: Date // timestamp of the reading
+    var date: Date // timestamp of the CGM reading itself (not when it was sent)
     var history: [WidgetGlucosePoint]? = nil // recent readings for the large widget chart
     var low: Double? = nil // low target line (display unit) for the chart band
     var high: Double? = nil // high target line (display unit) for the chart band
+    var lastLoopDate: Date? = nil // when the loop last ran
 
     private static let storeKey = "glucoseWidgetData.v1"
 
@@ -54,9 +56,28 @@ struct GlucoseWidgetData: Codable {
 
     // MARK: - Display helpers
 
-    var minutesAgo: Int { max(0, Int(Date().timeIntervalSince(date) / 60)) }
-    var isStale: Bool { minutesAgo > 10 }
-    var isVeryStale: Bool { minutesAgo > 15 }
+    /// How old a reading looks at a given moment. Widgets render entries ahead of
+    /// time, so callers pass the timeline entry's date rather than `Date()`.
+    enum Freshness {
+        case fresh // up to 10 min
+        case aging // 10 to 15 min: yellow dot only
+        case stale // over 15 min: dimmed value plus warning symbol
+        case veryStale // over 30 min: dimmed further, struck through, red symbol
+    }
+
+    static let agingAfter: TimeInterval = 10 * 60
+    static let staleAfter: TimeInterval = 15 * 60
+    static let veryStaleAfter: TimeInterval = 30 * 60
+
+    func age(at reference: Date) -> TimeInterval { max(0, reference.timeIntervalSince(date)) }
+
+    func freshness(at reference: Date) -> Freshness {
+        let age = age(at: reference)
+        if age > Self.veryStaleAfter { return .veryStale }
+        if age > Self.staleAfter { return .stale }
+        if age > Self.agingAfter { return .aging }
+        return .fresh
+    }
 
     /// Reading timestamp as "HH:mm".
     var timeString: String {
@@ -65,11 +86,14 @@ struct GlucoseWidgetData: Codable {
         return f.string(from: date)
     }
 
-    /// Green = fresh, yellow = getting stale, red = very stale / no data.
-    var stalenessColor: Color {
-        if isVeryStale { return .red }
-        if isStale { return .yellow }
-        return .green
+    /// Green = fresh, yellow = getting stale, red = stale / no data.
+    func stalenessColor(at reference: Date) -> Color {
+        switch freshness(at: reference) {
+        case .fresh: return .green
+        case .aging: return .yellow
+        case .stale,
+             .veryStale: return .red
+        }
     }
 
     /// True when glucose is in range (white color sent by the app).

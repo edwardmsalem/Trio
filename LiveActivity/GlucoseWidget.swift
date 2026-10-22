@@ -21,12 +21,38 @@ struct GlucoseWidgetProvider: TimelineProvider {
     func getTimeline(in _: Context, completion: @escaping (Timeline<GlucoseWidgetEntry>) -> Void) {
         let data = GlucoseWidgetData.load()
         let now = Date()
-        // A few staggered entries so the staleness color updates between pushes.
         var entries: [GlucoseWidgetEntry] = [GlucoseWidgetEntry(date: now, data: data)]
-        for minutes in [5, 10, 15] {
-            entries.append(GlucoseWidgetEntry(date: now.addingTimeInterval(Double(minutes) * 60), data: data))
+
+        guard let data else {
+            completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60))))
+            return
         }
-        completion(Timeline(entries: entries, policy: .atEnd))
+
+        // One entry just past each staleness threshold, measured from the READING
+        // time, so the widget dims and marks itself stale on its own even when
+        // iOS refuses further reloads. No reload budget is spent on these.
+        let thresholds: [TimeInterval] = [
+            GlucoseWidgetData.agingAfter,
+            GlucoseWidgetData.staleAfter,
+            GlucoseWidgetData.veryStaleAfter,
+            60 * 60
+        ]
+        for offset in thresholds {
+            let crossing = data.date.addingTimeInterval(offset + 1)
+            if crossing > now { entries.append(GlucoseWidgetEntry(date: crossing, data: data)) }
+        }
+
+        // While the reading is fresh, ask again shortly after the next CGM reading
+        // is due (readings come every 5 min). The app normally reloads us first,
+        // and this only catches a reload iOS dropped. Once the data is stale the
+        // app is not getting new readings, so back off to save the reload budget.
+        let refresh: Date
+        if data.age(at: now) < GlucoseWidgetData.staleAfter {
+            refresh = max(data.date.addingTimeInterval(6 * 60), now.addingTimeInterval(2 * 60))
+        } else {
+            refresh = now.addingTimeInterval(20 * 60)
+        }
+        completion(Timeline(entries: entries, policy: .after(refresh)))
     }
 }
 
@@ -34,6 +60,7 @@ struct GlucoseWidgetProvider: TimelineProvider {
 
 private struct TrendGlucose: View {
     let data: GlucoseWidgetData
+    let now: Date
     var glucoseFont: Font = .system(size: 22, weight: .bold, design: .rounded)
 
     var body: some View {
@@ -41,9 +68,79 @@ private struct TrendGlucose: View {
             Text(data.glucose)
                 .font(glucoseFont)
                 .foregroundStyle(.primary)
+                .staleStyled(data, at: now)
             Text(data.trend.isEmpty ? "→" : data.trend)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.secondary)
+                .staleStyled(data, at: now)
+        }
+    }
+}
+
+/// Dims an old reading and strikes it through once it is very old, so a stale
+/// value never reads as current (works in the monochrome lock-screen style too).
+private struct StaleStyle: ViewModifier {
+    let freshness: GlucoseWidgetData.Freshness
+
+    func body(content: Content) -> some View {
+        switch freshness {
+        case .aging,
+             .fresh:
+            content
+        case .stale:
+            content.opacity(0.45)
+        case .veryStale:
+            content.opacity(0.3).strikethrough(true)
+        }
+    }
+}
+
+private extension View {
+    func staleStyled(_ data: GlucoseWidgetData, at now: Date) -> some View {
+        modifier(StaleStyle(freshness: data.freshness(at: now)))
+    }
+}
+
+/// Warning symbol shown next to the reading time once the reading is stale.
+/// A symbol, not only a color, so it reads on the tinted lock screen.
+private struct StaleSymbol: View {
+    let data: GlucoseWidgetData
+    let now: Date
+    var font: Font = .caption2
+
+    var body: some View {
+        switch data.freshness(at: now) {
+        case .stale:
+            Image(systemName: "exclamationmark.triangle.fill").font(font).foregroundStyle(.orange)
+        case .veryStale:
+            Image(systemName: "exclamationmark.triangle.fill").font(font).foregroundStyle(.red)
+        case .aging,
+             .fresh:
+            EmptyView()
+        }
+    }
+}
+
+/// "@ 10:45" (the reading's clock time). Once stale it adds a live-updating age,
+/// "@ 10:45 · 2 hr, 3 min ago", which the system ticks without a reload.
+private struct ReadingTimeLabel: View {
+    let data: GlucoseWidgetData
+    let now: Date
+    var showsAgeWhenStale = true
+
+    var body: some View {
+        let isStale = data.age(at: now) > GlucoseWidgetData.staleAfter
+        HStack(spacing: 3) {
+            StaleSymbol(data: data, now: now)
+            if isStale, showsAgeWhenStale {
+                Text("@ \(data.timeString) · \(Text(data.date, style: .relative)) ago")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            } else {
+                Text("@ \(data.timeString)").font(.caption2).foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -103,13 +200,20 @@ private struct ShortcutButtons: View {
 
 private struct AccessoryCircularGlucose: View {
     let data: GlucoseWidgetData?
+    let now: Date
     var body: some View {
         if let data {
             ZStack {
                 AccessoryWidgetBackground()
                 VStack(spacing: 0) {
                     Text(data.glucose).font(.system(size: 18, weight: .bold, design: .rounded))
-                    Text(data.trend.isEmpty ? "→" : data.trend).font(.system(size: 11))
+                        .staleStyled(data, at: now)
+                    if data.age(at: now) > GlucoseWidgetData.staleAfter {
+                        // No room for a time here: the symbol replaces the arrow.
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10))
+                    } else {
+                        Text(data.trend.isEmpty ? "→" : data.trend).font(.system(size: 11))
+                    }
                 }
             }
         } else {
@@ -121,9 +225,15 @@ private struct AccessoryCircularGlucose: View {
 
 private struct AccessoryInlineGlucose: View {
     let data: GlucoseWidgetData?
+    let now: Date
     var body: some View {
         if let data {
-            Text("\(data.glucose) \(data.trend.isEmpty ? "→" : data.trend)  \(data.delta)")
+            if data.age(at: now) > GlucoseWidgetData.staleAfter {
+                // Inline is one line of plain text: say it is old, with the time.
+                Label("\(data.glucose) old @ \(data.timeString)", systemImage: "exclamationmark.triangle.fill")
+            } else {
+                Text("\(data.glucose) \(data.trend.isEmpty ? "→" : data.trend)  \(data.delta)  @ \(data.timeString)")
+            }
         } else {
             Text("Glucose --")
         }
@@ -132,16 +242,25 @@ private struct AccessoryInlineGlucose: View {
 
 private struct AccessoryRectangularGlucose: View {
     let data: GlucoseWidgetData?
+    let now: Date
     var body: some View {
         if let data {
+            let isStale = data.age(at: now) > GlucoseWidgetData.staleAfter
             HStack(alignment: .center, spacing: 8) {
                 Text(data.glucose).font(.system(size: 26, weight: .bold, design: .rounded))
+                    .staleStyled(data, at: now)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(data.trend.isEmpty ? "→" : data.trend).font(.system(size: 14, weight: .semibold))
-                    Text(data.delta).font(.caption2).foregroundStyle(.secondary)
+                        .staleStyled(data, at: now)
+                    if isStale {
+                        Text("\(Text(data.date, style: .relative)) ago")
+                            .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+                    } else {
+                        Text(data.delta).font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
-                Text("@ \(data.timeString)").font(.caption2).foregroundStyle(.secondary)
+                ReadingTimeLabel(data: data, now: now, showsAgeWhenStale: false)
             }
         } else {
             Text("Glucose unavailable").font(.caption)
@@ -153,16 +272,22 @@ private struct AccessoryRectangularGlucose: View {
 
 private struct SmallGlucose: View {
     let data: GlucoseWidgetData?
+    let now: Date
     var body: some View {
         ZStack {
             if let data {
                 VStack(spacing: 5) {
                     HStack(spacing: 4) {
-                        Circle().fill(data.stalenessColor).frame(width: 8, height: 8)
-                        Text("@ \(data.timeString)").font(.caption2).foregroundStyle(.secondary)
+                        Circle().fill(data.stalenessColor(at: now)).frame(width: 8, height: 8)
+                        ReadingTimeLabel(data: data, now: now, showsAgeWhenStale: false)
                     }
-                    TrendGlucose(data: data, glucoseFont: .system(size: 34, weight: .bold, design: .rounded))
-                    Text(data.delta).font(.caption2).foregroundStyle(.secondary)
+                    TrendGlucose(data: data, now: now, glucoseFont: .system(size: 34, weight: .bold, design: .rounded))
+                    if data.age(at: now) > GlucoseWidgetData.staleAfter {
+                        Text("\(Text(data.date, style: .relative)) ago")
+                            .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+                    } else {
+                        Text(data.delta).font(.caption2).foregroundStyle(.secondary)
+                    }
                     ShortcutButtons(compact: true)
                 }
                 .padding(12)
@@ -180,16 +305,17 @@ private struct SmallGlucose: View {
 
 private struct MediumGlucose: View {
     let data: GlucoseWidgetData?
+    let now: Date
     var body: some View {
         ZStack {
             if let data {
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
-                            Circle().fill(data.stalenessColor).frame(width: 8, height: 8)
-                            Text("@ \(data.timeString)").font(.caption2).foregroundStyle(.secondary)
+                            Circle().fill(data.stalenessColor(at: now)).frame(width: 8, height: 8)
+                            ReadingTimeLabel(data: data, now: now)
                         }
-                        TrendGlucose(data: data, glucoseFont: .system(size: 44, weight: .bold, design: .rounded))
+                        TrendGlucose(data: data, now: now, glucoseFont: .system(size: 44, weight: .bold, design: .rounded))
                         Text("Δ \(data.delta)").font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -223,6 +349,7 @@ private struct MediumGlucose: View {
 /// a glucose trend chart with the target band shaded, and the shortcut buttons.
 private struct LargeGlucose: View {
     let data: GlucoseWidgetData?
+    let now: Date
 
     var body: some View {
         ZStack {
@@ -249,8 +376,8 @@ private struct LargeGlucose: View {
     private func header(_ data: GlucoseWidgetData) -> some View {
         HStack {
             HStack(spacing: 5) {
-                Circle().fill(data.stalenessColor).frame(width: 8, height: 8)
-                Text("@ \(data.timeString)").font(.caption2).foregroundStyle(.secondary)
+                Circle().fill(data.stalenessColor(at: now)).frame(width: 8, height: 8)
+                ReadingTimeLabel(data: data, now: now)
             }
             Spacer()
             HStack(spacing: 12) {
@@ -268,9 +395,11 @@ private struct LargeGlucose: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(data.glucose)
                 .font(.system(size: 52, weight: .bold, design: .rounded))
+                .staleStyled(data, at: now)
             Text(data.trend.isEmpty ? "→" : data.trend)
                 .font(.system(size: 26, weight: .semibold))
                 .foregroundStyle(.secondary)
+                .staleStyled(data, at: now)
             Spacer()
             Text("Δ \(data.delta)")
                 .font(.subheadline)
@@ -360,9 +489,9 @@ private struct GlucoseLockEntryView: View {
         // carb/bolus entry screen (never doses directly).
         Group {
             switch family {
-            case .accessoryCircular: AccessoryCircularGlucose(data: entry.data)
-            case .accessoryInline: AccessoryInlineGlucose(data: entry.data)
-            default: AccessoryRectangularGlucose(data: entry.data)
+            case .accessoryCircular: AccessoryCircularGlucose(data: entry.data, now: entry.date)
+            case .accessoryInline: AccessoryInlineGlucose(data: entry.data, now: entry.date)
+            default: AccessoryRectangularGlucose(data: entry.data, now: entry.date)
             }
         }
         .widgetURL(WidgetShortcut.bolus)
@@ -386,9 +515,9 @@ private struct GlucoseHomeEntryView: View {
     let entry: GlucoseWidgetEntry
     var body: some View {
         switch family {
-        case .systemLarge: LargeGlucose(data: entry.data)
-        case .systemMedium: MediumGlucose(data: entry.data)
-        default: SmallGlucose(data: entry.data)
+        case .systemLarge: LargeGlucose(data: entry.data, now: entry.date)
+        case .systemMedium: MediumGlucose(data: entry.data, now: entry.date)
+        default: SmallGlucose(data: entry.data, now: entry.date)
         }
     }
 }

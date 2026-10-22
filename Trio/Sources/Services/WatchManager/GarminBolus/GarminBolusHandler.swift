@@ -245,7 +245,8 @@ import UserNotifications
             allowed = request.units
         }
 
-        allowed = min(allowed, GarminBolusSettings.maxBolus)
+        // Same ceiling as the phone's bolus screen: the pump's Max Bolus, nothing lower.
+        allowed = min(allowed, settings.pumpSettings.maxBolus)
         allowed = allowed > 0 ? aps.roundBolus(amount: allowed) : 0
 
         if allowed > 0 {
@@ -360,7 +361,7 @@ import UserNotifications
         // refused rather than quietly cut.
         guard let aps = apsManager, let settings = settingsManager else { return no("Trio isn't ready") }
         if quote.insulin > 0 {
-            let stillAllowed = aps.roundBolus(amount: min(quote.insulin, GarminBolusSettings.maxBolus))
+            let stillAllowed = aps.roundBolus(amount: min(quote.insulin, settings.pumpSettings.maxBolus))
             if stillAllowed < quote.insulin { return no("Limits changed, ask again") }
             if let reason = await safetyRefusal(units: quote.insulin, since: quote.createdAt) { return no(reason) }
         }

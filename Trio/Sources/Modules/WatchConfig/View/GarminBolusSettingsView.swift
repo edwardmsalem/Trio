@@ -5,7 +5,6 @@ import Swinject
 /// Companion for Garmin's screen (github.com/k9track/trio-garmin-companion, MIT).
 struct GarminBolusSettingsView: View {
     @AppStorage(GarminBolusSettings.enabledKey) private var isEnabled = false
-    @AppStorage(GarminBolusSettings.maxBolusKey) private var maxBolus = GarminBolusSettings.defaultMaxBolus
     @AppStorage(GarminBolusSettings.maxCarbsKey) private var maxCarbs = GarminBolusSettings.defaultMaxCarbs
 
     @State private var pin = ""
@@ -26,7 +25,7 @@ struct GarminBolusSettingsView: View {
             Section(
                 header: Text("Watch Bolus"),
                 footer: Text(
-                    "Lets the paired Bolus app on your Garmin watch ask Trio for a bolus and log carbs. Trio works the dose out with its own bolus calculator and you confirm on the watch. Max Bolus, Max IOB, Max Carbs and the recent-bolus check all still apply, plus the watch limits below, and you get a notification for every watch bolus."
+                    "Lets the paired Bolus app on your Garmin watch ask Trio for a bolus and log carbs. Trio works the dose out with its own bolus calculator and you confirm on the watch. Your Max Bolus, Max IOB, Max Carbs and the recent-bolus check apply exactly as on the phone, and you get a notification for every watch bolus."
                 )
             ) {
                 Toggle("Allow Bolus from Garmin", isOn: Binding(
@@ -47,13 +46,6 @@ struct GarminBolusSettingsView: View {
             }.listRowBackground(Color.chart)
 
             Section(header: Text("Watch Limits"), footer: Text(pumpMaxBolusFooter)) {
-                Stepper(value: $maxBolus, in: 0.5 ... 15, step: 0.5) {
-                    HStack {
-                        Text("Max per watch bolus")
-                        Spacer()
-                        Text("\(maxBolus, specifier: "%.1f") U").foregroundColor(.secondary)
-                    }
-                }
                 Stepper(value: $maxCarbs, in: 5 ... 200, step: 5) {
                     HStack {
                         Text("Max carbs per watch entry")
@@ -122,7 +114,7 @@ struct GarminBolusSettingsView: View {
 
     private var pumpMaxBolusFooter: String {
         let base = String(
-            localized: "Above these the watch is limited even if your pump's Max Bolus or Trio's Max Carbs would allow more."
+            localized: "Watch boluses are capped by your pump's Max Bolus, the same as the phone. Carbs from the watch are also capped here, below Trio's Max Carbs."
         )
         guard let pumpMaxBolus else { return base }
         return base + " " +

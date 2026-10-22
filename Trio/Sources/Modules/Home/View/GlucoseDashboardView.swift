@@ -101,7 +101,16 @@ extension Home {
         }
 
         private var cob: Int { Int(state.enactedAndNonEnactedDeterminations.first?.cob ?? 0) }
-        private var basal: Decimal? { state.enactedAndNonEnactedDeterminations.first?.tempBasal?.decimalValue }
+        /// What the pump is delivering now: the running temp, else the scheduled rate.
+        /// The determination's old tempBasal field is never written since 1.0, so it read 0.
+        private var basalText: String {
+            switch state.activeBasalDelivery {
+            case .none: return "-- U/hr"
+            case .suspended: return "Suspended"
+            case let .scheduled(rate),
+                 let .temp(rate): return "\(fmt(rate)) U/hr"
+            }
+        }
 
         /// The loop's predicted eventual glucose, read from the latest determination
         /// (state.eventualBG is never populated — the determination record is the source).
@@ -477,10 +486,22 @@ extension Home {
         }
 
         private var glucoseChart: some View {
-            let lowV = Double(truncating: state.lowGlucose as NSNumber)
-            let highV = Double(truncating: state.highGlucose as NSNumber)
+            let lowMgdL = Double(truncating: state.lowGlucose as NSNumber)
+            let highMgdL = Double(truncating: state.highGlucose as NSNumber)
             let cutoff = Date().addingTimeInterval(-Double(state.hours) * 3600)
             let pts = readings.filter { ($0.date ?? .distantPast) >= cutoff }
+            // Fit the axis to the visible readings and targets (was fixed at 40...240).
+            let axis = GlassChartYAxis.make(
+                readingsMgdL: pts.map { Double($0.glucose) },
+                lowMgdL: lowMgdL,
+                highMgdL: highMgdL,
+                units: state.units
+            )
+            let toDisplay: (Double) -> Double = { mgdL in
+                state.units == .mgdL ? mgdL : mgdL * Double(truncating: GlucoseUnits.exchangeRate as NSNumber)
+            }
+            let lowV = toDisplay(lowMgdL)
+            let highV = toDisplay(highMgdL)
             return Chart {
                 RectangleMark(yStart: .value("lo", lowV), yEnd: .value("hi", highV))
                     .foregroundStyle(TrioGlass.Colors.inRange.opacity(0.10))
@@ -490,11 +511,11 @@ extension Home {
                     .foregroundStyle(.white.opacity(0.18)).lineStyle(StrokeStyle(lineWidth: 1, dash: [1, 5]))
                 ForEach(pts, id: \.objectID) { r in
                     if let d = r.date {
-                        LineMark(x: .value("t", d), y: .value("g", Double(r.glucose)), series: .value("s", "g"))
+                        LineMark(x: .value("t", d), y: .value("g", toDisplay(Double(r.glucose))), series: .value("s", "g"))
                             .interpolationMethod(.catmullRom)
                             .foregroundStyle(TrioGlass.Colors.glucoseLine)
                             .lineStyle(StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
-                        PointMark(x: .value("t", d), y: .value("g", Double(r.glucose)))
+                        PointMark(x: .value("t", d), y: .value("g", toDisplay(Double(r.glucose))))
                             .symbolSize(16)
                             .foregroundStyle(
                                 TrioGlass.Colors
@@ -503,9 +524,9 @@ extension Home {
                     }
                 }
             }
-            .chartYScale(domain: 40 ... 240)
+            .chartYScale(domain: axis.domain)
             .chartYAxis {
-                AxisMarks(position: .trailing, values: [100, 150, 200]) {
+                AxisMarks(position: .trailing, values: axis.gridlines) {
                     AxisValueLabel().font(TrioGlass.text(10, .semibold)).foregroundStyle(TrioGlass.label(0.5))
                 }
             }
@@ -557,7 +578,7 @@ extension Home {
                 }
                 Divider().overlay(Color.white.opacity(0.07))
                 GlassRow(icon: "drop.fill", iconColor: TrioGlass.Colors.inRange, label: "Current Basal") {
-                    Text("\(fmt(basal)) U/hr").font(TrioGlass.rounded(14.5, .bold)).foregroundStyle(TrioGlass.label(0.85))
+                    Text(basalText).font(TrioGlass.rounded(14.5, .bold)).foregroundStyle(TrioGlass.label(0.85))
                 }
             }
         }

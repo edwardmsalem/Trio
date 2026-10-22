@@ -5,6 +5,15 @@ import Swinject
 import UIKit
 import UserNotifications
 
+/// Told about every alert the phone delivers now and every one it takes back, so a
+/// watch can show the same alert. Alerts timed for later are not passed on: the
+/// not-looping alert is scheduled ahead and withdrawn on each loop, and a watch
+/// told at scheduling time would buzz for a problem that never happened.
+protocol WatchAlertObserver {
+    func watchAlertIssued(_ alert: Alert)
+    func watchAlertRetracted(_ identifier: Alert.Identifier)
+}
+
 protocol TrioAlertManager: AnyObject {
     func issueAlert(_ alert: Alert)
     func retractAlert(identifier: Alert.Identifier)
@@ -281,6 +290,9 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         // fires (`alertDidFire`), not now — this is only their arm time.
         if case .immediate = effective.trigger {
             playCriticalAudioFallbackIfNeeded(effective, muted: muted)
+            broadcaster.notify(WatchAlertObserver.self, on: .main) { (observer: WatchAlertObserver) in
+                observer.watchAlertIssued(effective)
+            }
         }
     }
 
@@ -320,6 +332,9 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
             alarmScheduler?.cancelAlarm(for: identifier)
         }
         alertHistoryStorage.removeAlert(identifier: identifier.alertIdentifier)
+        broadcaster.notify(WatchAlertObserver.self, on: .main) { (observer: WatchAlertObserver) in
+            observer.watchAlertRetracted(identifier)
+        }
     }
 
     /// Cold-start replay. Deliberately skips `recordIssued` (entry already

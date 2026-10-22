@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import LoopKit
 import Testing
 
 @testable import Trio
@@ -127,5 +128,22 @@ import Testing
             newestAnyBolusAt: nil
         )
         #expect(GarminBolusProtocol.staleness(of: q, in: w) != nil)
+    }
+}
+
+@Suite("Garmin watch push") struct GarminWatchPushTests {
+    @Test("Every watchface has its own app id") func watchfaceIDsAreUnique() {
+        let ids = GarminWatchface.allCases.map(\.watchfaceUUID)
+        #expect(ids.allSatisfy { $0 != nil })
+        #expect(Set(ids.compactMap { $0 }).count == ids.count)
+    }
+
+    @Test("An alert's watch id is the same every time and fits the watch") func alertIDIsStable() {
+        let id = Alert.Identifier(managerIdentifier: "Trio", alertIdentifier: "lowGlucose")
+        let first = BaseGarminManager.watchAlertID(id)
+        #expect(first == BaseGarminManager.watchAlertID(id))
+        #expect((0 ..< 1_000_000_000).contains(first))
+        let other = Alert.Identifier(managerIdentifier: "Trio", alertIdentifier: "highGlucose")
+        #expect(first != BaseGarminManager.watchAlertID(other))
     }
 }

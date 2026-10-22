@@ -55,6 +55,26 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
     /// It takes the watchface slot because someone on complications is by definition
     /// not running one of the Trio watchfaces, which leaves that slot free.
     case complication
+    /// The sideloaded garmin-glance faces (github.com/edwardmsalem/garmin-glance). They
+    /// read the same array the Trio watchface does, taking the first entry.
+    case aviator
+    case navitimer
+    case offshore
+    case perpetual
+    case quadrant
+    case chronometer
+    case iwcPerpetual
+    case grandmaster
+    case yachtMaster
+    case daytona
+    case skyDweller
+    case yachtMasterII
+    case fieldGMT
+    case luminor
+    case u50
+    case premier
+    case lange
+    case apSport
 
     var displayName: String {
         switch self {
@@ -64,6 +84,42 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
             return String(localized: "Swissalpine", comment: "")
         case .complication:
             return String(localized: "Complication", comment: "")
+        case .aviator:
+            return String(localized: "Aviator", comment: "Garmin watchface name")
+        case .navitimer:
+            return String(localized: "Navitimer", comment: "Garmin watchface name")
+        case .offshore:
+            return String(localized: "Offshore", comment: "Garmin watchface name")
+        case .perpetual:
+            return String(localized: "Perpetual", comment: "Garmin watchface name")
+        case .quadrant:
+            return String(localized: "Enamel Quadrant", comment: "Garmin watchface name")
+        case .chronometer:
+            return String(localized: "Chronometer", comment: "Garmin watchface name")
+        case .iwcPerpetual:
+            return String(localized: "IWC Perpetual", comment: "Garmin watchface name")
+        case .grandmaster:
+            return String(localized: "Grandmaster", comment: "Garmin watchface name")
+        case .yachtMaster:
+            return String(localized: "Yacht-Master", comment: "Garmin watchface name")
+        case .daytona:
+            return String(localized: "Daytona", comment: "Garmin watchface name")
+        case .skyDweller:
+            return String(localized: "Sky-Dweller", comment: "Garmin watchface name")
+        case .yachtMasterII:
+            return String(localized: "Yacht-Master II", comment: "Garmin watchface name")
+        case .fieldGMT:
+            return String(localized: "Field GMT", comment: "Garmin watchface name")
+        case .luminor:
+            return String(localized: "Luminor", comment: "Garmin watchface name")
+        case .u50:
+            return String(localized: "U50", comment: "Garmin watchface name")
+        case .premier:
+            return String(localized: "Premier", comment: "Garmin watchface name")
+        case .lange:
+            return String(localized: "Lange", comment: "Garmin watchface name")
+        case .apSport:
+            return String(localized: "AP Sport", comment: "Garmin watchface name")
         }
     }
 
@@ -80,6 +136,42 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
         case .complication:
             // return UUID(uuidString: "a897ce34-1135-4632-b855-1c75f1ec27bf") // ConnectIQ beta build
             return UUID(uuidString: "0986fd19-604b-4bcb-a931-6f8621738682") // ConnectIQ live build
+        case .aviator:
+            return UUID(uuidString: "3E7C21A9-84D5-4B60-9C13-7A2E5F6D0B48")
+        case .navitimer:
+            return UUID(uuidString: "7C1A9F42-6D3B-4E58-9A21-5F0C8B4D2E77")
+        case .offshore:
+            return UUID(uuidString: "BADE0AD0-BFB8-44D4-B867-95AFF811FB74")
+        case .perpetual:
+            return UUID(uuidString: "63C1451C-1196-4EC3-A39B-03DC00BF63F8")
+        case .quadrant:
+            return UUID(uuidString: "A92C0A61-91C0-45C1-8F04-0F7AB5F92350")
+        case .chronometer:
+            return UUID(uuidString: "C7251B90-3A4E-4F68-9D12-6B8E0A5C7F33")
+        case .iwcPerpetual:
+            return UUID(uuidString: "3C18D242-AC94-4C1D-9421-105036042026")
+        case .grandmaster:
+            return UUID(uuidString: "EB6C5190-0512-413B-871A-6300AA1E2026")
+        case .yachtMaster:
+            return UUID(uuidString: "D5178369-7E4A-40D2-B636-275DF97FA054")
+        case .daytona:
+            return UUID(uuidString: "347CD3AC-6207-4088-AE01-DC3245B49F08")
+        case .skyDweller:
+            return UUID(uuidString: "8D75E2C9-B419-4C0F-976C-CB593DCD67C4")
+        case .yachtMasterII:
+            return UUID(uuidString: "62F190D9-5E08-4708-B1C8-43991496375B")
+        case .fieldGMT:
+            return UUID(uuidString: "A47DBE30-91C6-4875-B052-AE83DFA74619")
+        case .luminor:
+            return UUID(uuidString: "B17AF08D-6F6E-4770-9F15-35AB73DDA128")
+        case .u50:
+            return UUID(uuidString: "6758E4AA-2B40-4AA8-8C1B-84A3751F7F93")
+        case .premier:
+            return UUID(uuidString: "867129CF-432B-426B-AB31-2B66882D474E")
+        case .lange:
+            return UUID(uuidString: "EC2FB1B7-7F87-4F05-ABAF-1816B196AB91")
+        case .apSport:
+            return UUID(uuidString: "9BE57722-AB1A-49D5-BB48-408CCBB36E51")
         }
     }
 }

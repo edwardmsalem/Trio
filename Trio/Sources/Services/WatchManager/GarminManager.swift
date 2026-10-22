@@ -72,6 +72,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// Keeps references to watch apps (both watchface & data field) for each registered device.
     private var watchApps: [IQApp] = []
 
+    /// The Bolus app on each registered device. It owns alerts on the watch, so the
+    /// phone's alerts go to it alone.
+    private var bolusApps: [IQApp] = []
+
     /// Answers the Garmin Bolus app. One instance, so its quote and replay state persist.
     private let garminBolus = GarminBolusHandler()
 
@@ -207,6 +211,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         // Glucose targets are not part of TrioSettings, so editing the target profile
         // notifies this observer rather than firing settingsDidChange.
         broadcaster.register(BGTargetsObserver.self, observer: self)
+        broadcaster.register(WatchAlertObserver.self, observer: self)
 
         coreDataPublisher =
             CoreDataStack.shared.entityChangePublisher
@@ -767,6 +772,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// - Parameter devices: The devices to register.
     private func registerDevices(_ devices: [IQDevice]) {
         watchApps.removeAll()
+        bolusApps.removeAll()
 
         // Reset broadcast hash so newly registered apps receive data
         // Without this, hash deduplication could skip sending to new apps if data unchanged
@@ -800,10 +806,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 connectIQ?.register(forAppMessages: datafieldApp, delegate: self)
             }
 
-            // The Bolus app only ever talks first, so it is listened to but not sent the
-            // watch-state broadcast the face and data field get.
+            // The Bolus app gets the watch-state broadcast too: it keeps its own glance
+            // and raises the watch's alerts, and both read the latest reading.
             if let bolusApp = IQApp(uuid: Self.bolusAppUUID, store: UUID(), device: device) {
                 debugGarmin("Garmin: Registered \(appDetailedName(for: Self.bolusAppUUID))")
+                watchApps.append(bolusApp)
+                bolusApps.append(bolusApp)
                 connectIQ?.register(forAppMessages: bolusApp, delegate: self)
             }
         }
@@ -1192,5 +1200,42 @@ extension BaseGarminManager: BGTargetsObserver {
             debug(.watchManager, "Garmin: Glucose targets changed - scheduling throttled update")
         }
         sendSettingsUpdateThrottled()
+    }
+}
+
+extension BaseGarminManager: WatchAlertObserver {
+    /// Shows a phone alert on the watch, through the Bolus app. The watch keeps one
+    /// buzz per alert id until the matching clear arrives, or four hours pass.
+    func watchAlertIssued(_ alert: Alert) {
+        sendToBolusApps([
+            "command": "alert",
+            "id": Self.watchAlertID(alert.identifier),
+            "title": alert.backgroundContent.title,
+            "body": alert.backgroundContent.body
+        ])
+    }
+
+    func watchAlertRetracted(_ identifier: Alert.Identifier) {
+        sendToBolusApps(["command": "clear", "id": Self.watchAlertID(identifier)])
+    }
+
+    /// A number for the alert that is the same on every launch, because the watch
+    /// matches a clear to its alert by it. Swift's hashValue changes per launch.
+    static func watchAlertID(_ identifier: Alert.Identifier) -> Int {
+        var hash: UInt32 = 5381
+        for byte in identifier.value.utf8 {
+            hash = (hash &* 33) &+ UInt32(byte)
+        }
+        return Int(hash % 1_000_000_000)
+    }
+
+    private func sendToBolusApps(_ message: [String: Any]) {
+        for app in bolusApps {
+            guard let device = app.device, readyDevices.contains(device.uuid) else { continue }
+            connectIQ?.getAppStatus(app) { [weak self] status in
+                guard status?.isInstalled == true else { return }
+                self?.sendMessage(message, to: app, appName: "app:Bolus")
+            }
+        }
     }
 }

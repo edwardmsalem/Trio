@@ -169,3 +169,15 @@ extension View {
 struct Backport<Content: View> {
     let content: Content
 }
+
+extension View {
+    /// Sizes the view to a share of its container's width (the window, a split view column or the
+    /// enclosing scroll view) instead of `UIScreen.main`. The layout then re-flows whenever the
+    /// window changes size, for example when an iPhone Duo is folded or unfolded. On a normal
+    /// iPhone the container is the full screen width, so this matches the old screen sizing.
+    func containerWidth(_ fraction: CGFloat = 1, minus inset: CGFloat = 0, alignment: Alignment = .center) -> some View {
+        containerRelativeFrame(.horizontal, alignment: alignment) { length, _ in
+            max(0, length * fraction - inset)
+        }
+    }
+}

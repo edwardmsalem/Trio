@@ -25,7 +25,7 @@ extension TargetsEditor {
                 let shouldDisableButton = state.shouldDisplaySaving || state.items.isEmpty || !state.hasChanges
 
                 Rectangle()
-                    .frame(width: UIScreen.main.bounds.width, height: 65)
+                    .containerWidth().frame(height: 65)
                     .foregroundStyle(colorScheme == .dark ? Color.bgDarkerDarkBlue : Color.white)
                     .background(.thinMaterial)
                     .opacity(0.8)
@@ -49,10 +49,10 @@ extension TargetsEditor {
                                 }
                                 Text(state.shouldDisplaySaving ? "Saving..." : "Save")
                             }
-                            .frame(width: UIScreen.main.bounds.width * 0.9, alignment: .center)
+                            .containerWidth(0.9)
                             .padding(10)
                         })
-                            .frame(width: UIScreen.main.bounds.width * 0.9, height: 40, alignment: .center)
+                            .containerWidth(0.9).frame(height: 40)
                             .disabled(shouldDisableButton)
                             .background(shouldDisableButton ? Color(.systemGray4) : Color(.systemBlue))
                             .tint(.white)

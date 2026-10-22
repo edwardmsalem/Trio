@@ -146,7 +146,8 @@ struct SystemAlert: UIViewControllerRepresentable {
         )
 
         // force it back to the "real" system style
-        let systemStyle = UIScreen.main.traitCollection.userInterfaceStyle
+        let systemStyle = uiVC.view.window?.windowScene?.screen.traitCollection.userInterfaceStyle
+            ?? uiVC.traitCollection.userInterfaceStyle
         alert.overrideUserInterfaceStyle = systemStyle
 
         alert.addAction(.init(title: denyTitle, style: .cancel) { _ in

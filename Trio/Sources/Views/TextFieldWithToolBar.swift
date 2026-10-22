@@ -361,7 +361,9 @@ public struct TextFieldWithToolBarString: UIViewRepresentable {
     ///   - context: The SwiftUI context that contains the coordinator for handling button actions.
     /// - Returns: A configured UIToolbar with clear and dismiss buttons.
     private func createToolbar(for textField: UITextField, context: Context) -> UIToolbar {
-        let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 50))
+        // The keyboard sizes its accessory view to its own width, so no screen width is needed here.
+        let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: 320, height: 50))
+        toolbar.autoresizingMask = .flexibleWidth
         let flexibleSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         let doneButton = UIBarButtonItem(
             image: UIImage(systemName: "keyboard.chevron.compact.down"),

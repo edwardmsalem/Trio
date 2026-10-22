@@ -448,7 +448,7 @@ struct DummyChartGroupBoxStyle: GroupBoxStyle {
         .padding()
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .background(Color.chart, in: RoundedRectangle(cornerRadius: 12))
-        .frame(width: UIScreen.main.bounds.width * 0.9)
+        .containerWidth(0.9)
     }
 }
 

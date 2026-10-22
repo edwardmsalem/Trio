@@ -102,7 +102,7 @@ extension Main {
 
                 Button(action: onConfirm) {
                     Text("I understand! Proceed")
-                        .frame(width: UIScreen.main.bounds.width - 60, height: 50)
+                        .containerWidth(minus: 60).frame(height: 50)
                         .background(
                             Capsule()
                                 .fill(Color.blue)

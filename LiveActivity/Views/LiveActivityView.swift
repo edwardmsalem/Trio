@@ -36,7 +36,7 @@ struct LiveActivityView: View {
             VStack {
                 LiveActivityBGLabelWatchView(context: context, glucoseColor: glucoseColor)
                 LiveActivityChartView(context: context, additionalState: context.state.detailedViewState)
-                    .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
+                    .frame(maxWidth: .infinity)
             }
             .addLiveActivityModifiers(isWatchOS: true)
 
@@ -60,7 +60,7 @@ struct LiveActivityView: View {
         } else if context.state.useDetailedViewIOS {
             VStack {
                 LiveActivityChartView(context: context, additionalState: context.state.detailedViewState)
-                    .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
+                    .frame(maxWidth: .infinity)
                     .frame(height: 80)
                     .overlay(alignment: .topLeading) {
                         HStack(spacing: 4) {

@@ -25,7 +25,7 @@ extension ISFEditor {
                 let shouldDisableButton = state.items.isEmpty || !state.hasChanges
 
                 Rectangle()
-                    .frame(width: UIScreen.main.bounds.width, height: 65)
+                    .containerWidth().frame(height: 65)
                     .foregroundStyle(colorScheme == .dark ? Color.bgDarkerDarkBlue : Color.white)
                     .background(.thinMaterial)
                     .opacity(0.8)
@@ -54,11 +54,11 @@ extension ISFEditor {
                                     }
                                     Text(state.shouldDisplaySaving ? "Saving..." : "Save")
                                 }
-                                .frame(width: UIScreen.main.bounds.width * 0.9, alignment: .center)
+                                .containerWidth(0.9)
                                 .padding(10)
                             }
                         }
-                        .frame(width: UIScreen.main.bounds.width * 0.9, alignment: .center)
+                        .containerWidth(0.9)
                         .disabled(shouldDisableButton)
                         .background(shouldDisableButton ? Color(.systemGray4) : Color(.systemBlue))
                         .tint(.white)

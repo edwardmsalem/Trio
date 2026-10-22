@@ -49,6 +49,12 @@ extension SettingsExport {
                                 }
                             }
                             .buttonStyle(PlainButtonStyle())
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text(
+                                state.allCategoriesSelected
+                                    ? String(localized: "Deselect All") : String(localized: "Select All")
+                            ))
+                            .accessibilityAddTraits(state.allCategoriesSelected ? [.isButton, .isSelected] : .isButton)
                         }
 
                         // Individual category toggles
@@ -74,6 +80,17 @@ extension SettingsExport {
                                     }
                                 }
                                 .buttonStyle(PlainButtonStyle())
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(Text(category.rawValue))
+                                .accessibilityValue(Text(
+                                    state.selectedCategories.contains(category)
+                                        ? String(localized: "Selected", comment: "Accessibility: checkbox state")
+                                        : String(localized: "Not selected", comment: "Accessibility: checkbox state")
+                                ))
+                                .accessibilityAddTraits(
+                                    state.selectedCategories.contains(category)
+                                        ? [.isButton, .isSelected] : .isButton
+                                )
                             }
                             .padding(.vertical, 2)
                         }

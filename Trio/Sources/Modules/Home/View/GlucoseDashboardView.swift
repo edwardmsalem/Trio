@@ -17,6 +17,7 @@ extension Home {
         /// bindings. Everything else is wired straight through `state` (the StateModel).
         @Binding var showPumpSelection: Bool
         @Binding var showCGMSelection: Bool
+        @Binding var showSnoozeSheet: Bool
         @Binding var selectedTab: Int
 
         /// Active-adjustment info is computed in the parent (it owns the fetches +
@@ -46,7 +47,7 @@ extension Home {
         /// Long-press the glucose number → snooze the alarm (same as stock).
         private func longPressGlucose() {
             haptic(.heavy)
-            state.showModal(for: .snooze)
+            showSnoozeSheet = true
         }
 
         /// Tap the Pod card → pump settings, or the model picker if no pump yet.
@@ -133,7 +134,7 @@ extension Home {
         /// open-loop or slightly behind, green when running normally.
         private var loopColor: Color {
             if isLoopStale { return TrioGlass.Colors.urgent }
-            if !state.closedLoop { return TrioGlass.Colors.high }
+            if state.dosingMode != .closed { return TrioGlass.Colors.high }
             if (loopMinutesAgo ?? 0) > 7 { return TrioGlass.Colors.high }
             return TrioGlass.Colors.inRange
         }
@@ -518,12 +519,23 @@ extension Home {
 
         // MARK: - Loop & Basal
 
+        /// Short dosing-mode label for the Loop Status row (upstream 1.0 replaced the
+        /// closed/open flag with four dosing modes).
+        private var loopModeLabel: String {
+            switch state.dosingMode {
+            case .closed: return "Closed"
+            case .open: return "Open"
+            case .lowGlucoseSuspend: return "LGS"
+            case .basalTesting: return "Basal Test"
+            }
+        }
+
         private var loopBasalRows: some View {
             VStack(spacing: 0) {
                 GlassRow(icon: "arrow.triangle.2.circlepath", iconColor: loopColor, label: "Loop Status") {
                     HStack(spacing: 7) {
                         Circle().fill(loopColor).frame(width: 9, height: 9)
-                        Text(isLoopStale ? "Stale" : (state.closedLoop ? "Closed" : "Open"))
+                        Text(isLoopStale ? "Stale" : loopModeLabel)
                             .font(TrioGlass.rounded(14.5, .bold))
                             .foregroundStyle(loopColor)
                     }

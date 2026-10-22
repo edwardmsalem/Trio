@@ -6,4 +6,7 @@ struct DeterminationData {
     let eventualBG: Int?
     let target: Decimal
     let date: Date?
+    let minForecast: [Int]
+    let maxForecast: [Int]
+    let forecastLines: [(type: String, values: [Int])]
 }

@@ -65,4 +65,12 @@ enum WatchMessageKeys {
     // so the watch can give a discreet haptic when glucose crosses low/high.
     static let lowThreshold = "lowThreshold"
     static let highThreshold = "highThreshold"
+    // Forecast
+    static let showForecastWatch = "showForecastWatch"
+    static let isForecastCone = "isForecastCone"
+    static let forecastData = "forecastData"
+    static let forecastStartDate = "forecastStartDate"
+    static let forecastConeMin = "forecastConeMin"
+    static let forecastConeMax = "forecastConeMax"
+    static let forecastLines = "forecastLines"
 }

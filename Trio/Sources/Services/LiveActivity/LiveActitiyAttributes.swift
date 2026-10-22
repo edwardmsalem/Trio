@@ -54,6 +54,10 @@ struct LiveActivityAttributes: ActivityAttributes {
         let tempTargetDuration: Decimal
         let tempTargetTarget: Decimal
         let widgetItems: [LiveActivityItem]
+        let minForecast: [Int]
+        let maxForecast: [Int]
+        let forecastLines: [ForecastLine]
+        let forecastDisplayType: String
 
         init(
             chart: [ChartItem],
@@ -72,7 +76,11 @@ struct LiveActivityAttributes: ActivityAttributes {
             tempTargetDate: Date,
             tempTargetDuration: Decimal,
             tempTargetTarget: Decimal,
-            widgetItems: [LiveActivityItem]
+            widgetItems: [LiveActivityItem],
+            minForecast: [Int],
+            maxForecast: [Int],
+            forecastLines: [ForecastLine],
+            forecastDisplayType: String
         ) {
             self.chart = chart
             self.rotationDegrees = rotationDegrees
@@ -91,6 +99,10 @@ struct LiveActivityAttributes: ActivityAttributes {
             self.tempTargetDuration = tempTargetDuration
             self.tempTargetTarget = tempTargetTarget
             self.widgetItems = widgetItems
+            self.minForecast = minForecast
+            self.maxForecast = maxForecast
+            self.forecastLines = forecastLines
+            self.forecastDisplayType = forecastDisplayType
         }
 
         init(from decoder: Decoder) throws {
@@ -113,12 +125,23 @@ struct LiveActivityAttributes: ActivityAttributes {
             tempTargetDuration = try c.decode(Decimal.self, forKey: .tempTargetDuration)
             tempTargetTarget = try c.decode(Decimal.self, forKey: .tempTargetTarget)
             widgetItems = try c.decodeIfPresent([LiveActivityItem].self, forKey: .widgetItems) ?? []
+            // Lenient: forecast fields arrived with upstream 1.0 and are missing on
+            // activities persisted by our pre-1.0 builds.
+            minForecast = try c.decodeIfPresent([Int].self, forKey: .minForecast) ?? []
+            maxForecast = try c.decodeIfPresent([Int].self, forKey: .maxForecast) ?? []
+            forecastLines = try c.decodeIfPresent([ForecastLine].self, forKey: .forecastLines) ?? []
+            forecastDisplayType = try c.decodeIfPresent(String.self, forKey: .forecastDisplayType) ?? ""
         }
     }
 
     struct ChartItem: Codable, Hashable {
         let value: Decimal
         let date: Date
+    }
+
+    struct ForecastLine: Codable, Hashable {
+        let type: String
+        let values: [Int]
     }
 
     let startDate: Date

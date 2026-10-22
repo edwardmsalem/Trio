@@ -53,6 +53,8 @@ extension Stat {
                 }
             }
             .background(appState.trioBackgroundColor(for: colorScheme))
+            // Dense charts and stat grids shatter at accessibility sizes; cap tighter than the global bound.
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .onAppear(perform: configureView)
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle("Statistics")

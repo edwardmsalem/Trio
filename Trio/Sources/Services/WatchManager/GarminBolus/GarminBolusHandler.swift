@@ -221,7 +221,7 @@ import UserNotifications
         guard request.centiUnits > 0 || request.carbs > 0 else { return refused("Nothing to deliver") }
         guard let aps = apsManager, let settings = settingsManager else { return refused("Trio isn't ready") }
 
-        let carbLimit = min(settings.settings.maxCarbs, GarminBolusSettings.maxCarbs)
+        let carbLimit = settings.settings.maxCarbs
         let allowedCarbs = min(request.carbs, NSDecimalNumber(decimal: carbLimit).intValue)
 
         // Snapshot before pricing, so anything that lands after is caught at confirm.
@@ -365,7 +365,7 @@ import UserNotifications
             if stillAllowed < quote.insulin { return no("Limits changed, ask again") }
             if let reason = await safetyRefusal(units: quote.insulin, since: quote.createdAt) { return no(reason) }
         }
-        if Decimal(quote.carbs) > min(settings.settings.maxCarbs, GarminBolusSettings.maxCarbs) {
+        if Decimal(quote.carbs) > settings.settings.maxCarbs {
             return no("Limits changed, ask again")
         }
 
@@ -429,7 +429,7 @@ import UserNotifications
         // Negative carbs lower COB and hold insulin back; zero is nothing. Only real
         // food is recorded.
         guard request.carbs > 0 else { return ["carbs": 0] }
-        let limit = min(settingsManager?.settings.maxCarbs ?? 0, GarminBolusSettings.maxCarbs)
+        let limit = settingsManager?.settings.maxCarbs ?? 0
         let grams = min(request.carbs, NSDecimalNumber(decimal: limit).intValue)
         guard grams > 0 else { return ["carbs": 0] }
         do {

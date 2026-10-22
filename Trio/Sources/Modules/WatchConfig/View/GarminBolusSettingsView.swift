@@ -5,7 +5,6 @@ import Swinject
 /// Companion for Garmin's screen (github.com/k9track/trio-garmin-companion, MIT).
 struct GarminBolusSettingsView: View {
     @AppStorage(GarminBolusSettings.enabledKey) private var isEnabled = false
-    @AppStorage(GarminBolusSettings.maxCarbsKey) private var maxCarbs = GarminBolusSettings.defaultMaxCarbs
 
     @State private var pin = ""
     @State private var hasPIN = false
@@ -17,8 +16,6 @@ struct GarminBolusSettingsView: View {
 
     @Environment(\.colorScheme) var colorScheme
     @Environment(AppState.self) var appState
-
-    private var pumpMaxBolus: Decimal? { TrioApp.resolver.resolve(SettingsManager.self)?.pumpSettings.maxBolus }
 
     var body: some View {
         Form {
@@ -42,16 +39,6 @@ struct GarminBolusSettingsView: View {
                 } else if failures >= GarminBolusSettings.maxAuthFailures {
                     Text("Turned off after \(failures) requests with a wrong PIN or key.")
                         .font(.footnote).foregroundColor(.red)
-                }
-            }.listRowBackground(Color.chart)
-
-            Section(header: Text("Watch Limits"), footer: Text(pumpMaxBolusFooter)) {
-                Stepper(value: $maxCarbs, in: 5 ... 200, step: 5) {
-                    HStack {
-                        Text("Max carbs per watch entry")
-                        Spacer()
-                        Text("\(maxCarbs, specifier: "%.0f") g").foregroundColor(.secondary)
-                    }
                 }
             }.listRowBackground(Color.chart)
 
@@ -110,15 +97,6 @@ struct GarminBolusSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { refresh() }
         .onReceive(tick) { _ in refresh() }
-    }
-
-    private var pumpMaxBolusFooter: String {
-        let base = String(
-            localized: "Watch boluses are capped by your pump's Max Bolus, the same as the phone. Carbs from the watch are also capped here, below Trio's Max Carbs."
-        )
-        guard let pumpMaxBolus else { return base }
-        return base + " " +
-            String(localized: "Pump Max Bolus: \(NSDecimalNumber(decimal: pumpMaxBolus).doubleValue, specifier: "%.1f") U.")
     }
 
     private func refresh() {

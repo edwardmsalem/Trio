@@ -9,11 +9,9 @@ import Foundation
 /// Companion for Garmin, MIT licensed: github.com/k9track/trio-garmin-companion.
 enum GarminBolusSettings {
     static let enabledKey = "GarminBolus.enabled"
-    static let maxCarbsKey = "GarminBolus.maxCarbs"
     static let failuresKey = "GarminBolus.authFailures"
     static let pinFailuresKey = "GarminBolus.pinFailures"
     static let pairingUntilKey = "GarminBolus.pairingUntil"
-    static let defaultMaxCarbs: Double = 60
     /// Wrong PINs or signatures in a row before watch bolus switches itself off.
     static let maxAuthFailures = 5
     /// Wrong PINs before the pairing window closes. Its own count, so a correctly
@@ -37,10 +35,6 @@ enum GarminBolusSettings {
 
     static func setEnabled(_ on: Bool) {
         UserDefaults.standard.set(on, forKey: enabledKey)
-    }
-
-    static var maxCarbs: Decimal {
-        Decimal(UserDefaults.standard.object(forKey: maxCarbsKey) as? Double ?? defaultMaxCarbs)
     }
 
     static func isValidPIN(_ pin: String) -> Bool {

@@ -122,7 +122,17 @@ private struct StaleSymbol: View {
 }
 
 /// "@ 10:45" (the reading's clock time). Once stale it adds a live-updating age,
-/// "@ 10:45 · 2 hr, 3 min ago", which the system ticks without a reload.
+/// "@ 10:45 · 2 hr ago", which the system ticks without a reload.
+extension Text {
+    /// Live-updating age of a reading in whole minutes or hours, for example
+    /// "17 min ago" or "2 hr ago". The system ticks it without a widget reload.
+    /// `style: .relative` adds seconds ("16 min, 58 sec"), which ran past the
+    /// width of the widget's left column and got cut off.
+    static func readingAge(since date: Date) -> Text {
+        Text(.currentDate, format: .reference(to: date, allowedFields: [.hour, .minute], maxFieldCount: 1))
+    }
+}
+
 private struct ReadingTimeLabel: View {
     let data: GlucoseWidgetData
     let now: Date
@@ -133,7 +143,7 @@ private struct ReadingTimeLabel: View {
         HStack(spacing: 3) {
             StaleSymbol(data: data, now: now)
             if isStale, showsAgeWhenStale {
-                Text("@ \(data.timeString) · \(Text(data.date, style: .relative)) ago")
+                Text("@ \(data.timeString) · \(Text.readingAge(since: data.date))")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -253,7 +263,7 @@ private struct AccessoryRectangularGlucose: View {
                     Text(data.trend.isEmpty ? "→" : data.trend).font(.system(size: 14, weight: .semibold))
                         .staleStyled(data, at: now)
                     if isStale {
-                        Text("\(Text(data.date, style: .relative)) ago")
+                        Text.readingAge(since: data.date)
                             .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
                     } else {
                         Text(data.delta).font(.caption2).foregroundStyle(.secondary)
@@ -283,7 +293,7 @@ private struct SmallGlucose: View {
                     }
                     TrendGlucose(data: data, now: now, glucoseFont: .system(size: 34, weight: .bold, design: .rounded))
                     if data.age(at: now) > GlucoseWidgetData.staleAfter {
-                        Text("\(Text(data.date, style: .relative)) ago")
+                        Text.readingAge(since: data.date)
                             .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
                     } else {
                         Text(data.delta).font(.caption2).foregroundStyle(.secondary)
@@ -317,7 +327,7 @@ private struct MediumGlucose: View {
                         }
                         TrendGlucose(data: data, now: now, glucoseFont: .system(size: 44, weight: .bold, design: .rounded))
                         if data.age(at: now) > GlucoseWidgetData.staleAfter {
-                            Text("\(Text(data.date, style: .relative)) ago")
+                            Text.readingAge(since: data.date)
                                 .font(.subheadline).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
                         } else {
                             Text("Δ \(data.delta)").font(.subheadline).foregroundStyle(.secondary)

@@ -19,6 +19,12 @@ import Foundation
 /// - Autosens: with Dynamic ISF running, AAPS's TDD-based ratio. Otherwise Trio's autosens ratio,
 ///   standing in for AAPS's own autosens plugin.
 /// - Temp basal rates are rounded down to a rate the pump supports, as Trio's enactment would do.
+/// - Inputs: when the loop passes Trio's history (`context.history`, always in the app), IOB, COB
+///   and glucose status are AAPS's own calculations on that history (`AAPSIob`,
+///   `AAPSMealCalculator`, `AAPSGlucoseStatusCalculator`), with temp basal IOB counted against the
+///   scheduled basal times the autosens ratio above, and carbs absorbed at the 24 h average dynamic
+///   ISF of recent runs (`AAPSCarbIsfCache`). Without it, Trio's own IOB, meal and glucose status
+///   are mapped across.
 enum AAPSDosingAdapter {
     private static func dbl(_ d: Decimal) -> Double { Double(truncating: d as NSNumber) }
 
@@ -49,6 +55,44 @@ enum AAPSDosingAdapter {
         let tdd: Double?
     }
 
+    /// AAPS Dynamic ISF for this run (the plugin's `calculateRawDynIsf`).
+    static func dynamicIsf(
+        context: AAPSDosingContext,
+        profile: Profile,
+        glucose: Double,
+        trioCustomOrefVariables vars: TrioCustomOrefVariables
+    ) -> AAPSDynamicISF.Result {
+        let overrideScalesIsf = vars.useOverride && (vars.isf || vars.isfAndCr)
+        return AAPSDynamicISF.calculate(
+            inputs: context.tdd,
+            glucose: glucose,
+            adjustmentFactorPercent: context.settings.adjustmentFactorPercent,
+            profileMultiplier: overrideScalesIsf ? dbl(vars.overrideFactor()) : 1.0,
+            insulinPeakMinutes: insulinPeakMinutes(profile: profile)
+        )
+    }
+
+    /// Records this run's dynamic ISF in the carb ISF cache, keyed the way AAPS keys it.
+    /// Unchanged when Dynamic ISF is off or did not run.
+    static func updatedCarbIsfCache(
+        context: AAPSDosingContext,
+        profile: Profile,
+        trioCustomOrefVariables vars: TrioCustomOrefVariables,
+        currentTime: Date
+    ) -> AAPSCarbIsfCache? {
+        guard context.settings.dynamicISF, let history = context.history else { return nil }
+        let nowMs = Int64((currentTime.timeIntervalSince1970 * 1000).rounded())
+        guard let gs = AAPSGlucoseStatusCalculator.glucoseStatus(
+            buckets: AAPSGlucoseStatusCalculator.bucketedData(history.glucose),
+            now: nowMs
+        ) else { return nil }
+        let dyn = dynamicIsf(context: context, profile: profile, glucose: gs.glucose, trioCustomOrefVariables: vars)
+        guard dyn.partsCalculated, let variableSensitivity = dyn.variableSensitivity else { return nil }
+        var cache = context.carbIsfCache ?? AAPSCarbIsfCache()
+        cache.record(time: nowMs, glucose: gs.glucose, variableSensitivity: variableSensitivity)
+        return cache
+    }
+
     static func prepare(
         context: AAPSDosingContext,
         profile: Profile,
@@ -67,7 +111,6 @@ enum AAPSDosingAdapter {
 
         let vars = trioCustomOrefVariables
         let overrideFactor = vars.overrideFactor()
-        let overrideScalesIsf = vars.useOverride && (vars.isf || vars.isfAndCr)
 
         var minBg = dbl(profile.minBg ?? 100)
         var maxBg = dbl(profile.maxBg ?? profile.minBg ?? 100)
@@ -89,14 +132,21 @@ enum AAPSDosingAdapter {
             uamMinutes = vars.uamMinutes
         }
 
-        let glucose = dbl(glucoseStatus.glucose)
-        let dyn = AAPSDynamicISF.calculate(
-            inputs: context.tdd,
-            glucose: glucose,
-            adjustmentFactorPercent: settings.adjustmentFactorPercent,
-            profileMultiplier: overrideScalesIsf ? dbl(overrideFactor) : 1.0,
-            insulinPeakMinutes: insulinPeakMinutes(profile: profile)
+        // With Trio's history in AAPS's shape, glucose status comes from AAPS's bucketing.
+        let nowMs = Int64((currentTime.timeIntervalSince1970 * 1000).rounded())
+        let buckets = context.history.flatMap { AAPSGlucoseStatusCalculator.bucketedData($0.glucose) }
+        let aapsGlucoseStatus = AAPSGlucoseStatusCalculator.glucoseStatus(buckets: buckets, now: nowMs)
+        let mappedGlucoseStatus = aapsGlucoseStatus ?? AAPSGlucoseStatus(
+            glucose: dbl(glucoseStatus.glucose),
+            noise: Double(glucoseStatus.noise),
+            delta: dbl(glucoseStatus.delta),
+            shortAvgDelta: dbl(glucoseStatus.shortAvgDelta),
+            longAvgDelta: dbl(glucoseStatus.longAvgDelta),
+            date: Int64(glucoseStatus.date.timeIntervalSince1970 * 1000)
         )
+
+        let glucose = mappedGlucoseStatus.glucose
+        let dyn = dynamicIsf(context: context, profile: profile, glucose: glucose, trioCustomOrefVariables: vars)
         let dynIsfMode = settings.dynamicISF && dyn.partsCalculated && dyn.variableSensitivity != nil
 
         let autosens: AAPSAutosensResult
@@ -149,7 +199,7 @@ enum AAPSDosingAdapter {
             TDD: dyn.tdd ?? 0
         )
 
-        let iobArray = iobData.enumerated().map { index, tick in
+        var iobArray = iobData.enumerated().map { index, tick in
             AAPSIobTotal(
                 time: Int64(tick.time.timeIntervalSince1970 * 1000),
                 iob: dbl(tick.iob),
@@ -161,6 +211,54 @@ enum AAPSDosingAdapter {
                 )
             )
         }
+        var meal = AAPSMealData(
+            carbs: dbl(mealData.carbs),
+            mealCOB: dbl(mealData.mealCOB),
+            slopeFromMaxDeviation: dbl(mealData.slopeFromMaxDeviation),
+            slopeFromMinDeviation: dbl(mealData.slopeFromMinDeviation),
+            lastBolusTime: 0,
+            lastCarbTime: Int64(mealData.lastCarbTime)
+        )
+
+        // AAPS's own IOB and COB from Trio's history: temp basals counted against the scheduled
+        // basal times the autosens ratio the dosing uses, COB from the Oref1 carb chain.
+        if let history = context.history {
+            let curve = AAPSIob.Curve(
+                diaHours: max(dbl(profile.dia ?? 5), 5),
+                peakMinutes: IobCalculation.lookupPeak(
+                    curve: profile.curve,
+                    useCustomPeakTime: profile.useCustomPeakTime,
+                    insulinPeakTime: profile.insulinPeakTime
+                ) ?? 75
+            )
+            iobArray = AAPSIob.iobArray(history: history, now: nowMs, autosensRatio: autosens.ratio, curve: curve)
+            let cache = context.carbIsfCache
+            let isfForCarbs: (Int64) -> Double = { t in
+                let date = Date(timeIntervalSince1970: Double(t) / 1000)
+                let profileIsf = dbl(vars.override(sensitivity: profile.sensitivityFor(time: date)))
+                guard dynIsfMode else { return profileIsf }
+                return cache?.average(upTo: t) ?? profileIsf
+            }
+            let carbRatioAt: (Int64) -> Double = { t in
+                var cr = profile.carbRatioFor(time: Date(timeIntervalSince1970: Double(t) / 1000))
+                if vars.useOverride, vars.cr || vars.isfAndCr { cr /= overrideFactor }
+                return dbl(cr)
+            }
+            let mealSettings = AAPSMealCalculator.Settings(
+                min5mCarbImpact: dbl(profile.min5mCarbImpact),
+                absorptionCutoffHours: dbl(profile.maxMealAbsorptionTime)
+            )
+            let table = AAPSMealCalculator.autosensTable(
+                history: history,
+                buckets: buckets ?? [],
+                now: nowMs,
+                curve: curve,
+                isfForCarbs: isfForCarbs,
+                carbRatio: carbRatioAt,
+                settings: mealSettings
+            )
+            meal = AAPSMealCalculator.mealData(history: history, table: table, now: nowMs, settings: mealSettings)
+        }
 
         var smbAllowed = microBolusAllowed && !vars.smbIsOff
         if smbAllowed, try DosingEngine.isSmbScheduledOff(trioCustomOrefVariables: vars, clock: currentTime) {
@@ -168,26 +266,12 @@ enum AAPSDosingAdapter {
         }
 
         return Prepared(
-            glucoseStatus: AAPSGlucoseStatus(
-                glucose: glucose,
-                noise: Double(glucoseStatus.noise),
-                delta: dbl(glucoseStatus.delta),
-                shortAvgDelta: dbl(glucoseStatus.shortAvgDelta),
-                longAvgDelta: dbl(glucoseStatus.longAvgDelta),
-                date: Int64(glucoseStatus.date.timeIntervalSince1970 * 1000)
-            ),
+            glucoseStatus: mappedGlucoseStatus,
             currentTemp: AAPSCurrentTemp(duration: currentTemp.duration, rate: dbl(currentTemp.rate), minutesrunning: nil),
             iobArray: iobArray,
             profile: oaps,
             autosens: autosens,
-            meal: AAPSMealData(
-                carbs: dbl(mealData.carbs),
-                mealCOB: dbl(mealData.mealCOB),
-                slopeFromMaxDeviation: dbl(mealData.slopeFromMaxDeviation),
-                slopeFromMinDeviation: dbl(mealData.slopeFromMinDeviation),
-                lastBolusTime: 0,
-                lastCarbTime: Int64(mealData.lastCarbTime)
-            ),
+            meal: meal,
             microBolusAllowed: smbAllowed,
             dynIsfMode: dynIsfMode,
             tiersEnabled: vars.isfTiersEnabled && !vars.isfTiers.isEmpty,

@@ -28,7 +28,9 @@ let algorithmModels = [
     "CarbsEntry",
     "Determination",
     "IOBEntry",
+    "AAPSDosingSettings",
     "InsulinSensitivities",
+    "InsulinSensitivityTiers",
     "Override",
     "Preferences",
     "PumpHistoryEvent",
@@ -61,6 +63,8 @@ let package = Package(
         .target(
             name: "Trio",
             path: "Sources",
+            // reads Trio's TDD storage, which needs Core Data; the app target builds it
+            exclude: ["APS/OpenAPSSwift/AAPS/AAPSTddSources.swift"],
             sources: [
                 "APS/OpenAPSSwift",
                 "APS/Extensions/DecimalExtensions.swift"

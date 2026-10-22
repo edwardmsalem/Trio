@@ -53,4 +53,10 @@ extension AAPSDosingSettings {
 struct AAPSDosingContext: Codable, Equatable {
     var settings: AAPSDosingSettings
     var tdd: AAPSDynamicISF.TddInputs
+    /// Trio's pump history, carbs and glucose in AAPS's shape, added by the loop just before dosing.
+    /// With it the AAPS mode computes IOB, COB and glucose status with the AAPS ports
+    /// (`AAPSIob`, `AAPSMealCalculator`, `AAPSGlucoseStatusCalculator`). Nil keeps Trio's own.
+    var history: AAPSHistory?
+    /// Dynamic ISF of recent AAPS-mode runs, for the ISF AAPS uses for carbs.
+    var carbIsfCache: AAPSCarbIsfCache?
 }

@@ -75,4 +75,36 @@ import Testing
         #expect(abs(tieredIsf - stockIsf * 0.8) <= 1)
         #expect(try #require(tiered.carbRatio) < (try #require(stock.carbRatio)))
     }
+
+    @Test("AAPS mode with Trio's history uses AAPS's own IOB, COB and glucose status") func aapsModeOwnInputs() throws {
+        for name in ["high-bg-rising-smb", "low-bg-falling", "post-meal-cob-active", "override-active"] {
+            let base = ParityScenarios.build(name)
+            let history = AAPSHistory.from(
+                pumpHistory: base.pumpHistory,
+                carbs: base.carbs,
+                glucose: base.glucose,
+                basalProfile: base.basalProfile,
+                now: base.clock
+            )
+            let s = Self.scenario(name) {
+                $0.aapsDosing = AAPSDosingContext(settings: .default, tdd: Self.noTdd, history: history)
+            }
+            let out = try ParityScenarios.runPipeline(s)
+            let d = try #require(out.determination)
+            #expect(d.reason.hasPrefix("AAPS dosing (profile ISF"), "\(name): \(d.reason)")
+            if let rate = d.rate { #expect(rate <= (try #require(out.profile.maxBasal)) && rate >= 0) }
+            if let units = d.units { #expect(units <= out.profile.maxIob) }
+
+            let nowMs = Int64((base.clock.timeIntervalSince1970 * 1000).rounded())
+            let curve = AAPSIob.Curve(diaHours: max(Double(truncating: (out.profile.dia ?? 5) as NSNumber), 5), peakMinutes: 75)
+            let iob = AAPSIob.iobArray(
+                history: history, now: nowMs, autosensRatio: Double(truncating: out.autosens.ratio as NSNumber), curve: curve
+            )
+            let ran = d.eventualBG != nil
+            if ran {
+                let reported = try #require(d.iob.map { Double(truncating: $0 as NSNumber) })
+                #expect(abs(reported - iob[0].iob) < 1E-9, "\(name)")
+            }
+        }
+    }
 }

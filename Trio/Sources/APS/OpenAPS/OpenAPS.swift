@@ -317,6 +317,20 @@ final class OpenAPS {
             aaps.tdd.tddLast24H = windows[0] ?? aaps.tdd.tddLast24H
             aaps.tdd.tddLast4H = windows[1]
             aaps.tdd.tddLast8to4H = windows[2]
+            // AAPS's own IOB, COB and glucose status need the history in AAPS's shape. AAPS buckets
+            // the last 24 h + DIA of glucose, so this mode reads 29 h.
+            let aapsGlucose = try await glucoseStorage.getGlucoseForAlgorithm(
+                shouldSmoothGlucose: shouldSmoothGlucose,
+                fetchHours: 29
+            )
+            aaps.history = AAPSHistory.from(
+                pumpHistory: pumpHistory,
+                carbs: carbs,
+                glucose: aapsGlucose,
+                basalProfile: basalProfile,
+                now: clock
+            )
+            aaps.carbIsfCache = await storage.retrieveAsync(OpenAPS.Monitor.aapsCarbIsf, as: AAPSCarbIsfCache.self)
             trioCustomOrefVariables.aapsDosing = aaps
         }
 
@@ -369,6 +383,17 @@ final class OpenAPS {
             // set both timestamp and deliverAt to the SAME date; this will be updated for timestamp once it is enacted
             // AAPS does it the same way! we'll follow their example!
             determination.timestamp = deliverAt
+
+            if !simulation, let aaps = trioCustomOrefVariables.aapsDosing, aaps.settings.enabled,
+               let cache = AAPSDosingAdapter.updatedCarbIsfCache(
+                   context: aaps,
+                   profile: profile,
+                   trioCustomOrefVariables: trioCustomOrefVariables,
+                   currentTime: deliverAt
+               )
+            {
+                await storage.saveAsync(cache, as: OpenAPS.Monitor.aapsCarbIsf)
+            }
 
             if !simulation {
                 // TODO: refactor this to core data

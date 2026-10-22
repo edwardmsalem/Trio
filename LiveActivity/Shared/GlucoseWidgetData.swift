@@ -114,3 +114,37 @@ struct GlucoseWidgetData: Codable {
         )
     }
 }
+
+/// Decides when the app should spend one of iOS's widget reloads. iOS allows a
+/// widget roughly 40 to 70 reloads a day and counts reloads requested while the
+/// app is in the background, so reloading on all ~288 daily CGM readings would
+/// run the budget out and freeze the widget. Reloads while the app is in the
+/// foreground are free.
+enum GlucoseWidgetReloadPolicy {
+    /// What the widget was last told to show.
+    struct Shown: Equatable {
+        let readingDate: Date
+        let glucoseMgdL: Int
+        let trend: String
+        let inRange: Bool
+        let units: String
+    }
+
+    /// Keep this under `GlucoseWidgetData.staleAfter` so a steady reading is
+    /// never dimmed as stale only because a reload was skipped.
+    static let maxInterval: TimeInterval = 14 * 60
+    /// A change this big (mg/dL) is worth a reload right away.
+    static let meaningfulChangeMgdL = 10
+
+    static func shouldReload(new: Shown, last: Shown?, appIsActive: Bool, enteringBackground: Bool) -> Bool {
+        guard let last else { return true }
+        guard new != last else { return false } // same reading: never spend budget
+        if appIsActive || enteringBackground { return true }
+        if new.readingDate <= last.readingDate { return false }
+        if new.units != last.units { return true }
+        if new.inRange != last.inRange { return true }
+        if new.trend != last.trend { return true }
+        if abs(new.glucoseMgdL - last.glucoseMgdL) >= meaningfulChangeMgdL { return true }
+        return new.readingDate.timeIntervalSince(last.readingDate) >= maxInterval
+    }
+}

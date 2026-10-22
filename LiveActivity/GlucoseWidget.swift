@@ -42,15 +42,15 @@ struct GlucoseWidgetProvider: TimelineProvider {
             if crossing > now { entries.append(GlucoseWidgetEntry(date: crossing, data: data)) }
         }
 
-        // While the reading is fresh, ask again shortly after the next CGM reading
-        // is due (readings come every 5 min). The app normally reloads us first,
-        // and this only catches a reload iOS dropped. Once the data is stale the
-        // app is not getting new readings, so back off to save the reload budget.
+        // Safety net only: the app reloads us when a reading is worth it and saves
+        // every reading to the App Group, so a self-scheduled refresh picks up any
+        // reading the app held back to save budget. Spaced like the app's own
+        // longest gap, and slower once stale (no new readings are arriving).
         let refresh: Date
         if data.age(at: now) < GlucoseWidgetData.staleAfter {
-            refresh = max(data.date.addingTimeInterval(6 * 60), now.addingTimeInterval(2 * 60))
+            refresh = max(data.date.addingTimeInterval(GlucoseWidgetReloadPolicy.maxInterval), now.addingTimeInterval(5 * 60))
         } else {
-            refresh = now.addingTimeInterval(20 * 60)
+            refresh = now.addingTimeInterval(30 * 60)
         }
         completion(Timeline(entries: entries, policy: .after(refresh)))
     }

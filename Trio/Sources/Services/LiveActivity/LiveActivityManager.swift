@@ -70,9 +70,9 @@ final class LiveActivityData: ObservableObject {
     /// The current active live activity.
     private var currentActivity: ActiveActivity?
 
-    /// Reading time (plus units) of the last home/lock-screen widget reload, so
-    /// duplicate pushes for the same reading do not spend iOS's reload budget.
-    @MainActor private var lastWidgetReloadKey: String?
+    /// What the home/lock-screen widgets were last reloaded with. See
+    /// GlucoseWidgetReloadPolicy for when a new reading earns a reload.
+    @MainActor private var lastWidgetShown: GlucoseWidgetReloadPolicy.Shown?
 
     private var data = LiveActivityData()
 
@@ -117,6 +117,9 @@ final class LiveActivityData: ObservableObject {
             .addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil) { [weak self] _ in
                 Task { @MainActor in
                     await self?.pushCurrentContent()
+                    // One last reload on the way out so the widget starts from the
+                    // newest reading even if recent ones were held back for budget.
+                    self?.updateGlucoseWidgets(enteringBackground: true)
                 }
             }
         notificationCenter
@@ -445,12 +448,11 @@ final class LiveActivityData: ObservableObject {
 @available(iOS 16.2, *) extension LiveActivityManager {
     static let glucoseWidgetKinds = ["TrioGlucoseLockWidget", "TrioGlucoseHomeWidget"]
 
-    /// Writes the latest reading to the App Group for the glucose widgets and
-    /// reloads them when the reading itself is new. IOB, COB and loop time are
-    /// refreshed in the snapshot on every call, but only a new reading (or a unit
-    /// change) triggers a reload, because background reloads count against the
-    /// widget's daily budget.
-    @MainActor func updateGlucoseWidgets() {
+    /// Writes the latest reading to the App Group for the glucose widgets on every
+    /// call (so any reload, including one iOS schedules itself, shows the newest
+    /// data), then asks iOS to reload them only when GlucoseWidgetReloadPolicy
+    /// says the change is worth one of the limited background reloads.
+    @MainActor func updateGlucoseWidgets(enteringBackground: Bool = false) {
         guard let readings = data.glucoseFromPersistence, let latest = readings.first else { return }
         let units = settings.units
 
@@ -496,9 +498,20 @@ final class LiveActivityData: ObservableObject {
             lastLoopDate: data.determination?.date
         ).save()
 
-        let key = "\(latest.date.timeIntervalSince1970)|\(units.rawValue)"
-        guard key != lastWidgetReloadKey else { return }
-        lastWidgetReloadKey = key
+        let shown = GlucoseWidgetReloadPolicy.Shown(
+            readingDate: latest.date,
+            glucoseMgdL: latest.glucose,
+            trend: (latest.direction?.symbol as? String) ?? "",
+            inRange: inRange,
+            units: units.rawValue
+        )
+        guard GlucoseWidgetReloadPolicy.shouldReload(
+            new: shown,
+            last: lastWidgetShown,
+            appIsActive: UIApplication.shared.applicationState == .active,
+            enteringBackground: enteringBackground
+        ) else { return }
+        lastWidgetShown = shown
         for kind in Self.glucoseWidgetKinds {
             WidgetCenter.shared.reloadTimelines(ofKind: kind)
         }

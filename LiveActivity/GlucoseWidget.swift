@@ -68,6 +68,8 @@ private struct TrendGlucose: View {
             Text(data.glucose)
                 .font(glucoseFont)
                 .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
                 .staleStyled(data, at: now)
             Text(data.trend.isEmpty ? "→" : data.trend)
                 .font(.system(size: 15, weight: .semibold))
@@ -333,6 +335,9 @@ private struct MediumGlucose: View {
                             Text("Δ \(data.delta)").font(.subheadline).foregroundStyle(.secondary)
                         }
                     }
+                    // The reading comes first: without this the IOB/COB row and the
+                    // live age text squeezed a three-digit value down to "1...".
+                    .layoutPriority(1)
                     Spacer()
                     VStack(alignment: .trailing, spacing: 6) {
                         HStack(spacing: 10) {

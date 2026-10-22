@@ -458,6 +458,8 @@
 		7A11AC0DE000000000000114 /* ManualGlucoseEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000014 /* ManualGlucoseEntryView.swift */; };
 		7A11AC0DE000000000000115 /* MultiUsePanelStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000015 /* MultiUsePanelStateTests.swift */; };
 		7A11AC0DE000000000000116 /* GlassChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000016 /* GlassChrome.swift */; };
+		7A11AC0DE000000000000117 /* GlassChartYAxis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000017 /* GlassChartYAxis.swift */; };
+		C4A7A0A1B2C3D4E5F6071802 /* GlassChartYAxisTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A7A0A1B2C3D4E5F6071801 /* GlassChartYAxisTests.swift */; };
 		7A11AC0DE00000000000011D /* PumpEventPredicateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE00000000000001D /* PumpEventPredicateTests.swift */; };
 		7A11AC0DE000000000000171 /* GlassActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000170 /* GlassActionSheet.swift */; };
 		7A2578629224C6CE6F703574 /* PDFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F1CD324262A04E3EFB6F0A /* PDFExportService.swift */; };
@@ -1641,6 +1643,8 @@
 		7A11AC0DE000000000000014 /* ManualGlucoseEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualGlucoseEntryView.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000015 /* MultiUsePanelStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiUsePanelStateTests.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000016 /* GlassChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChrome.swift; sourceTree = "<group>"; };
+		7A11AC0DE000000000000017 /* GlassChartYAxis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChartYAxis.swift; sourceTree = "<group>"; };
+		C4A7A0A1B2C3D4E5F6071801 /* GlassChartYAxisTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlassChartYAxisTests.swift; sourceTree = "<group>"; };
 		7A11AC0DE00000000000001D /* PumpEventPredicateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpEventPredicateTests.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000120 /* HomeStatsPanelFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeStatsPanelFace.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000130 /* UIHostingController+KeyboardSafeArea.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIHostingController+KeyboardSafeArea.swift"; sourceTree = "<group>"; };
@@ -2790,6 +2794,7 @@
 				7A11AC0DE000000000000013 /* MultiUsePanelState.swift */,
 				DB0BB002000000000000000F /* ReleaseNotesSheetView.swift */,
 				7A11AC0DE000000000000016 /* GlassChrome.swift */,
+				7A11AC0DE000000000000017 /* GlassChartYAxis.swift */,
 				7A11AC0DE000000000000010 /* HomeRootView+BottomControls.swift */,
 				7A11AC0DE00000000000000E /* HomeRootView+MealPanel.swift */,
 				7A11AC0DE00000000000000D /* HomeRootView+Header.swift */,
@@ -3499,6 +3504,7 @@
 				B3919BBB515547118D684CE2 /* DosingModeClampTests.swift */,
 				B3919BBB515547118D684CD2 /* LoopIndicatorTests.swift */,
 				A1B2C3D4E5F60718293A4B5D /* GlucoseWidgetFreshnessTests.swift */,
+				C4A7A0A1B2C3D4E5F6071801 /* GlassChartYAxisTests.swift */,
 				B3919BBB515547118D684CC2 /* MaxIOBSuggestionTests.swift */,
 				B3919BBB515547118D684CB2 /* DosingModeMigrationTests.swift */,
 				BD8FC0532D66186000B95AED /* TestError.swift */,
@@ -5973,6 +5979,7 @@
 				DB0BB002000000000000000E /* ReleaseNotesService.swift in Sources */,
 				DB0BB0020000000000000010 /* ReleaseNotesSheetView.swift in Sources */,
 				7A11AC0DE000000000000116 /* GlassChrome.swift in Sources */,
+				7A11AC0DE000000000000117 /* GlassChartYAxis.swift in Sources */,
 				7A11AC0DE000000000000110 /* HomeRootView+BottomControls.swift in Sources */,
 				7A11AC0DE00000000000010E /* HomeRootView+MealPanel.swift in Sources */,
 				7A11AC0DE00000000000010D /* HomeRootView+Header.swift in Sources */,
@@ -6617,6 +6624,7 @@
 				41740E936552456AAC0EDEC3 /* DosingModeClampTests.swift in Sources */,
 				41740E936552456AAC0EDDC3 /* LoopIndicatorTests.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5C /* GlucoseWidgetFreshnessTests.swift in Sources */,
+				C4A7A0A1B2C3D4E5F6071802 /* GlassChartYAxisTests.swift in Sources */,
 				41740E936552456AAC0EDCC3 /* MaxIOBSuggestionTests.swift in Sources */,
 				41740E936552456AAC0EDBC3 /* DosingModeMigrationTests.swift in Sources */,
 				B015AFE52E500000000D7351 /* BolusSafetyValidatorTests.swift in Sources */,

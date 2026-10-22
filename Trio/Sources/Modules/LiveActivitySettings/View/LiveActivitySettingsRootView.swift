@@ -10,6 +10,7 @@ extension LiveActivitySettings {
         @State private var shouldDisplayHintLockScreen: Bool = false
         @State private var shouldDisplayHintSmartStack: Bool = false
         @State private var shouldDisplayHintGlucoseForecasts: Bool = false
+        @State private var shouldDisplayHintSilentRenewal: Bool = false
         @State var hintDetent = PresentationDetent.large
         @State var selectedVerboseHint: AnyView?
         @State var hintLabel: String?
@@ -82,6 +83,35 @@ extension LiveActivitySettings {
                         },
                         headerText: String(localized: "Display Live Data From Trio")
                     )
+
+                    if state.useLiveActivity, state.silentRenewalAvailable {
+                        SettingInputSection(
+                            decimalValue: $decimalPlaceholder,
+                            booleanValue: $state.liveActivitySilentRenewal,
+                            shouldDisplayHint: $shouldDisplayHintSilentRenewal,
+                            selectedVerboseHint: Binding(
+                                get: { selectedVerboseHint },
+                                set: {
+                                    selectedVerboseHint = $0.map { AnyView($0) }
+                                    hintLabel = String(localized: "Keep Live Activity Running")
+                                }
+                            ),
+                            units: state.units,
+                            type: .boolean,
+                            label: String(localized: "Keep Live Activity Running"),
+                            miniHint: String(localized: "Renew it in the background before iOS ends it at 8 hours."),
+                            verboseHint: VStack(alignment: .leading, spacing: 10) {
+                                Text("Default: ON").bold()
+                                Text(
+                                    "iOS ends every Live Activity after 8 hours. With this on, Trio quietly starts a fresh one in the background about 30 minutes before that, so the Lock Screen keeps showing your data without opening the app."
+                                )
+                                Text(
+                                    "If renewal cannot happen (for example with no internet), the Live Activity is replaced the next time you open Trio, as before."
+                                )
+                            },
+                            headerText: String(localized: "Keep Live Activity Running")
+                        )
+                    }
 
                     if state.useLiveActivity {
                         SettingInputSection(
@@ -255,6 +285,15 @@ extension LiveActivitySettings {
                 SettingInputHintView(
                     hintDetent: $hintDetent,
                     shouldDisplayHint: $shouldDisplayHintSmartStack,
+                    hintLabel: hintLabel ?? "",
+                    hintText: selectedVerboseHint ?? AnyView(EmptyView()),
+                    sheetTitle: String(localized: "Help", comment: "Help sheet title")
+                )
+            }
+            .sheet(isPresented: $shouldDisplayHintSilentRenewal) {
+                SettingInputHintView(
+                    hintDetent: $hintDetent,
+                    shouldDisplayHint: $shouldDisplayHintSilentRenewal,
                     hintLabel: hintLabel ?? "",
                     hintText: selectedVerboseHint ?? AnyView(EmptyView()),
                     sheetTitle: String(localized: "Help", comment: "Help sheet title")

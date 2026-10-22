@@ -304,6 +304,27 @@ jobs:
         env:
           CODEX_PROXY_SECRET: ${{ secrets.CODEX_PROXY_SECRET }}
 
+      # Generate the Live Activity APNs key from secrets. The phone signs its own
+      # Live Activity pushes with it (silent renewal past the 8-hour limit). The
+      # file is gitignored. With the secrets unset it is written empty and the
+      # feature hides itself in the app.
+      - name: Generate Live Activity APNs Keys
+        run: |
+          APNS_KEY_BODY=$(printf '%s' "$APNS_KEY_P8" | sed '/-----/d' | tr -d '\n\r ')
+          cat > Trio/Sources/Services/LiveActivity/APNs/LiveActivityAPNSKeys.swift << SWIFT
+          import Foundation
+
+          enum LiveActivityAPNSKeys {
+              static let keyID = "${APNS_KEY_ID}"
+              static let teamID = "${APNS_TEAM_ID}"
+              static let privateKeyBase64 = "${APNS_KEY_BODY}"
+          }
+          SWIFT
+        env:
+          APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          APNS_TEAM_ID: ${{ secrets.APNS_TEAM_ID }}
+
       # Build signed Trio IPA file
       - name: Fastlane Build & Archive
         run: bundle exec fastlane build_trio

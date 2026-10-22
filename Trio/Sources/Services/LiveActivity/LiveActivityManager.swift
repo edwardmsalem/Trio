@@ -76,6 +76,14 @@ final class LiveActivityData: ObservableObject {
 
     private var data = LiveActivityData()
 
+    /// Silent renewal past iOS's 8-hour limit. `nil` when the build has no APNs key.
+    private let renewer = LiveActivityRenewer.makeIfConfigured()
+
+    /// True when this build can renew silently and the setting is on.
+    private var silentRenewalEnabled: Bool {
+        renewer != nil && settings.liveActivitySilentRenewal
+    }
+
     /// A dispatch queue for handling Core Data change notifications.
     private let queue = DispatchQueue(label: "LiveActivityBridge.queue", qos: .userInitiated)
     private var coreDataPublisher: AnyPublisher<Set<NSManagedObjectID>, Never>?
@@ -108,6 +116,11 @@ final class LiveActivityData: ObservableObject {
             }
         }.store(in: &subscriptions)
         loadInitialData()
+        Task { @MainActor in
+            self.renewer?.startObserving { [weak self] activity in
+                Task { @MainActor in await self?.adoptRenewedActivity(activity) }
+            }
+        }
     }
 
     /// Sets up application notifications that trigger live activity updates when the app state changes.
@@ -268,7 +281,14 @@ final class LiveActivityData: ObservableObject {
 
             if let currentActivity {
                 debug(.default, "[LiveActivityManager] Restored live activity: \(currentActivity.activity.id)")
+                renewer?.observePushToken(of: currentActivity.activity)
             }
+        }
+
+        // A newer activity started by a renewal push replaces the current one.
+        // Checked before the cleanup below so the new one is not ended by mistake.
+        if let renewed = newerLiveActivity() {
+            await adoptRenewedActivity(renewed)
         }
 
         // End all unknown activities except the current one
@@ -295,6 +315,14 @@ final class LiveActivityData: ObservableObject {
                 if let stillCurrent = self.currentActivity, stillCurrent.activity.id == currentActivity.activity.id {
                     debug(.default, "[LiveActivityManager] Updating current activity: \(stillCurrent.activity.id)")
                     await stillCurrent.activity.update(content)
+                    // In the background, near the 8-hour limit, start its replacement by push.
+                    if silentRenewalEnabled, let renewer {
+                        await renewer.renewIfDue(
+                            activity: stillCurrent.activity,
+                            content: state,
+                            appIsActive: UIApplication.shared.applicationState == .active
+                        )
+                    }
                 } else {
                     debug(.default, "[LiveActivityManager] Skipped update: currentActivity changed during pushUpdate.")
                 }
@@ -344,11 +372,7 @@ final class LiveActivityData: ObservableObject {
                     staleDate: Date.now.addingTimeInterval(60)
                 )
 
-                let activity = try Activity.request(
-                    attributes: LiveActivityAttributes(startDate: Date.now),
-                    content: expired,
-                    pushType: nil
-                )
+                let activity = try requestActivity(content: expired)
                 currentActivity = ActiveActivity(activity: activity)
                 debug(.default, "[LiveActivityManager] Created new activity: \(activity.id)")
 
@@ -440,6 +464,61 @@ final class LiveActivityData: ObservableObject {
         )
 
         await pushUpdate(content)
+    }
+}
+
+// MARK: - Silent renewal past the 8-hour limit
+
+@available(iOS 16.2, *) extension LiveActivityManager {
+    /// Starts a local activity. With silent renewal on it asks for a push token, and
+    /// falls back to no push type if iOS refuses (for example a build signed
+    /// without the push entitlement), so the activity still starts as before.
+    @MainActor private func requestActivity(
+        content: ActivityContent<LiveActivityAttributes.ContentState>
+    ) throws -> Activity<LiveActivityAttributes> {
+        let attributes = LiveActivityAttributes(startDate: Date.now)
+        if silentRenewalEnabled {
+            do {
+                let activity = try Activity.request(attributes: attributes, content: content, pushType: .token)
+                renewer?.observePushToken(of: activity)
+                return activity
+            } catch {
+                debug(.default, "[LiveActivityManager] push-type activity refused, starting without: \(error)")
+            }
+        }
+        return try Activity.request(attributes: attributes, content: content, pushType: nil)
+    }
+
+    /// A running activity newer than the current one, which only a renewal push starts.
+    @MainActor private func newerLiveActivity() -> Activity<LiveActivityAttributes>? {
+        let currentStart = currentActivity?.activity.attributes.startDate ?? .distantPast
+        return Activity<LiveActivityAttributes>.activities
+            .filter { $0.id != currentActivity?.activity.id }
+            .filter { $0.activityState != .ended && $0.activityState != .dismissed }
+            .filter { $0.attributes.startDate > currentStart }
+            .max { $0.attributes.startDate < $1.attributes.startDate }
+    }
+
+    /// Makes an activity iOS started from a renewal push the current one, ends the
+    /// old one and fills the new one with the full content (the push carried a
+    /// lighter copy to fit APNs' 4 KB limit).
+    @MainActor func adoptRenewedActivity(_ activity: Activity<LiveActivityAttributes>) async {
+        guard activity.id != currentActivity?.activity.id,
+              activity.activityState != .ended, activity.activityState != .dismissed,
+              activity.attributes.startDate > (currentActivity?.activity.attributes.startDate ?? .distantPast)
+        else { return }
+
+        let old = currentActivity
+        currentActivity = ActiveActivity(activity: activity)
+        renewer?.observePushToken(of: activity)
+        renewer?.didAdoptRenewedActivity()
+        debug(.default, "[LiveActivityManager] Adopted renewed activity \(activity.id), replacing \(old?.activity.id ?? "none")")
+
+        if let old {
+            renewer?.forgetActivity(id: old.activity.id)
+            await old.activity.end(nil, dismissalPolicy: .immediate)
+        }
+        await pushCurrentContent()
     }
 }
 

@@ -66,6 +66,9 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var confirmBolus: Bool = false
     var enableQuickPickTreatments: Bool = false
     var useLiveActivity: Bool = false
+    /// Renew the Live Activity in the background before iOS ends it at 8 hours.
+    /// Only shown and used when the build carries an APNs key.
+    var liveActivitySilentRenewal: Bool = true
     var lockScreenView: LockScreenView = .simple
     var smartStackView: LockScreenView = .simple
     var displayGlucoseForecasts: Bool = false
@@ -335,6 +338,10 @@ extension TrioSettings: Decodable {
 
         if let useLiveActivity = try? container.decode(Bool.self, forKey: .useLiveActivity) {
             settings.useLiveActivity = useLiveActivity
+        }
+
+        if let liveActivitySilentRenewal = try? container.decode(Bool.self, forKey: .liveActivitySilentRenewal) {
+            settings.liveActivitySilentRenewal = liveActivitySilentRenewal
         }
 
         if let lockScreenView = try? container.decode(LockScreenView.self, forKey: .lockScreenView) {

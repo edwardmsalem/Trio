@@ -10,12 +10,16 @@ extension LiveActivitySettings {
         @Published var lockScreenView: LockScreenView = .simple
         @Published var smartStackView: LockScreenView = .simple
         @Published var displayGlucoseForecasts = false
+        @Published var liveActivitySilentRenewal = true
+        /// Silent renewal needs an APNs key baked into the build.
+        let silentRenewalAvailable = LiveActivityAPNsCredentials.isConfigured
         override func subscribe() {
             units = settingsManager.settings.units
             subscribeSetting(\.useLiveActivity, on: $useLiveActivity) { useLiveActivity = $0 }
             subscribeSetting(\.lockScreenView, on: $lockScreenView) { lockScreenView = $0 }
             subscribeSetting(\.smartStackView, on: $smartStackView) { smartStackView = $0 }
             subscribeSetting(\.displayGlucoseForecasts, on: $displayGlucoseForecasts) { displayGlucoseForecasts = $0 }
+            subscribeSetting(\.liveActivitySilentRenewal, on: $liveActivitySilentRenewal) { liveActivitySilentRenewal = $0 }
         }
     }
 }

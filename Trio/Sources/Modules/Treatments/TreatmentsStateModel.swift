@@ -582,6 +582,32 @@ extension Treatments {
         ///
         /// - Parameter error: The `Error` returned from an authentication attempt (e.g., via `LAContext.evaluatePolicy`).
         /// - Returns: A localized `String` describing the cause of the authentication failure.
+        /// Names the iOS Settings page that holds the passcode on this device. Touch ID devices,
+        /// including iPhone Duo, call it "Touch ID & Passcode". Face ID devices call it
+        /// "Face ID & Passcode".
+        private func passcodeNotSetMessage() -> String {
+            let context = LAContext()
+            _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+            switch context.biometryType {
+            case .touchID:
+                return String(
+                    localized: "Authentication requires a device passcode. Please set one in iOS Settings > Touch ID & Passcode."
+                )
+            case .opticID:
+                return String(
+                    localized: "Authentication requires a device passcode. Please set one in iOS Settings > Optic ID & Passcode."
+                )
+            case .none:
+                return String(
+                    localized: "Authentication requires a device passcode. Please set one in iOS Settings > Passcode."
+                )
+            default:
+                return String(
+                    localized: "Authentication requires a device passcode. Please set one in iOS Settings > Face ID & Passcode."
+                )
+            }
+        }
+
         private func parseAuthenticationError(from error: Error) -> String {
             guard let laError = error as? LAError else {
                 return String(
@@ -626,9 +652,7 @@ extension Treatments {
                 )
 
             case .passcodeNotSet:
-                return String(
-                    localized: "Authentication requires a device passcode. Please set one in iOS Settings > Face ID & Passcode."
-                )
+                return passcodeNotSetMessage()
 
             case .biometryNotAvailable:
                 return String(

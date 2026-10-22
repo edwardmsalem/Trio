@@ -313,10 +313,15 @@ private struct MediumGlucose: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
                             Circle().fill(data.stalenessColor(at: now)).frame(width: 8, height: 8)
-                            ReadingTimeLabel(data: data, now: now)
+                            ReadingTimeLabel(data: data, now: now, showsAgeWhenStale: false)
                         }
                         TrendGlucose(data: data, now: now, glucoseFont: .system(size: 44, weight: .bold, design: .rounded))
-                        Text("Δ \(data.delta)").font(.subheadline).foregroundStyle(.secondary)
+                        if data.age(at: now) > GlucoseWidgetData.staleAfter {
+                            Text("\(Text(data.date, style: .relative)) ago")
+                                .font(.subheadline).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+                        } else {
+                            Text("Δ \(data.delta)").font(.subheadline).foregroundStyle(.secondary)
+                        }
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 6) {

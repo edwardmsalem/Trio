@@ -20,15 +20,20 @@ enum ForecastGenerator {
         naiveEventualGlucose _: Decimal,
         eventualGlucose: Decimal,
         threshold: Decimal,
-        currentTime: Date
+        currentTime: Date,
+        carbRatioDivisor: Decimal = 1
     ) -> ForecastResult {
         let profileCarbRatio = profile.carbRatio ?? profile.carbRatioFor(time: currentTime)
-        let adjustedCarbRatio: Decimal
+        var adjustedCarbRatio: Decimal
         if trioCustomOrefVariables.useOverride, trioCustomOrefVariables.cr || trioCustomOrefVariables.isfAndCr {
             let overrideFactor = trioCustomOrefVariables.overridePercentage / 100
             adjustedCarbRatio = profileCarbRatio / overrideFactor
         } else {
             adjustedCarbRatio = profileCarbRatio
+        }
+        // damped carb-ratio tier (stock mode); 1 when tiers or the carb tier are off
+        if carbRatioDivisor != 1, carbRatioDivisor > 0 {
+            adjustedCarbRatio /= carbRatioDivisor
         }
 
         let carbSensitivityFactor = adjustedSensitivity / adjustedCarbRatio

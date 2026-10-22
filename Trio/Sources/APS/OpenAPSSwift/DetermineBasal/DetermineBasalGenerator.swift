@@ -120,8 +120,20 @@ enum DeterminationGenerator {
             )
         }
 
+        // ISF tiers (stock mode), as the fork's pre-1.0 JS applied them: the tier scales the
+        // profile ISF before Dynamic ISF and autosens see it, and the optional damped carb tier
+        // scales the carb ratio. `tieredProfile` carries the tiered ISF into those steps only.
+        let tierAdjustment = StockIsfTiers.adjustment(
+            currentGlucose: currentGlucose,
+            trioCustomOrefVariables: trioCustomOrefVariables
+        )
+        var tieredProfile = profile
+        if tierAdjustment.isfMultiplier != 1 {
+            tieredProfile.sens = (profile.sens ?? profile.sensitivityFor(time: currentTime)) * tierAdjustment.isfMultiplier
+        }
+
         let dynamicIsfResult = DynamicISF.calculate(
-            profile: profile,
+            profile: tieredProfile,
             preferences: preferences,
             currentGlucose: currentGlucose,
             trioCustomOrefVariables: trioCustomOrefVariables
@@ -172,18 +184,10 @@ enum DeterminationGenerator {
 
         // this is the `sens` variable in JS, it's the adjusted sensitivity
         let adjustedSensitivity = computeAdjustedSensitivity(
-            sensitivity: profile.sens ?? profile.sensitivityFor(time: currentTime),
+            sensitivity: tieredProfile.sens ?? tieredProfile.sensitivityFor(time: currentTime),
             sensitivityRatio: sensitivityRatio,
             trioCustomOrefVariables: trioCustomOrefVariables
         )
-
-        // TODO(isf-tiers): BG-range ISF tiers and the damped carb-ratio tier are NOT applied here yet.
-        // In the fork's pre-1.0 JS engine (bundle/determine-basal.js, deleted upstream in 1.0) the tiers
-        // rescaled `sens` right at this point, after autosens/dynamic ISF and the override factor, and
-        // before the glucose-impact series is built. The settings still reach this function through
-        // `trioCustomOrefVariables.isfTiersEnabled`, `.isfTiers` and `.carbTierEnabled`, but nothing reads
-        // them. The follow-up task ports AAPS's calculation (including tiers and AAPS-style dynamic ISF)
-        // into this engine behind an equivalence test. Until then the tiers have no effect on looping.
 
         let (adjustedGlucoseTargets, threshold) = adjustGlucoseTargets(
             profile: profile,
@@ -236,7 +240,10 @@ enum DeterminationGenerator {
                         (
                             currentIob *
                                 min(
-                                    profile.profileSensitivity(at: currentTime, trioCustomOrefVaribales: trioCustomOrefVariables),
+                                    tieredProfile.profileSensitivity(
+                                        at: currentTime,
+                                        trioCustomOrefVaribales: trioCustomOrefVariables
+                                    ),
 
                                     adjustedSensitivity
                                 )
@@ -270,7 +277,8 @@ enum DeterminationGenerator {
             naiveEventualGlucose: naiveEventualGlucose,
             eventualGlucose: eventualGlucose,
             threshold: threshold,
-            currentTime: currentTime
+            currentTime: currentTime,
+            carbRatioDivisor: tierAdjustment.carbRatioDivisor
         )
 
         // used for pre dosing decision sanity later on
@@ -281,7 +289,10 @@ enum DeterminationGenerator {
         )
 
         // Build isfReason: "Autosens ratio: X, ISF: Y→Z"
-        let originalSensitivity = profile.profileSensitivity(at: currentTime, trioCustomOrefVaribales: trioCustomOrefVariables)
+        let originalSensitivity = tieredProfile.profileSensitivity(
+            at: currentTime,
+            trioCustomOrefVaribales: trioCustomOrefVariables
+        )
         let isfReason =
             "Autosens ratio: \(sensitivityRatio.jsRounded(scale: 2)), ISF: \(originalSensitivity.jsRounded())→\(adjustedSensitivity.jsRounded())"
 
@@ -324,6 +335,7 @@ enum DeterminationGenerator {
         if profile.smbDeliveryRatio != 0.5 {
             tddReason += ", SMB Ratio: \(min(profile.smbDeliveryRatio, 1))"
         }
+        tddReason += tierAdjustment.reason
 
         let dosingInputs = DosingEngine.prepareDosingInputs(
             profile: profile,

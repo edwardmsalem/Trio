@@ -471,6 +471,7 @@
 		9825E5E923F0B8FA80C8C7C7 /* NightscoutConfigStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A48AE3AC813A49A517846A /* NightscoutConfigStateModel.swift */; };
 		98641AF4F92123DA668AB931 /* CarbRatioEditorRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0BDC6993C1087310EDFC428 /* CarbRatioEditorRootView.swift */; };
 		9A026CB6FADAAF256967888A /* MealScanParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 199E342DE262F59E2C6CE6AF /* MealScanParsingTests.swift */; };
+		9B90AF909A2E6AD788D87E7C /* StockIsfTiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 854434CE3801CB983A74A3AD /* StockIsfTiers.swift */; };
 		9D3F0B796A2B436010F8031B /* DepthCameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EA9E5E57F2A73E25C0BA0D /* DepthCameraCaptureView.swift */; };
 		A2586D7776607539A080C7E2 /* InsulinSensitivityTiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53369AD17780DB0E21D936E8 /* InsulinSensitivityTiers.swift */; };
 		A33352ED40476125EBAC6EE0 /* CarbRatioEditorDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E22146D3DF4853786C78132 /* CarbRatioEditorDataFlow.swift */; };
@@ -1609,6 +1610,7 @@
 		80F5B2D7CE089BA7A9FE7A62 /* CameraCaptureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CameraCaptureView.swift; sourceTree = "<group>"; };
 		82BD4A5D73DB01D8E21B33C4 /* MealScanStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealScanStateModel.swift; sourceTree = "<group>"; };
 		82D67EEB953F07C8D5A55A7C /* ISFTiersEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFTiersEditorStateModel.swift; sourceTree = "<group>"; };
+		854434CE3801CB983A74A3AD /* StockIsfTiers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StockIsfTiers.swift; sourceTree = "<group>"; };
 		8782B44544F38F2B2D82C38E /* NightscoutConfigRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightscoutConfigRootView.swift; sourceTree = "<group>"; };
 		87E573CF03891135E26CAE41 /* GlucoseDashboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlucoseDashboardView.swift; sourceTree = "<group>"; };
 		881E04BA5E0A003DE8E0A9C6 /* HistoryRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryRootView.swift; sourceTree = "<group>"; };
@@ -4689,6 +4691,7 @@
 				3BAE876D2E47F12900FCA8D2 /* DosingEngine.swift */,
 				3B2A3BC02E2B19C600658FB9 /* DynamicISF.swift */,
 				3BAC929C2E56A84E00B853DA /* TempBasalFunctions.swift */,
+				854434CE3801CB983A74A3AD /* StockIsfTiers.swift */,
 			);
 			path = DetermineBasal;
 			sourceTree = "<group>";
@@ -6396,6 +6399,7 @@
 				90E06097D8727699F90CDADF /* AAPSIsfTiers.swift in Sources */,
 				4664BECE9928E65FF421154D /* AAPSDetermineBasalSMB.swift in Sources */,
 				CCD83325D1FCCEB5F11997BC /* AAPSDynamicISF.swift in Sources */,
+				9B90AF909A2E6AD788D87E7C /* StockIsfTiers.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

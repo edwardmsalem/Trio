@@ -29,6 +29,12 @@ struct AlgorithmSettings: BaseView {
                     Text("Additionals").navigationLink(to: .algorithmAdvancedSettings, from: self)
                 }
             ).listRowBackground(Color.chart)
+
+            Section(
+                footer: Text("Doses with the AndroidAPS SMB calculation. On by default; switch off for stock Trio dosing.")
+            ) {
+                Text("AAPS Dosing").navigationLink(to: .aapsDosing, from: self)
+            }.listRowBackground(Color.chart)
         }
         .scrollContentBackground(.hidden)
         .background(appState.trioBackgroundColor(for: colorScheme))

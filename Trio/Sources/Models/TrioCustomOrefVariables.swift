@@ -24,6 +24,9 @@ struct TrioCustomOrefVariables: JSON, Equatable {
     var isfTiersEnabled: Bool
     var isfTiers: [InsulinSensitivityTier]
     var carbTierEnabled: Bool
+    /// AAPS dosing mode inputs. Nil runs stock Trio, which is what every caller that does not
+    /// set it (including the parity goldens) gets.
+    var aapsDosing: AAPSDosingContext?
 
     init(
         average_total_data: Decimal,
@@ -48,7 +51,8 @@ struct TrioCustomOrefVariables: JSON, Equatable {
         uamMinutes: Decimal,
         isfTiersEnabled: Bool = false,
         isfTiers: [InsulinSensitivityTier] = [],
-        carbTierEnabled: Bool = false
+        carbTierEnabled: Bool = false,
+        aapsDosing: AAPSDosingContext? = nil
     ) {
         self.average_total_data = average_total_data
         self.weightedAverage = weightedAverage
@@ -73,6 +77,7 @@ struct TrioCustomOrefVariables: JSON, Equatable {
         self.isfTiersEnabled = isfTiersEnabled
         self.isfTiers = isfTiers
         self.carbTierEnabled = carbTierEnabled
+        self.aapsDosing = aapsDosing
     }
 }
 
@@ -101,5 +106,6 @@ extension TrioCustomOrefVariables {
         case isfTiersEnabled
         case isfTiers
         case carbTierEnabled
+        case aapsDosing
     }
 }

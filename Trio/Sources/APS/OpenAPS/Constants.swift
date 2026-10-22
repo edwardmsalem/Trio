@@ -12,6 +12,7 @@ extension OpenAPS {
         static let carbRatios = "settings/carb_ratios.json"
         static let tempTargets = "settings/temptargets.json"
         static let insulinSensitivityTiers = "settings/insulin_sensitivity_tiers.json"
+        static let aapsDosing = "settings/aaps_dosing.json"
     }
 
     enum Monitor {

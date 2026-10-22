@@ -120,6 +120,23 @@ enum DeterminationGenerator {
             )
         }
 
+        // AAPS dosing mode: Eddie's AAPS fork's DetermineBasalSMB, proven equal to AAPS's logged
+        // decisions by the equivalence test. Basal Testing (suspend only) stays on the stock path.
+        if let aapsContext = trioCustomOrefVariables.aapsDosing, aapsContext.settings.enabled, !profile.suspendOnly {
+            return try AAPSDosingAdapter.determine(
+                context: aapsContext,
+                profile: profile,
+                currentTemp: currentTemp,
+                iobData: iobData,
+                mealData: mealData,
+                autosensData: autosensData,
+                glucoseStatus: glucoseStatus,
+                microBolusAllowed: microBolusAllowed,
+                trioCustomOrefVariables: trioCustomOrefVariables,
+                currentTime: currentTime
+            )
+        }
+
         // ISF tiers (stock mode), as the fork's pre-1.0 JS applied them: the tier scales the
         // profile ISF before Dynamic ISF and autosens see it, and the optional damped carb tier
         // scales the carb ratio. `tieredProfile` carries the tiered ISF into those steps only.

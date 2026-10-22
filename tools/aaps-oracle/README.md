@@ -62,3 +62,20 @@ Feed the same extracted inputs to the Trio engine under test and diff its
 eventual BG, insulinReq, SMB units and temp rate against `A` in `rows.json`
 (or against `dbsmb.determine_basal` directly). A port is equivalent when it
 reproduces the same match count.
+
+## The Swift port in Trio
+
+Trio's Swift engine has the same calculation as an "AAPS dosing" mode
+(`Trio/Sources/APS/OpenAPSSwift/AAPS/`). Its equivalence test,
+`TrioTests/OpenAPSSwiftTests/AAPS/AAPSEquivalenceTests.swift`, reads the same
+`aps.jsonl` (and the raw `logs/` folder for the Dynamic ISF check) and skips
+when the folder is not given:
+
+```
+TEST_RUNNER_AAPS_ORACLE_DIR=<private folder> xcodebuild test-without-building \
+  -workspace Trio.xcworkspace -scheme "Trio Tests" \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath <dd>
+```
+
+On the 1,020 runs the Swift port matches AAPS on every field it checks,
+including the eventual BG at BG 71 that this Python oracle misses by 1.

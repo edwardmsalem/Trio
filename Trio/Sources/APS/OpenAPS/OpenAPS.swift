@@ -302,7 +302,23 @@ final class OpenAPS {
         let basalProfile = try JSONBridge.basalProfile(from: rawBasalProfile)
         let autosens = try JSONBridge.autosens(from: rawAutosens.isEmpty ? .null : rawAutosens)
         let reservoir = Decimal(string: rawReservoir) ?? 100
-        let trioCustomOrefVariables = try JSONBridge.trioCustomOrefVariables(from: rawTrioCustomOrefVariables)
+        var trioCustomOrefVariables = try JSONBridge.trioCustomOrefVariables(from: rawTrioCustomOrefVariables)
+        if var aaps = trioCustomOrefVariables.aapsDosing {
+            // AAPS Dynamic ISF windows, summed from this run's pump history the way AAPS sums them
+            let windows = [(-24.0, 0.0), (-4.0, 0.0), (-8.0, -4.0)].map { start, end in
+                AAPSTddSources.insulin(
+                    from: clock.addingTimeInterval(start * 3600),
+                    to: clock.addingTimeInterval(end * 3600),
+                    pumpHistory: pumpHistory,
+                    basalProfile: basalProfile,
+                    now: clock
+                )
+            }
+            aaps.tdd.tddLast24H = windows[0] ?? aaps.tdd.tddLast24H
+            aaps.tdd.tddLast4H = windows[1]
+            aaps.tdd.tddLast8to4H = windows[2]
+            trioCustomOrefVariables.aapsDosing = aaps
+        }
 
         // Meal calculation
         let meal = try self.meal(
@@ -419,6 +435,36 @@ final class OpenAPS {
                 as: InsulinSensitivityTiers.self
             ) ?? InsulinSensitivityTiers(enabled: false, tiers: [])
 
+            // AAPS dosing mode (on unless switched off): gather the TDD and carb figures AAPS
+            // Dynamic ISF needs. The 24 h, 4 h and 8-to-4 h windows are added in determineBasal,
+            // where the pump history is loaded.
+            let aapsSettings = self.storage.retrieve(OpenAPS.Settings.aapsDosing, as: AAPSDosingSettings.self)
+                ?? AAPSDosingSettings.default
+            var aapsContext: AAPSDosingContext?
+            if aapsSettings.enabled {
+                let now = Date()
+                let tddRecords = historicalTDDData.compactMap { row -> (date: Date, total: Double)? in
+                    guard let date = row["date"] as? Date, let total = row["total"] as? NSDecimalNumber else { return nil }
+                    return (date, total.doubleValue)
+                }
+                let daily = AAPSTddSources.dailyTotals(records: tddRecords, now: now)
+                let carbRows = try self.fetchCarbsForAAPS(from: now.addingTimeInterval(-9.days.timeInterval), on: context)
+                let carbs = AAPSTddSources.carbTotals(entries: carbRows, now: now)
+                aapsContext = AAPSDosingContext(
+                    settings: aapsSettings,
+                    tdd: AAPSDynamicISF.TddInputs(
+                        tdd1D: daily.tdd1D,
+                        tdd7D: daily.tdd7D,
+                        tddLast24H: currentTDD > 0 ? NSDecimalNumber(decimal: currentTDD).doubleValue : nil,
+                        tddLast4H: nil,
+                        tddLast8to4H: nil,
+                        tddLast24HCarbs: carbs.last24h,
+                        tdd7DDataCarbs: carbs.sevenDayAverage,
+                        tdd7DAllDaysHaveCarbs: carbs.allDaysHaveCarbs
+                    )
+                )
+            }
+
             // Prepare Trio's custom oref variables
             let trioCustomOrefVariablesData = TrioCustomOrefVariables(
                 average_total_data: currentTDD > 0 ? averageTDDLastTenDays : 0,
@@ -443,7 +489,8 @@ final class OpenAPS {
                 uamMinutes: activeOverrides.first?.uamMinutes?.decimalValue ?? maxUAMBasalMinutes,
                 isfTiersEnabled: isfTiersSettings.enabled,
                 isfTiers: isfTiersSettings.tiers,
-                carbTierEnabled: isfTiersSettings.carbTierEnabled
+                carbTierEnabled: isfTiersSettings.carbTierEnabled,
+                aapsDosing: aapsContext
             )
 
             // Save and return contents of Trio's custom oref variables
@@ -819,6 +866,22 @@ extension OpenAPS {
             ascending: true,
             propertiesToFetch: ["date", "total"]
         ) as? [[String: Any]] ?? []
+    }
+
+    /// Carb entries the person made (fat and protein equivalents excluded), for AAPS Dynamic ISF.
+    func fetchCarbsForAAPS(from date: Date, on context: NSManagedObjectContext) throws -> [(date: Date, carbs: Double)] {
+        let rows = try CoreDataStack.shared.fetchEntities(
+            ofType: CarbEntryStored.self,
+            onContext: context,
+            predicate: NSPredicate(format: "date > %@ AND (isFPU == NO OR isFPU == nil)", date as NSDate),
+            key: "date",
+            ascending: true,
+            propertiesToFetch: ["date", "carbs"]
+        ) as? [[String: Any]] ?? []
+        return rows.compactMap { row in
+            guard let date = row["date"] as? Date, let carbs = row["carbs"] as? Double else { return nil }
+            return (date, carbs)
+        }
     }
 
     func fetchGlucose(on context: NSManagedObjectContext) throws -> [GlucoseStored] {

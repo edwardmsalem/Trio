@@ -173,6 +173,17 @@ enum SettingItems {
             path: ["Algorithm", "ISF Tiers"]
         ),
         SettingItem(
+            title: "AAPS Dosing",
+            view: .aapsDosing,
+            searchContents: [
+                "AAPS Dosing",
+                "AndroidAPS",
+                "AAPS Dynamic ISF",
+                "Tier order"
+            ],
+            path: ["Algorithm", "AAPS Dosing"]
+        ),
+        SettingItem(
             title: "Target Behavior",
             view: .targetBehavior,
             searchContents: [

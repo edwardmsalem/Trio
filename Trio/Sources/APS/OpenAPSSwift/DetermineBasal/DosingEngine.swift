@@ -59,7 +59,7 @@ enum DosingEngine {
     }
 
     /// helper function to check if SMB is scheduled off given the current timezone
-    private static func isSmbScheduledOff(trioCustomOrefVariables: TrioCustomOrefVariables, clock: Date) throws -> Bool {
+    static func isSmbScheduledOff(trioCustomOrefVariables: TrioCustomOrefVariables, clock: Date) throws -> Bool {
         guard trioCustomOrefVariables.smbIsScheduledOff else {
             return false
         }

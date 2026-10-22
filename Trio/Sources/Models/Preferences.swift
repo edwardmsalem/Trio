@@ -30,8 +30,8 @@ struct Preferences: JSON, Equatable {
     var enableSMBAlways: Bool = false
     var enableSMBAfterCarbs: Bool = false
     var allowSMBWithHighTemptarget: Bool = false
-    var maxSMBBasalMinutes: Decimal = 30
-    var maxUAMSMBBasalMinutes: Decimal = 30
+    var maxSMBBasalMinutes: Decimal = 120
+    var maxUAMSMBBasalMinutes: Decimal = 120
     var smbInterval: Decimal = 3
     var bolusIncrement: Decimal = 0.1
     var curve: InsulinCurve = .rapidActing

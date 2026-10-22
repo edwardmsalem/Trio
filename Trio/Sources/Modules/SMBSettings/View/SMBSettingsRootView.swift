@@ -249,8 +249,8 @@ extension SMBSettings {
                     verboseHint: VStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 10) {
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("Default: 30 minutes").bold()
-                                Text("(50% current basal rate)").bold()
+                                Text("Default: 120 minutes").bold()
+                                Text("(200% current basal rate)").bold()
                             }
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(
@@ -270,7 +270,7 @@ extension SMBSettings {
 
                         VStack(alignment: .leading, spacing: 10) {
                             Text(
-                                "Warning: Increasing this value above 90 minutes may impact Trio's ability to effectively zero temp and prevent lows."
+                                "Warning: Increasing this value above 120 minutes (the most AndroidAPS allows) may impact Trio's ability to effectively zero temp and prevent lows."
                             ).bold()
                             Text("Note: SMBs must be enabled to use this limit.")
                         }
@@ -295,8 +295,8 @@ extension SMBSettings {
                     verboseHint: VStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 10) {
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("Default: 30 minutes").bold()
-                                Text("(50% current basal rate)").bold()
+                                Text("Default: 120 minutes").bold()
+                                Text("(200% current basal rate)").bold()
                             }
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(
@@ -315,7 +315,7 @@ extension SMBSettings {
                         }
                         VStack(alignment: .leading, spacing: 10) {
                             Text(
-                                "Warning: Increasing this value above 90 minutes may impact Trio's ability to effectively zero temp and prevent lows."
+                                "Warning: Increasing this value above 120 minutes (the most AndroidAPS allows) may impact Trio's ability to effectively zero temp and prevent lows."
                             ).bold()
                             Text("Note: UAM SMBs must be enabled to use this limit.")
                         }

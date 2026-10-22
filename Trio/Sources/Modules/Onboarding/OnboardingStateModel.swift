@@ -241,8 +241,8 @@ extension Onboarding {
         var highGlucoseTarget: Decimal = 110
         var allowSMBWithHighTempTarget: Bool = false
         var enableUAM: Bool = false
-        var maxSMBMinutes: Decimal = 30
-        var maxUAMMinutes: Decimal = 30
+        var maxSMBMinutes: Decimal = 120
+        var maxUAMMinutes: Decimal = 120
         var maxDeltaGlucoseThreshold: Decimal = 0.2
 
         // Target Behavior

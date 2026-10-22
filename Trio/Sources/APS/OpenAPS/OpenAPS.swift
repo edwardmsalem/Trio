@@ -500,8 +500,8 @@ final class OpenAPS {
             // Retrieve user preferences
             let userPreferences = self.storage.retrieve(OpenAPS.Settings.preferences, as: Preferences.self)
             let weightPercentage = userPreferences?.weightPercentage ?? 1.0
-            let maxSMBBasalMinutes = userPreferences?.maxSMBBasalMinutes ?? 30
-            let maxUAMBasalMinutes = userPreferences?.maxUAMSMBBasalMinutes ?? 30
+            let maxSMBBasalMinutes = userPreferences?.maxSMBBasalMinutes ?? 120
+            let maxUAMBasalMinutes = userPreferences?.maxUAMSMBBasalMinutes ?? 120
 
             // Fetch historical events for Total Daily Dose (TDD) calculation
             let tenDaysAgo = Date().addingTimeInterval(-10.days.timeInterval)

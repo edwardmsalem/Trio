@@ -299,8 +299,8 @@ enum AlgorithmSettingsSubstep: Int, CaseIterable, Identifiable {
         case .maxSMBMinutes:
             return VStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Default: 30 minutes").bold().foregroundStyle(Color.primary)
-                    Text("(50% current basal rate)")
+                    Text("Default: 120 minutes").bold().foregroundStyle(Color.primary)
+                    Text("(200% current basal rate)")
                     VStack(alignment: .leading, spacing: 8) {
                         Text(
                             "This is a limit on the size of a single SMB. One SMB can only be as large as this many minutes of your current profile basal rate."
@@ -319,7 +319,7 @@ enum AlgorithmSettingsSubstep: Int, CaseIterable, Identifiable {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(
-                        "Warning: Increasing this value above 90 minutes may impact Trio's ability to effectively zero temp and prevent lows."
+                        "Warning: Increasing this value above 120 minutes (the most AndroidAPS allows) may impact Trio's ability to effectively zero temp and prevent lows."
                     ).bold()
                     Text("Note: SMBs must be enabled to use this limit.")
                 }
@@ -327,8 +327,8 @@ enum AlgorithmSettingsSubstep: Int, CaseIterable, Identifiable {
         case .maxUAMMinutes:
             return VStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Default: 30 minutes").bold().foregroundStyle(Color.primary)
-                    Text("(50% current basal rate)")
+                    Text("Default: 120 minutes").bold().foregroundStyle(Color.primary)
+                    Text("(200% current basal rate)")
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(

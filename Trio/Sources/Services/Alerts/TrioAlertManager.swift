@@ -290,8 +290,12 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         // fires (`alertDidFire`), not now — this is only their arm time.
         if case .immediate = effective.trigger {
             playCriticalAudioFallbackIfNeeded(effective, muted: muted)
-            broadcaster.notify(WatchAlertObserver.self, on: .main) { (observer: WatchAlertObserver) in
-                observer.watchAlertIssued(effective)
+            // Alerts are issued from background queues (the loop, device managers),
+            // and notify asserts it runs on the queue it names, so hop to main first.
+            Task { @MainActor in
+                self.broadcaster.notify(WatchAlertObserver.self, on: .main) { (observer: WatchAlertObserver) in
+                    observer.watchAlertIssued(effective)
+                }
             }
         }
     }
@@ -332,8 +336,12 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
             alarmScheduler?.cancelAlarm(for: identifier)
         }
         alertHistoryStorage.removeAlert(identifier: identifier.alertIdentifier)
-        broadcaster.notify(WatchAlertObserver.self, on: .main) { (observer: WatchAlertObserver) in
-            observer.watchAlertRetracted(identifier)
+        // NotLoopingMonitor retracts from a background queue after every loop.
+        // notify asserts it runs on the queue it names, so hop to main first.
+        Task { @MainActor in
+            self.broadcaster.notify(WatchAlertObserver.self, on: .main) { (observer: WatchAlertObserver) in
+                observer.watchAlertRetracted(identifier)
+            }
         }
     }
 

@@ -124,31 +124,37 @@ class CoreDataStack: ObservableObject {
         return taskContext
     }
 
+    /// Lets one history fetch run at a time. Overlapping fetches all start from the same
+    /// token and re-read the same backlog, which is what kept the store busy for minutes on
+    /// the first launch after an upgrade (nightscout/Trio#1638).
+    private let historyFetchGate = HistoryFetchGate()
+
     func fetchPersistentHistory() async {
+        guard await historyFetchGate.begin() else { return }
+        repeat {
+            await fetchPersistentHistoryOnce()
+        } while await historyFetchGate.finish()
+    }
+
+    private func fetchPersistentHistoryOnce() async {
         do {
             try await fetchPersistentHistoryTransactionsAndChanges()
         } catch let error as NSError where error.code == NSPersistentHistoryTokenExpiredError {
-            debug(.coreData, "Persistent history token expired; clearing token and replaying available history.")
-            await recoverFromExpiredHistoryToken()
+            debug(.coreData, "Persistent history token expired; jumping to the current token.")
+            await jumpToCurrentHistoryToken()
         } catch {
             debug(.coreData, "\(error)")
         }
     }
 
     /// Recovers the change-merge pipeline after the persistent history token expires.
-    private func recoverFromExpiredHistoryToken() async {
-        lastToken = nil
-        do {
-            try await fetchPersistentHistoryTransactionsAndChanges()
-        } catch {
-            debug(.coreData, "Replay after token reset failed; jumping to current token. \(error)")
-            let viewContext = persistentContainer.viewContext
-            let currentToken = persistentContainer.persistentStoreCoordinator
-                .currentPersistentHistoryToken(fromStores: nil)
-            lastToken = currentToken
-            await viewContext.perform {
-                viewContext.refreshAllObjects()
-            }
+    /// Replaying all remaining history (up to a week of loop writes) blocked the store, so
+    /// skip to now and refresh the view context instead.
+    private func jumpToCurrentHistoryToken() async {
+        let viewContext = persistentContainer.viewContext
+        lastToken = persistentContainer.persistentStoreCoordinator.currentPersistentHistoryToken(fromStores: nil)
+        await viewContext.perform {
+            viewContext.refreshAllObjects()
         }
     }
 
@@ -163,6 +169,9 @@ class CoreDataStack: ObservableObject {
             let changeRequest = NSPersistentHistoryChangeRequest.fetchHistory(after: self.lastToken)
             let historyResult = try taskContext.execute(changeRequest) as? NSPersistentHistoryResult
             if let history = historyResult?.result as? [NSPersistentHistoryTransaction], !history.isEmpty {
+                // Advance now, not after the merge on the main queue, so the next fetch
+                // starts after these transactions instead of reading them again.
+                self.lastToken = history.last?.token
                 self.mergePersistentHistoryChanges(from: history)
                 return
             }
@@ -179,7 +188,6 @@ class CoreDataStack: ObservableObject {
         viewContext.perform {
             for transaction in history {
                 viewContext.mergeChanges(fromContextDidSave: transaction.objectIDNotification())
-                self.lastToken = transaction.token
             }
 
             // Notify app-side observers (services) about which objects changed. This history-sourced
@@ -285,6 +293,12 @@ class CoreDataStack: ObservableObject {
                 let error = CoreDataError.storeNotInitializedError(function: #function, file: #file)
                 throw error
             }
+
+            // The view context starts empty, so history written before this launch has nothing
+            // to merge into. Start the history feed at the current token; a stale or missing
+            // token (seen after upgrading from 0.8.x) otherwise replays up to a week of writes
+            // and blocks the store, the loop, CGM storage and Home (nightscout/Trio#1638).
+            lastToken = persistentContainer.persistentStoreCoordinator.currentPersistentHistoryToken(fromStores: nil)
 
             setupPersistentStoreChangeNotifications()
 
@@ -631,5 +645,31 @@ extension NSManagedObjectContext {
             )
             throw error
         }
+    }
+}
+
+/// One persistent history fetch at a time; a request that arrives during a fetch runs once after it.
+actor HistoryFetchGate {
+    private var running = false
+    private var pending = false
+
+    /// True when the caller should fetch now. False when a fetch is already running (it will rerun).
+    func begin() -> Bool {
+        if running {
+            pending = true
+            return false
+        }
+        running = true
+        return true
+    }
+
+    /// True when another request came in during the fetch, so the caller should fetch again.
+    func finish() -> Bool {
+        if pending {
+            pending = false
+            return true
+        }
+        running = false
+        return false
     }
 }

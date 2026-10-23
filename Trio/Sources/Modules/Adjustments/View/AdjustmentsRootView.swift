@@ -5,7 +5,7 @@ import Swinject
 extension Adjustments {
     struct RootView: BaseView {
         let resolver: Resolver
-        @State var state = StateModel()
+        @State var state: StateModel
         @State var isEditing = false
         @State var showOverrideCreationSheet = false
         @State var showTempTargetCreationSheet = false
@@ -25,6 +25,14 @@ extension Adjustments {
         @State var showCancelOverrideConfirmDialog = false
         @State var showCancelTempTargetConfirmDialog = false
         @State var pendingPresetActivation: PendingPresetActivation?
+
+        /// `initialTab` lets Home open this screen straight on Temp Targets.
+        init(resolver: Resolver, initialTab: Adjustments.Tab = .overrides) {
+            self.resolver = resolver
+            let state = StateModel()
+            state.selectedTab = initialTab
+            _state = State(initialValue: state)
+        }
 
         private var shouldDisplayStickyOverrideStopButton: Bool {
             state.isOverrideEnabled && state.activeOverrideName.isNotEmpty

@@ -22,6 +22,57 @@ import Testing
 
     static let noTdd = AAPSDynamicISF.TddInputs()
 
+    /// The scenario with a running temp target (started 10 minutes ago) and AAPS mode on.
+    static func withTempTarget(
+        _ name: String,
+        target: Decimal,
+        allowSMBWithHighTemptarget: Bool
+    ) -> ParityScenario {
+        let s = scenario(name) { $0.aapsDosing = AAPSDosingContext(settings: .default, tdd: noTdd) }
+        var preferences = s.preferences
+        preferences.allowSMBWithHighTemptarget = allowSMBWithHighTemptarget
+        let tempTarget = TempTarget(
+            name: "Home", createdAt: s.clock.addingTimeInterval(-10 * 60), targetTop: target, targetBottom: target,
+            duration: 60, enteredBy: TempTarget.local, reason: TempTarget.custom, isPreset: false, enabled: true,
+            halfBasalTarget: nil
+        )
+        return ParityScenario(
+            name: s.name, clock: s.clock, glucose: s.glucose, pumpHistory: s.pumpHistory, carbs: s.carbs,
+            tempTargets: [tempTarget], preferences: preferences, orefVariables: s.orefVariables,
+            currentTemp: s.currentTemp, reservoir: s.reservoir, pumpSettings: s.pumpSettings, bgTargets: s.bgTargets,
+            basalProfile: s.basalProfile, isf: s.isf, carbRatios: s.carbRatios
+        )
+    }
+
+    @Test("a temp target is the AAPS target, and a high one stops SMB unless allowed") func aapsTempTarget() throws {
+        let name = "high-bg-rising-smb"
+        let plain = try #require(try ParityScenarios.runPipeline(Self.scenario(name) {
+            $0.aapsDosing = AAPSDosingContext(settings: .default, tdd: Self.noTdd)
+        }).determination)
+        #expect((plain.units ?? 0) > 0, "baseline must SMB: \(plain.reason)")
+
+        let high = try ParityScenarios.runPipeline(Self.withTempTarget(name, target: 140, allowSMBWithHighTemptarget: false))
+        #expect(high.profile.temptargetSet == true)
+        #expect(high.profile.minBg == 140)
+        let blocked = try #require(high.determination)
+        #expect(blocked.reason.hasPrefix("AAPS dosing"), "\(blocked.reason)")
+        #expect(blocked.current_target == 140)
+        #expect((blocked.units ?? 0) == 0, "high temp target with SMB not allowed: \(blocked.reason)")
+
+        let allowed = try #require(try ParityScenarios.runPipeline(
+            Self.withTempTarget(name, target: 140, allowSMBWithHighTemptarget: true)
+        ).determination)
+        #expect(allowed.current_target == 140)
+        #expect((allowed.units ?? 0) > 0, "high temp target with SMB allowed: \(allowed.reason)")
+
+        // 100 mg/dL is AAPS's "normal" target, so it is not a high temp target
+        let normal = try #require(try ParityScenarios.runPipeline(
+            Self.withTempTarget(name, target: 100, allowSMBWithHighTemptarget: false)
+        ).determination)
+        #expect(normal.current_target == 100)
+        #expect((normal.units ?? 0) > 0, "100 is not a high temp target: \(normal.reason)")
+    }
+
     @Test("AAPS mode runs the AAPS core and stays inside the safety caps") func aapsModeRuns() throws {
         for name in ["high-bg-rising-smb", "low-bg-falling", "post-meal-cob-active", "override-active"] {
             let s = Self.scenario(name) { $0.aapsDosing = AAPSDosingContext(settings: .default, tdd: Self.noTdd) }

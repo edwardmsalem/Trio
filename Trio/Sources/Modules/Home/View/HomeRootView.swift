@@ -25,8 +25,8 @@ extension Home {
         @State var isMenuPresented = false
         @State var showTreatments = false
         /// Adjustments moved out of the tab bar (replaced by Coach); the Home
-        /// override/temp-target chips present it as a sheet so nothing is lost.
-        @State var showAdjustments = false
+        /// override/temp-target chips present it as a sheet, opened on this tab.
+        @State var adjustmentsSheetTab: Adjustments.Tab?
         @State var selectedTab: Int = 0
         static let treatmentTabTag = 4
         @State var showQuickPickTreatmentsPicker = false
@@ -283,7 +283,7 @@ extension Home {
                 onCancelTempTarget: {
                     if !latestTempTarget.isEmpty { isConfirmStopTempTargetShown = true }
                 },
-                onOpenAdjustments: { showAdjustments = true }
+                onOpenAdjustments: { adjustmentsSheetTab = $0 }
             )
             .confirmationDialog(
                 "Stop the Override \"\(latestOverride.first?.name ?? "")\"?",
@@ -336,8 +336,15 @@ extension Home {
             .sheet(isPresented: $state.isLegendPresented) {
                 ChartLegendView(state: state)
             }
-            .sheet(isPresented: $showAdjustments) {
-                NavigationStack { Adjustments.RootView(resolver: resolver) }
+            .sheet(item: $adjustmentsSheetTab) { tab in
+                NavigationStack {
+                    Adjustments.RootView(resolver: resolver, initialTab: tab)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button("Done") { adjustmentsSheetTab = nil }
+                            }
+                        }
+                }
             }
             .sheet(isPresented: $showSnoozeSheet) {
                 SnoozeAlertsSheetView(resolver: resolver, isPresented: $showSnoozeSheet)

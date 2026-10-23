@@ -29,8 +29,8 @@ extension Home {
         let notificationsDisabled: Bool
         let onCancelOverride: () -> Void
         let onCancelTempTarget: () -> Void
-        /// Opens the Adjustments screen (it moved off the tab bar to make room for Coach).
-        let onOpenAdjustments: () -> Void
+        /// Opens the Adjustments screen on the given tab (it moved off the tab bar to make room for Coach).
+        let onOpenAdjustments: (Adjustments.Tab) -> Void
 
         private func haptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
             UIImpactFeedbackGenerator(style: style).impactOccurred()
@@ -289,7 +289,8 @@ extension Home {
                             iconColor: TrioGlass.Colors.accent,
                             name: overrideName ?? String(localized: "Custom Override"),
                             detail: overrideText,
-                            cancel: onCancelOverride
+                            cancel: onCancelOverride,
+                            open: { onOpenAdjustments(.overrides) }
                         )
                     }
                     if overrideText != nil, tempTargetText != nil {
@@ -301,7 +302,8 @@ extension Home {
                             iconColor: TrioGlass.Colors.inRange,
                             name: tempTargetName ?? String(localized: "Temp Target"),
                             detail: tempTargetText,
-                            cancel: onCancelTempTarget
+                            cancel: onCancelTempTarget,
+                            open: { onOpenAdjustments(.tempTargets) }
                         )
                     }
                 }
@@ -314,7 +316,8 @@ extension Home {
             iconColor: Color,
             name: String,
             detail: String,
-            cancel: @escaping () -> Void
+            cancel: @escaping () -> Void,
+            open: @escaping () -> Void
         ) -> some View {
             HStack(spacing: 11) {
                 Image(systemName: icon).font(.system(size: 17)).foregroundStyle(iconColor).frame(width: 26)
@@ -330,7 +333,7 @@ extension Home {
             }
             .padding(.vertical, 9)
             .contentShape(Rectangle())
-            .onTapGesture { onOpenAdjustments() }
+            .onTapGesture { open() }
         }
 
         // MARK: - Hero (current + IOB/COB)
@@ -389,7 +392,31 @@ extension Home {
                     }
                 }
                 Spacer()
+                tempTargetButton
             }
+        }
+
+        /// One tap to the Temp Targets screen: start a preset, set a custom one, or stop it.
+        /// Green while a temp target runs; its target and time left show in the card below.
+        private var tempTargetButton: some View {
+            let isRunning = tempTargetText != nil
+            let color = isRunning ? TrioGlass.Colors.inRange : TrioGlass.Colors.accent
+            return Button { onOpenAdjustments(.tempTargets) } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "target").font(.system(size: 13, weight: .bold))
+                    Text("Temp Target").font(TrioGlass.rounded(13, .heavy))
+                }
+                .foregroundStyle(color)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .background(color.opacity(0.14), in: Capsule())
+                .overlay(Capsule().strokeBorder(color.opacity(0.38)))
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Temp Target"))
+            .accessibilityValue(Text(isRunning ? tempTargetText ?? "" : String(localized: "Off")))
+            .accessibilityHint(Text("Start, change or stop a temp target"))
         }
 
         // MARK: - Bolus in progress (safety: always offer Cancel)

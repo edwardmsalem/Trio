@@ -179,10 +179,10 @@ extension Home.RootView {
 
         if newDuration >= 1 {
             durationString =
-                "\(newDuration.formatted(.number.grouping(.never).rounded().precision(.fractionLength(0)))) min"
+                "\(newDuration.formatted(.number.grouping(.never).rounded().precision(.fractionLength(0)))) min left"
         } else if newDuration > 0 {
             durationString =
-                "\((newDuration * 60).formatted(.number.grouping(.never).rounded().precision(.fractionLength(0)))) s"
+                "\((newDuration * 60).formatted(.number.grouping(.never).rounded().precision(.fractionLength(0)))) s left"
         } else {
             /// Do not show the Temp Target anymore
             Task {

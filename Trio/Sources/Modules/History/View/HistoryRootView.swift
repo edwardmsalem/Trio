@@ -5,6 +5,9 @@ import Swinject
 extension History {
     struct RootView: BaseView {
         let resolver: Resolver
+        /// Set by the wide-screen split view, whose sidebar picks the category. The segmented
+        /// picker is then hidden. Nil on narrow screens, where the picker stays.
+        var sidebarMode: Mode? = nil
 
         @State var state = StateModel()
 
@@ -60,16 +63,18 @@ extension History {
             historyConfirmations(
                 ZStack(alignment: .center, content: {
                     VStack {
-                        Picker("Mode", selection: $state.mode) {
-                            ForEach(
-                                Mode.allCases.indexed(),
-                                id: \.1
-                            ) { index, item in
-                                Text(item.name).tag(index)
+                        if sidebarMode == nil {
+                            Picker("Mode", selection: $state.mode) {
+                                ForEach(
+                                    Mode.allCases.indexed(),
+                                    id: \.1
+                                ) { index, item in
+                                    Text(item.name).tag(index)
+                                }
                             }
+                            .pickerStyle(SegmentedPickerStyle())
+                            .padding(.horizontal)
                         }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .padding(.horizontal)
 
                         Form {
                             switch state.mode {
@@ -90,6 +95,9 @@ extension History {
                 })
                     .background(appState.trioBackgroundColor(for: colorScheme))
                     .onAppear(perform: configureView)
+                    .onChange(of: sidebarMode, initial: true) { _, mode in
+                        if let mode { state.mode = mode }
+                    }
                     .onDisappear {
                         state.carbEntryDeleted = false
                         state.insulinEntryDeleted = false
@@ -150,6 +158,34 @@ extension History {
                 return .updatingIOB
             default:
                 return .updatingHistory
+            }
+        }
+    }
+
+    /// History on a wide screen: the four categories in a sidebar beside the existing entry list.
+    /// Uses the same History screen, so rows, filters, sheets and deletions are unchanged.
+    struct SplitRootView<TreatmentItem: View>: View {
+        let resolver: Resolver
+        @ViewBuilder var treatmentItem: TreatmentItem
+
+        @State private var mode: Mode? = .treatments
+        @Environment(\.colorScheme) private var colorScheme
+        @Environment(AppState.self) private var appState
+
+        var body: some View {
+            NavigationSplitView {
+                List(Mode.allCases, selection: $mode) { item in
+                    Text(item.name).tag(item)
+                }
+                .scrollContentBackground(.hidden)
+                .background(appState.trioBackgroundColor(for: colorScheme))
+                .navigationTitle("History")
+                .treatmentToolbarItem(isEnabled: true) { treatmentItem }
+            } detail: {
+                NavigationStack {
+                    RootView(resolver: resolver, sidebarMode: mode ?? .treatments)
+                        .navigationTitle(mode?.name ?? String(localized: "History"))
+                }
             }
         }
     }

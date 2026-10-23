@@ -181,3 +181,144 @@ extension View {
         }
     }
 }
+
+extension View {
+    /// Adds the "+ Treatment" bar item when `isEnabled`. It keeps a high visibility priority so a
+    /// vertical side strip or a narrow bar never folds it into the overflow menu.
+    func treatmentToolbarItem<Item: View>(isEnabled: Bool, @ViewBuilder item: () -> Item) -> some View {
+        modifier(TreatmentToolbarItem(isEnabled: isEnabled, item: item()))
+    }
+}
+
+private struct TreatmentToolbarItem<Item: View>: ViewModifier {
+    let isEnabled: Bool
+    let item: Item
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            if isEnabled {
+                if #available(iOS 27.0, *) {
+                    ToolbarItem(placement: .primaryAction) { item }
+                        .visibilityPriority(.high)
+                } else {
+                    ToolbarItem(placement: .primaryAction) { item }
+                }
+            }
+        }
+    }
+}
+
+/// Reports whether iOS currently shows the bars vertically at the side of the screen. That
+/// happens on the folded outer screen of iPhone Duo and in some inner screen poses. Always false
+/// before iOS 27.1, so normal iPhones are unaffected.
+struct VerticalBarReader: ViewModifier {
+    @Binding var isVertical: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.background(VerticalBarEdgeProbe(isVertical: $isVertical))
+        } else {
+            content
+        }
+    }
+}
+
+@available(iOS 27.1, *) private struct VerticalBarEdgeProbe: View {
+    @Binding var isVertical: Bool
+    @Environment(\.toolbarVerticalEdge) private var verticalEdge
+
+    var body: some View {
+        Color.clear
+            .onChange(of: verticalEdge != nil, initial: true) { _, vertical in
+                if isVertical != vertical { isVertical = vertical }
+            }
+    }
+}
+
+extension View {
+    /// Keeps a custom control, such as a pinned bottom button bar, out of the iPhone Duo fold.
+    /// When an active fold crosses the view, the content moves to the larger side of it (a fold
+    /// running top to bottom) or below it (a fold running side to side). Standard sheets, alerts
+    /// and bars already do this, so it is only for custom controls. Does nothing when there is no
+    /// active fold, which covers every normal iPhone and an open, flat iPhone Duo.
+    func avoidsFold() -> some View {
+        modifier(FoldAvoiding())
+    }
+}
+
+private struct FoldAvoiding: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.modifier(FoldAvoidingPadding())
+        } else {
+            content
+        }
+    }
+}
+
+@available(iOS 27.1, *) private struct FoldAvoidingPadding: ViewModifier {
+    @State private var insets = EdgeInsets()
+    @State private var hingeChanges = 0
+
+    func body(content: Content) -> some View {
+        content
+            .padding(insets)
+            // measured outside the padding, so the padding never feeds back into the measurement
+            .background(
+                GeometryReader { geo in
+                    let folds = geo.reservedRegions(kind: .division).map(\.frame)
+                    Color.clear.onChange(of: FoldSnapshot(size: geo.size, folds: folds, tick: hingeChanges), initial: true) {
+                        _, snapshot in
+                        let updated = snapshot.insets
+                        if updated != insets { insets = updated }
+                    }
+                }
+            )
+            .onHingeChange { _, _ in hingeChanges += 1 }
+    }
+}
+
+private struct FoldSnapshot: Equatable {
+    let size: CGSize
+    let folds: [CGRect]
+    let tick: Int
+
+    var insets: EdgeInsets {
+        var result = EdgeInsets()
+        let bounds = CGRect(origin: .zero, size: size)
+        for fold in folds where fold.intersects(bounds) {
+            if fold.height >= fold.width {
+                // fold runs top to bottom: keep the content on the wider side
+                if fold.minX >= size.width - fold.maxX {
+                    result.trailing = max(result.trailing, size.width - fold.minX)
+                } else {
+                    result.leading = max(result.leading, fold.maxX)
+                }
+            } else {
+                // fold runs side to side: keep the content below it
+                result.top = max(result.top, fold.maxY)
+            }
+        }
+        return result
+    }
+}
+
+extension View {
+    /// Keeps the tab bar and navigation bars horizontal on iPhone Duo, the way they sit on every
+    /// other iPhone. Without it the folded outer screen moves the tabs into a vertical strip down
+    /// the side, and Trio's floating "+" then lands on top of the Home cards. Does nothing before
+    /// iOS 27.1 or on devices without a vertical bar.
+    func horizontalBarsOnFoldables() -> some View {
+        modifier(HorizontalBarsOnFoldables())
+    }
+}
+
+private struct HorizontalBarsOnFoldables: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 27.1, *) {
+            content.toolbarVerticalBehavior(.disabled)
+        } else {
+            content
+        }
+    }
+}

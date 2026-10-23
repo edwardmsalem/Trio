@@ -895,6 +895,8 @@ extension Treatments {
                 }
             }
             .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 8)
+            // a custom bar gets no automatic fold handling, so keep the button out of the crease
+            .avoidsFold()
             .background(.ultraThinMaterial)
         }
 

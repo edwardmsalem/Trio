@@ -170,31 +170,71 @@ extension Home {
 
         // MARK: - Body
 
+        /// Regular width is the open inner screen of a foldable (and iPad). Compact width, which is
+        /// every normal iPhone and the folded outer screen, keeps the single column unchanged.
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
         var body: some View {
             ZStack {
                 TrioGlassBackground()
-                ScrollView {
-                    VStack(spacing: 18) {
-                        if notificationsDisabled { notificationsBanner }
-                        if showStalenessBanner { stalenessBanner }
-                        header
-                        hero
-                        statePillRow
-                        if overrideText != nil || tempTargetText != nil { adjustmentsCard }
-                        if let progress = state.bolusProgress { bolusCard(progress) }
-                        chartCard
-                        GlassSectionedCard(title: "LOOP & BASAL") { loopBasalRows }
-                        GlassSectionedCard(title: "POD") { podRows }
-                            .contentShape(Rectangle())
-                            .onTapGesture { tapPump() }
-                        Color.clear.frame(height: 24)
+                if horizontalSizeClass == .regular {
+                    FoldAwareColumns {
+                        dashboardColumn { chartColumnContent }
+                    } trailing: {
+                        dashboardColumn { statusColumnContent }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 6)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 18) {
+                            chartColumnContent
+                            statusColumnContent
+                            Color.clear.frame(height: 24)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 6)
+                    }
+                    .scrollIndicators(.hidden)
                 }
-                .scrollIndicators(.hidden)
             }
             .foregroundStyle(TrioGlass.Colors.textPrimary)
+        }
+
+        /// Banners, header, current glucose and the chart. On a wide screen this is the left column.
+        @ViewBuilder private var chartColumnContent: some View {
+            if notificationsDisabled { notificationsBanner }
+            if showStalenessBanner { stalenessBanner }
+            header
+            hero
+            statePillRow
+            if horizontalSizeClass == .regular {
+                chartCard
+            }
+        }
+
+        /// The status cards. On a wide screen this is the right column. In the single column the
+        /// chart sits between the adjustment and bolus cards and the loop cards, as before.
+        @ViewBuilder private var statusColumnContent: some View {
+            if overrideText != nil || tempTargetText != nil { adjustmentsCard }
+            if let progress = state.bolusProgress { bolusCard(progress) }
+            if horizontalSizeClass != .regular {
+                chartCard
+            }
+            GlassSectionedCard(title: "LOOP & BASAL") { loopBasalRows }
+            GlassSectionedCard(title: "POD") { podRows }
+                .contentShape(Rectangle())
+                .onTapGesture { tapPump() }
+        }
+
+        /// One independently scrolling column of the wide layout, with the same card spacing.
+        private func dashboardColumn(@ViewBuilder _ content: () -> some View) -> some View {
+            ScrollView {
+                VStack(spacing: 18) {
+                    content()
+                    Color.clear.frame(height: 24)
+                }
+                .padding(.top, 6)
+            }
+            .scrollIndicators(.hidden)
         }
 
         // MARK: - Header

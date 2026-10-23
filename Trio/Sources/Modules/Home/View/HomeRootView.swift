@@ -28,6 +28,10 @@ extension Home {
         /// override/temp-target chips present it as a sheet, opened on this tab.
         @State var adjustmentsSheetTab: Adjustments.Tab?
         @State var selectedTab: Int = 0
+        /// True when iOS shows the bars in a vertical strip at the side of the screen (the folded
+        /// outer screen of iPhone Duo, and some inner screen poses). Never true on a normal iPhone.
+        @State var barsAreVertical = false
+        @Environment(\.horizontalSizeClass) var horizontalSizeClass
         static let treatmentTabTag = 4
         @State var showQuickPickTreatmentsPicker = false
         @State var showQuickPickTreatmentsNoHistory = false
@@ -328,7 +332,13 @@ extension Home {
                 if !showSnoozeSheet { refreshAlarmsSnooze() }
             }
             .navigationTitle("Home")
-            .navigationBarHidden(true)
+            // the floating "+" cannot sit in a vertical bar strip or on the fold, so on those
+            // layouts Home shows a bar that carries "+ Treatment" instead; normal iPhones keep
+            // the hidden bar and the floating button
+            .navigationBarHidden(!usesTreatmentToolbarItem)
+            .toolbarTitleDisplayMode(.inline)
+            .treatmentToolbarItem(isEnabled: usesTreatmentToolbarItem) { treatmentToolbarButton }
+            .modifier(VerticalBarReader(isVertical: $barsAreVertical))
             .blur(radius: state.isLoopStatusPresented ? 3 : 0)
             .sheet(isPresented: $state.isLoopStatusPresented) {
                 LoopStatusView(state: state)
@@ -444,46 +454,59 @@ extension Home {
                     let carbsRequiredBadge: String? = carbsRequiredBadgeValue
 
                     NavigationStack { mainView() }
+                        .horizontalBarsOnFoldables()
                         .tabItem { Label("", systemImage: "chart.xyaxis.line").accessibilityLabel(Text("Main")) }
                         .badge(carbsRequiredBadge).tag(0)
 
-                    NavigationStack { History.RootView(resolver: resolver) }
+                    historyTab()
+                        .horizontalBarsOnFoldables()
                         .tabItem { Label("", systemImage: historySFSymbol).accessibilityLabel(Text("History")) }.tag(1)
 
-                    Spacer()
-                        // nbsp title + empty image: invisible item that still
-                        // holds a full-width slot for the overlaid button
-                        .tabItem { Label {
-                            Text(String(repeating: "\u{00A0}", count: 12))
-                        } icon: {
-                            Image(uiImage: UIImage())
-                        } }
-                        .tag(RootView.treatmentTabTag)
+                    if !usesTreatmentToolbarItem {
+                        Spacer()
+                            // nbsp title + empty image: invisible item that still
+                            // holds a full-width slot for the overlaid button
+                            .tabItem { Label {
+                                Text(String(repeating: "\u{00A0}", count: 12))
+                            } icon: {
+                                Image(uiImage: UIImage())
+                            } }
+                            .tag(RootView.treatmentTabTag)
+                    }
 
-                    NavigationStack { Adjustments.RootView(resolver: resolver) }
-                        .tabItem {
-                            Label(
-                                "",
-                                systemImage: "slider.horizontal.2.gobackward"
-                            ).accessibilityLabel(Text("Adjustments")) }.tag(2)
+                    NavigationStack {
+                        Adjustments.RootView(resolver: resolver)
+                            .treatmentToolbarItem(isEnabled: usesTreatmentToolbarItem) { treatmentToolbarButton }
+                    }
+                    .horizontalBarsOnFoldables()
+                    .tabItem {
+                        Label(
+                            "",
+                            systemImage: "slider.horizontal.2.gobackward"
+                        ).accessibilityLabel(Text("Adjustments")) }.tag(2)
 
-                    NavigationStack(path: self.$settingsPath) {
-                        Settings.RootView(resolver: resolver) }
+                    settingsTab()
                         .environment(settingsSearchHighlight)
+                        .horizontalBarsOnFoldables()
                         .tabItem { Label(
                             "",
                             systemImage: "gear"
                         ).accessibilityLabel(Text("Settings")) }.tag(3)
                 }
                 .tint(Color.tabBar)
+                // iPhone Duo: keep the tab bar along the bottom on the folded outer screen, so the
+                // floating "+" keeps its slot in the middle of it as on any other iPhone
+                .horizontalBarsOnFoldables()
 
-                // fixed distance from the physical screen bottom; immune to
-                // safe-area changes (keyboard, accessories)
-                GeometryReader { geo in
-                    treatmentButton
-                        .position(x: geo.size.width / 2, y: geo.size.height - 52)
+                if !usesTreatmentToolbarItem {
+                    // fixed distance from the physical screen bottom; immune to
+                    // safe-area changes (keyboard, accessories)
+                    GeometryReader { geo in
+                        treatmentButton
+                            .position(x: geo.size.width / 2, y: geo.size.height - 52)
+                    }
+                    .ignoresSafeArea(.all, edges: .bottom)
                 }
-                .ignoresSafeArea(.all, edges: .bottom)
             }
             .ignoresSafeArea(.container, edges: .bottom)
             .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -491,6 +514,88 @@ extension Home {
             .onChange(of: selectedTab) {
                 if selectedTab != 3, !settingsPath.isEmpty {
                     settingsPath = NavigationPath()
+                }
+            }
+        }
+
+        /// The floating "+" works only on a horizontal tab bar on a narrow screen. On a wide screen
+        /// or when the bars move into the vertical side strip, "+ Treatment" becomes a bar item.
+        var usesTreatmentToolbarItem: Bool {
+            horizontalSizeClass == .regular || barsAreVertical
+        }
+
+        /// History: a plain stack on narrow screens, the list of categories beside the entries on
+        /// wide screens.
+        @ViewBuilder private func historyTab() -> some View {
+            if horizontalSizeClass == .regular {
+                History.SplitRootView(resolver: resolver) { treatmentToolbarButton }
+            } else {
+                NavigationStack {
+                    History.RootView(resolver: resolver)
+                        .treatmentToolbarItem(isEnabled: usesTreatmentToolbarItem) { treatmentToolbarButton }
+                }
+            }
+        }
+
+        /// Settings: a plain stack on narrow screens, the settings list beside the chosen setting on
+        /// wide screens. Both use the same Settings list and the same detail screens.
+        @ViewBuilder private func settingsTab() -> some View {
+            if horizontalSizeClass == .regular {
+                NavigationSplitView {
+                    Settings.RootView(resolver: resolver)
+                        .treatmentToolbarItem(isEnabled: true) { treatmentToolbarButton }
+                } detail: {
+                    NavigationStack(path: self.$settingsPath) {
+                        ContentUnavailableView(
+                            String(localized: "Settings", comment: "Settings detail placeholder title"),
+                            systemImage: "gear",
+                            description: Text("Choose a setting from the list.")
+                        )
+                        .background(appState.trioBackgroundColor(for: colorScheme))
+                    }
+                }
+            } else {
+                NavigationStack(path: $settingsPath) {
+                    Settings.RootView(resolver: resolver)
+                        .treatmentToolbarItem(isEnabled: usesTreatmentToolbarItem) { treatmentToolbarButton }
+                }
+            }
+        }
+
+        /// "+ Treatment" as a bar item. Tap opens the treatment sheet. When Quick Pick is on, a long
+        /// press opens its menu, matching the long press on the floating button.
+        @ViewBuilder var treatmentToolbarButton: some View {
+            if state.enableQuickPickTreatments {
+                Menu {
+                    Button {
+                        openQuickPickTreatments()
+                    } label: {
+                        Label("Quick Pick Treatments", systemImage: "bolt.fill")
+                    }
+                } label: {
+                    Label("Treatment", systemImage: "plus")
+                } primaryAction: {
+                    state.showModal(for: .treatmentView)
+                }
+                .accessibilityLabel(Text("Add Treatment"))
+            } else {
+                Button {
+                    state.showModal(for: .treatmentView)
+                } label: {
+                    Label("Treatment", systemImage: "plus")
+                }
+                .accessibilityLabel(Text("Add Treatment"))
+            }
+        }
+
+        func openQuickPickTreatments() {
+            guard state.enableQuickPickTreatments else { return }
+            Task {
+                await state.loadQuickPickTreatmentSuggestions()
+                if state.quickPickBolusSuggestions.isEmpty, state.quickPickCarbSuggestions.isEmpty {
+                    showQuickPickTreatmentsNoHistory = true
+                } else {
+                    showQuickPickTreatmentsPicker = true
                 }
             }
         }

@@ -242,7 +242,11 @@ struct LiveActivityCompactLeadingView: View {
     var glucoseColor: Color
 
     var body: some View {
-        LiveActivityBGAndTrendView(context: context, size: .compact, glucoseColor: glucoseColor).padding(.leading, 4)
+        if #available(iOS 27.0, *) {
+            LimitedWidthAwareCompactLeading(context: context, glucoseColor: glucoseColor)
+        } else {
+            LiveActivityBGAndTrendView(context: context, size: .compact, glucoseColor: glucoseColor).padding(.leading, 4)
+        }
     }
 }
 
@@ -251,7 +255,61 @@ struct LiveActivityCompactTrailingView: View {
     var glucoseColor: Color
 
     var body: some View {
-        LiveActivityGlucoseDeltaLabelView(context: context, glucoseColor: glucoseColor).padding(.trailing, 4)
+        if #available(iOS 27.0, *) {
+            LimitedWidthAwareCompactTrailing(context: context, glucoseColor: glucoseColor)
+        } else {
+            LiveActivityGlucoseDeltaLabelView(context: context, glucoseColor: glucoseColor).padding(.trailing, 4)
+        }
+    }
+}
+
+/// Side length of each compact slot when the Dynamic Island is limited in width (the iPhone Duo
+/// outer screen). Each side then fits only a small circle.
+private let limitedCompactSide: CGFloat = 28
+
+/// Compact leading: the usual glucose and trend, or only the glucose number tinted by range when
+/// the Dynamic Island is limited in width.
+@available(iOS 27.0, *) private struct LimitedWidthAwareCompactLeading: View {
+    var context: ActivityViewContext<LiveActivityAttributes>
+    var glucoseColor: Color
+    @Environment(\.isDynamicIslandLimitedInWidth) private var isLimitedInWidth
+
+    var body: some View {
+        if isLimitedInWidth {
+            Text(context.state.bg)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(glucoseColor)
+                .strikethrough(context.isStale, pattern: .solid, color: .red.opacity(0.6))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(width: limitedCompactSide, height: limitedCompactSide)
+        } else {
+            LiveActivityBGAndTrendView(context: context, size: .compact, glucoseColor: glucoseColor).padding(.leading, 4)
+        }
+    }
+}
+
+/// Compact trailing: the usual glucose change, or only the trend arrow when the Dynamic Island is
+/// limited in width.
+@available(iOS 27.0, *) private struct LimitedWidthAwareCompactTrailing: View {
+    var context: ActivityViewContext<LiveActivityAttributes>
+    var glucoseColor: Color
+    @Environment(\.isDynamicIslandLimitedInWidth) private var isLimitedInWidth
+
+    var body: some View {
+        if isLimitedInWidth {
+            // first arrow only, the same way the compact and minimal views shorten double arrows
+            let arrow = context.state.direction.flatMap(\.first).map(String.init) ?? "--"
+            Text(arrow)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(glucoseColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(width: limitedCompactSide, height: limitedCompactSide)
+        } else {
+            LiveActivityGlucoseDeltaLabelView(context: context, glucoseColor: glucoseColor).padding(.trailing, 4)
+        }
     }
 }
 

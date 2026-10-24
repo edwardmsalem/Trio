@@ -282,8 +282,12 @@ private let limitedCompactSide: CGFloat = 28
                 .foregroundStyle(glucoseColor)
                 .strikethrough(context.isStale, pattern: .solid, color: .red.opacity(0.6))
                 .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .frame(width: limitedCompactSide, height: limitedCompactSide)
+                .minimumScaleFactor(0.6)
+                // sized to the number and pushed toward the camera, away from the rounded outer
+                // edge that clipped a three digit reading in the fixed square
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.leading, 6)
+                .frame(minWidth: limitedCompactSide, minHeight: limitedCompactSide, alignment: .trailing)
         } else {
             LiveActivityBGAndTrendView(context: context, size: .compact, glucoseColor: glucoseColor).padding(.leading, 4)
         }
@@ -306,7 +310,8 @@ private let limitedCompactSide: CGFloat = 28
                 .foregroundStyle(glucoseColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-                .frame(width: limitedCompactSide, height: limitedCompactSide)
+                .padding(.trailing, 6)
+                .frame(minWidth: limitedCompactSide, minHeight: limitedCompactSide, alignment: .leading)
         } else {
             LiveActivityGlucoseDeltaLabelView(context: context, glucoseColor: glucoseColor).padding(.trailing, 4)
         }

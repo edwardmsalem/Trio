@@ -552,6 +552,15 @@ extension Home {
                             description: Text("Choose a setting from the list.")
                         )
                         .background(appState.trioBackgroundColor(for: colorScheme))
+                        // Screens opened here push their own sub-screens onto this stack, so it
+                        // needs the same destinations the Settings list registers on the narrow stack.
+                        .navigationDestination(for: Screen.self) { screen in
+                            NavigationLazyView(router.view(for: screen), screen: screen)
+                        }
+                        .navigationDestination(for: SearchResultTarget.self) { target in
+                            router.view(for: target.screen)
+                                .onAppear { settingsSearchHighlight.highlightedSetting = target.scrollLabel }
+                        }
                     }
                 }
             } else {

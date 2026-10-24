@@ -267,6 +267,10 @@ struct LiveActivityCompactTrailingView: View {
 /// outer screen). Each side then fits only a small circle.
 private let limitedCompactSide: CGFloat = 28
 
+/// Stands in for the system margin on the side where Trio zeroes it, so content in an upright
+/// island sits centred across the pill.
+private let limitedSlotBalance: CGFloat = 8
+
 /// Compact leading: the usual glucose and trend, or only the glucose number tinted by range when
 /// the Dynamic Island is limited in width.
 @available(iOS 27.0, *) private struct LimitedWidthAwareCompactLeading: View {
@@ -283,11 +287,11 @@ private let limitedCompactSide: CGFloat = 28
                 .strikethrough(context.isStale, pattern: .solid, color: .red.opacity(0.6))
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                // sized to the number and pushed toward the camera, away from the rounded outer
-                // edge that clipped a three digit reading in the fixed square
-                .fixedSize(horizontal: true, vertical: false)
-                .padding(.leading, 6)
-                .frame(minWidth: limitedCompactSide, minHeight: limitedCompactSide, alignment: .trailing)
+                // the limited island stands upright with this slot above the camera, so the zero
+                // trailing margin set for the side-by-side island lands on the pill's right edge.
+                // Matching padding there centres the number instead of clipping it.
+                .padding(.trailing, limitedSlotBalance)
+                .frame(maxWidth: .infinity, minHeight: limitedCompactSide)
         } else {
             LiveActivityBGAndTrendView(context: context, size: .compact, glucoseColor: glucoseColor).padding(.leading, 4)
         }
@@ -310,8 +314,8 @@ private let limitedCompactSide: CGFloat = 28
                 .foregroundStyle(glucoseColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-                .padding(.trailing, 6)
-                .frame(minWidth: limitedCompactSide, minHeight: limitedCompactSide, alignment: .leading)
+                .padding(.leading, limitedSlotBalance)
+                .frame(maxWidth: .infinity, minHeight: limitedCompactSide)
         } else {
             LiveActivityGlucoseDeltaLabelView(context: context, glucoseColor: glucoseColor).padding(.trailing, 4)
         }

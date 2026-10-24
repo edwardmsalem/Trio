@@ -406,7 +406,7 @@ extension Settings {
                         content: {
                             if filteredItems.isNotEmpty {
                                 ForEach(filteredItems) { filteredItem in
-                                    NavigationLink(value: SearchResultTarget(
+                                    PushRow(value: SearchResultTarget(
                                         screen: filteredItem.settingItem.view,
                                         scrollLabel: filteredItem.scrollLabel.localized
                                     )) {

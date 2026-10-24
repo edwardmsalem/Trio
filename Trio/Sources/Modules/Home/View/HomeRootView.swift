@@ -544,6 +544,10 @@ extension Home {
                 NavigationSplitView {
                     Settings.RootView(resolver: resolver)
                         .treatmentToolbarItem(isEnabled: true) { treatmentToolbarButton }
+                        .environment(\.pushToSettingsDetail) { value in
+                            settingsPath = NavigationPath()
+                            settingsPath.append(value)
+                        }
                 } detail: {
                     NavigationStack(path: self.$settingsPath) {
                         ContentUnavailableView(

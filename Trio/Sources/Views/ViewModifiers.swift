@@ -67,7 +67,42 @@ struct Link: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        NavigationLink(value: screen, label: { content })
+        PushRow(value: screen) { content }
+    }
+}
+
+extension EnvironmentValues {
+    /// Set on the Settings list when it is the sidebar of a split view (the open iPhone Duo). Its rows
+    /// then push onto the detail stack. A plain value link in a sidebar replaces the whole detail
+    /// column instead, which leaves the opened screen without a stack, so its own rows do nothing.
+    @Entry var pushToSettingsDetail: ((any Hashable) -> Void)?
+}
+
+/// A navigation row: a value link, or a button that pushes onto the Settings detail stack when the
+/// row sits in the split view sidebar.
+struct PushRow<Value: Hashable, Label: View>: View {
+    let value: Value
+    @ViewBuilder let label: Label
+    @Environment(\.pushToSettingsDetail) private var pushToSettingsDetail
+
+    var body: some View {
+        if let pushToSettingsDetail {
+            Button {
+                pushToSettingsDetail(value)
+            } label: {
+                HStack {
+                    label
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink(value: value) { label }
+        }
     }
 }
 

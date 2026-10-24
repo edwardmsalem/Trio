@@ -787,6 +787,16 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         for device in devices {
             connectIQ?.register(forDeviceEvents: device, delegate: self)
 
+            // The Bolus app gets the watch-state broadcast too: registered first so its
+            // sends go out ahead of the faces' on the shared Garmin Connect path. It keeps its own glance
+            // and raises the watch's alerts, and both read the latest reading.
+            if let bolusApp = IQApp(uuid: Self.bolusAppUUID, store: UUID(), device: device) {
+                debugGarmin("Garmin: Registered \(appDetailedName(for: Self.bolusAppUUID))")
+                watchApps.append(bolusApp)
+                bolusApps.append(bolusApp)
+                connectIQ?.register(forAppMessages: bolusApp, delegate: self)
+            }
+
             // Register watchface if enabled
             if isWatchfaceDataEnabled,
                let watchfaceUUID = currentWatchface.watchfaceUUID,
@@ -818,15 +828,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 debugGarmin("Garmin: Registered \(appDetailedName(for: datafieldUUID))")
                 watchApps.append(datafieldApp)
                 connectIQ?.register(forAppMessages: datafieldApp, delegate: self)
-            }
-
-            // The Bolus app gets the watch-state broadcast too: it keeps its own glance
-            // and raises the watch's alerts, and both read the latest reading.
-            if let bolusApp = IQApp(uuid: Self.bolusAppUUID, store: UUID(), device: device) {
-                debugGarmin("Garmin: Registered \(appDetailedName(for: Self.bolusAppUUID))")
-                watchApps.append(bolusApp)
-                bolusApps.append(bolusApp)
-                connectIQ?.register(forAppMessages: bolusApp, delegate: self)
             }
         }
     }

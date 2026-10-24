@@ -282,6 +282,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             return "datafield:\(currentDatafield.displayName)"
         } else if uuid == Self.bolusAppUUID {
             return "app:Bolus"
+        } else if let face = GarminWatchface.garminGlanceFaces.first(where: { $0.watchfaceUUID == uuid }) {
+            return "watchface:\(face.displayName)"
         } else {
             return "unknown app"
         }
@@ -795,6 +797,18 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 connectIQ?.register(forAppMessages: watchfaceApp, delegate: self)
             } else if !isWatchfaceDataEnabled {
                 debugGarmin("Garmin: Watchface data disabled - skipping watchface registration")
+            }
+
+            // Every garmin-glance face as well, not only the picked one. The broadcast skips any
+            // that are not installed, so the face on the wrist gets the reading whichever it is.
+            if isWatchfaceDataEnabled {
+                for face in GarminWatchface.garminGlanceFaces where face != currentWatchface {
+                    guard let uuid = face.watchfaceUUID,
+                          let faceApp = IQApp(uuid: uuid, store: UUID(), device: device)
+                    else { continue }
+                    watchApps.append(faceApp)
+                    connectIQ?.register(forAppMessages: faceApp, delegate: self)
+                }
             }
 
             // Always register datafield (if configured)

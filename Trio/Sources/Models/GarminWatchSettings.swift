@@ -123,6 +123,12 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
         }
     }
 
+    /// The sideloaded garmin-glance faces. Trio pushes to every one that is installed, so the
+    /// wearer can switch faces on the watch without also changing the pick in Trio.
+    static var garminGlanceFaces: [GarminWatchface] {
+        allCases.filter { ![.trio, .swissalpine, .complication].contains($0) }
+    }
+
     /// The UUID for the watchface applications in Garmin Connect IQ
     var watchfaceUUID: UUID? {
         switch self {

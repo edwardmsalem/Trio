@@ -196,7 +196,9 @@ enum AAPSDosingAdapter {
             lgsThreshold: Int(dbl(profile.thresholdSetting)),
             variable_sens: dynIsfMode ? (dyn.variableSensitivity ?? 0) : 0,
             insulinDivisor: dyn.insulinDivisor,
-            TDD: dyn.tdd ?? 0
+            TDD: dyn.tdd ?? 0,
+            enableSMB_high_bg: profile.enableSMBHighBg,
+            enableSMB_high_bg_target: dbl(profile.enableSMBHighBgTarget)
         )
 
         var iobArray = iobData.enumerated().map { index, tick in

@@ -91,6 +91,10 @@ struct AAPSOapsProfile: Equatable {
     var variable_sens: Double
     var insulinDivisor: Int
     var TDD: Double
+    /// Trio's "Enable SMB With High Glucose". AAPS has no such option, so it defaults off and only
+    /// matters with SMB Always off: SMBs are then also allowed once glucose reaches the target.
+    var enableSMB_high_bg: Bool = false
+    var enableSMB_high_bg_target: Double = 110
 }
 
 /// How the ISF tiers combine with Dynamic ISF in the AAPS dosing mode.

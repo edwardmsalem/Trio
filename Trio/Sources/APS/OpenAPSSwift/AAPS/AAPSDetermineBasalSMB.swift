@@ -24,13 +24,21 @@ enum AAPSDetermineBasalSMB {
         return round(bgi + (targetDelta / fiveMinBlocks), 1)
     }
 
-    static func enableSMB(profile: AAPSOapsProfile, microBolusAllowed: Bool, meal: AAPSMealData, targetBg: Double) -> Bool {
+    static func enableSMB(
+        profile: AAPSOapsProfile,
+        microBolusAllowed: Bool,
+        meal: AAPSMealData,
+        targetBg: Double,
+        bg: Double
+    ) -> Bool {
         if !microBolusAllowed { return false }
         if !profile.allowSMB_with_high_temptarget, profile.temptargetSet, targetBg > normalTargetMgdl { return false }
         if profile.enableSMB_always { return true }
         if profile.enableSMB_with_COB, meal.mealCOB != 0.0 { return true }
         if profile.enableSMB_after_carbs, meal.carbs != 0.0 { return true }
         if profile.enableSMB_with_temptarget, profile.temptargetSet, targetBg < 100 { return true }
+        // Trio's high glucose gate, same place in the order as Trio's own oref
+        if profile.enableSMB_high_bg, bg >= profile.enableSMB_high_bg_target { return true }
         return false
     }
 
@@ -273,7 +281,13 @@ enum AAPSDetermineBasalSMB {
         var UAMpredBGs: [Double] = [bg]
         var ZTpredBGs: [Double] = [bg]
 
-        var enableSMB = Self.enableSMB(profile: profile, microBolusAllowed: microBolusAllowed, meal: mealData, targetBg: targetBg)
+        var enableSMB = Self.enableSMB(
+            profile: profile,
+            microBolusAllowed: microBolusAllowed,
+            meal: mealData,
+            targetBg: targetBg,
+            bg: bg
+        )
         let enableUAM = profile.enableUAM
 
         var ci = round(minDelta - bgi, 1)

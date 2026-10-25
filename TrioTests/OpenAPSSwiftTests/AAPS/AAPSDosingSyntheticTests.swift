@@ -66,6 +66,33 @@ import Testing
         )
     }
 
+    // MARK: - SMB gate
+
+    @Test("High glucose gate allows SMB only at or above its target when SMB Always is off") func highGlucoseGate() {
+        var p = Self.profile(smbAlways: false)
+        p.enableSMB_high_bg = true
+        p.enableSMB_high_bg_target = 140
+        let meal = AAPSMealData()
+        func gate(_ bg: Double, _ profile: AAPSOapsProfile) -> Bool {
+            AAPSDetermineBasalSMB.enableSMB(profile: profile, microBolusAllowed: true, meal: meal, targetBg: 100, bg: bg)
+        }
+        #expect(gate(119, p) == false)
+        #expect(gate(139, p) == false)
+        #expect(gate(140, p) == true)
+        #expect(gate(220, p) == true)
+
+        var off = p
+        off.enableSMB_high_bg = false
+        #expect(gate(220, off) == false)
+
+        // SMB Always still wins, and microboluses stay off when the loop disallows them
+        #expect(gate(90, Self.profile(smbAlways: true)) == true)
+        #expect(
+            AAPSDetermineBasalSMB
+                .enableSMB(profile: p, microBolusAllowed: false, meal: meal, targetBg: 100, bg: 220) == false
+        )
+    }
+
     // MARK: - Java number behaviour
 
     @Test("Java rounding is half up and drops negative zero") func javaRounding() {

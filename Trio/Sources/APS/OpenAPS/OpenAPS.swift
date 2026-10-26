@@ -472,7 +472,11 @@ final class OpenAPS {
                     guard let date = row["date"] as? Date, let total = row["total"] as? NSDecimalNumber else { return nil }
                     return (date, total.doubleValue)
                 }
-                let daily = AAPSTddSources.dailyTotals(records: tddRecords, now: now)
+                let daily = AAPSTddSources.dailyTotals(
+                    records: tddRecords,
+                    now: now,
+                    startingTDD: aapsSettings.startingTDD > 0 ? Double(aapsSettings.startingTDD) : nil
+                )
                 let carbRows = try self.fetchCarbsForAAPS(from: now.addingTimeInterval(-9.days.timeInterval), on: context)
                 let carbs = AAPSTddSources.carbTotals(entries: carbRows, now: now)
                 aapsContext = AAPSDosingContext(

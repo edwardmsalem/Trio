@@ -20,10 +20,15 @@ enum AAPSTddSources {
     static let midnightTolerance: TimeInterval = 15 * 60
 
     /// Yesterday's total and the 7-day average from stored rolling-24 h TDD records.
+    ///
+    /// `startingTDD`, when given, fills every day the records do not cover, so a new install (or a
+    /// history with a missing midnight) still gets a 7-day average. Real days always come first and
+    /// replace the stand-in day by day as they accumulate.
     static func dailyTotals(
         records: [(date: Date, total: Double)],
         now: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        startingTDD: Double? = nil
     ) -> (tdd1D: Double?, tdd7D: Double?) {
         let today = calendar.startOfDay(for: now)
         func dayTotal(endingAt midnight: Date) -> Double? {
@@ -36,6 +41,9 @@ enum AAPSTddSources {
             guard let midnight = calendar.date(byAdding: .day, value: -k, to: today), let total = dayTotal(endingAt: midnight)
             else { break }
             totals.append(total)
+        }
+        if let startingTDD, startingTDD > 0 {
+            while totals.count < 7 { totals.append(startingTDD) }
         }
         let tdd1D = totals.first
         let tdd7D = totals.count == 7 ? totals.reduce(0, +) / 7.0 : nil

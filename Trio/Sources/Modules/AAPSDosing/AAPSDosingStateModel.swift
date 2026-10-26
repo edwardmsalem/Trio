@@ -9,6 +9,7 @@ extension AAPSDosing {
         var adjustmentFactorPercent: Int = 100 { didSet { persist() } }
         var adjustSensitivityFromTDD: Bool = true { didSet { persist() } }
         var tierOrder: AAPSTierOrder = .onTopOfDynamic { didSet { persist() } }
+        var startingTDD: Int = 78 { didSet { persist() } }
 
         private var loaded = false
 
@@ -19,6 +20,7 @@ extension AAPSDosing {
             adjustmentFactorPercent = s.adjustmentFactorPercent
             adjustSensitivityFromTDD = s.adjustSensitivityFromTDD
             tierOrder = s.tierOrder
+            startingTDD = s.startingTDD
             loaded = true
         }
 
@@ -29,7 +31,8 @@ extension AAPSDosing {
                 dynamicISF: dynamicISF,
                 adjustmentFactorPercent: adjustmentFactorPercent,
                 adjustSensitivityFromTDD: adjustSensitivityFromTDD,
-                tierOrder: tierOrder
+                tierOrder: tierOrder,
+                startingTDD: startingTDD
             ))
         }
     }

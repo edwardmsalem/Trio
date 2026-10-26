@@ -16,10 +16,15 @@ struct AAPSDosingSettings: JSON, Equatable {
     var adjustSensitivityFromTDD: Bool = true
     /// How ISF tiers combine with Dynamic ISF. AAPS "ISF tiers on top of dynamic" is the default.
     var tierOrder: AAPSTierOrder = .onTopOfDynamic
+    /// Daily insulin total, in units, that stands in for each missing day of Trio's 7-day TDD history,
+    /// so Dynamic ISF runs from the first day instead of waiting a week. 0 turns it off. Defaults to
+    /// the 78 U 7-day TDD Eddie's AAPS ran with before the move to Trio on 2026-10-22.
+    var startingTDD: Int = 78
 
     static let `default` = AAPSDosingSettings()
 
     static let adjustmentFactorRange = 1 ... 300
+    static let startingTDDRange = 0 ... 300
 }
 
 extension AAPSDosingSettings {
@@ -29,6 +34,7 @@ extension AAPSDosingSettings {
         case adjustmentFactorPercent
         case adjustSensitivityFromTDD
         case tierOrder
+        case startingTDD
     }
 
     init(from decoder: Decoder) throws {
@@ -44,6 +50,9 @@ extension AAPSDosingSettings {
         }
         if let v = try? container.decode(Bool.self, forKey: .adjustSensitivityFromTDD) { result.adjustSensitivityFromTDD = v }
         if let v = try? container.decode(AAPSTierOrder.self, forKey: .tierOrder) { result.tierOrder = v }
+        if let v = try? container.decode(Int.self, forKey: .startingTDD) {
+            result.startingTDD = min(max(v, Self.startingTDDRange.lowerBound), Self.startingTDDRange.upperBound)
+        }
         self = result
     }
 }

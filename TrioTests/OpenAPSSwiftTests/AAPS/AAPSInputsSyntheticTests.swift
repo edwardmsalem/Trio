@@ -206,4 +206,30 @@ import Testing
         #expect(cache.average(upTo: slot + 130) == 32) // only the 120 key is at or before this time
         #expect(cache.average(upTo: slot - 1) == nil)
     }
+
+    @Test("starting TDD stands in for missing days of the 7-day average") func startingTDD() {
+        let now = Date(timeIntervalSince1970: Double(Self.now) / 1000)
+        let today = Self.utc.startOfDay(for: now)
+        // three real days, ending at today's midnight and the two before
+        let records = (0 ..< 3).map { k in
+            (date: Self.utc.date(byAdding: .day, value: -k, to: today)!, total: 100.0)
+        }
+
+        let none = AAPSTddSources.dailyTotals(records: records, now: now, calendar: Self.utc)
+        #expect(none.tdd1D == 100)
+        #expect(none.tdd7D == nil)
+
+        let seeded = AAPSTddSources.dailyTotals(records: records, now: now, calendar: Self.utc, startingTDD: 78)
+        #expect(seeded.tdd1D == 100)
+        #expect(abs((seeded.tdd7D ?? 0) - (3 * 100 + 4 * 78) / 7.0) < 1E-9)
+
+        // no history at all: every day is the stand-in
+        let empty = AAPSTddSources.dailyTotals(records: [], now: now, calendar: Self.utc, startingTDD: 78)
+        #expect(empty.tdd1D == 78)
+        #expect(empty.tdd7D == 78)
+
+        // seven real days: the stand-in is not used
+        let full = (0 ..< 7).map { k in (date: Self.utc.date(byAdding: .day, value: -k, to: today)!, total: 90.0) }
+        #expect(AAPSTddSources.dailyTotals(records: full, now: now, calendar: Self.utc, startingTDD: 78).tdd7D == 90)
+    }
 }

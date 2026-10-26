@@ -24,7 +24,7 @@ extension AAPSDosing {
                     Section(
                         header: Text("Dynamic ISF (AAPS)"),
                         footer: Text(
-                            "Sensitivity follows BG and a blend of the last 8 hours, yesterday and the 7-day average TDD. It needs 7 full days of insulin history and falls back to profile ISF until then. Adjust sensitivity sets the autosens ratio from last-24h versus 7-day insulin and carbs."
+                            "Sensitivity follows BG and a blend of the last 8 hours, yesterday and the 7-day average TDD. Until Trio has 7 full days of insulin history, the starting TDD stands in for each missing day, and real days replace it one by one. At 0 U it waits the full week on profile ISF. Adjust sensitivity sets the autosens ratio from last-24h versus 7-day insulin and carbs."
                         )
                     ) {
                         Toggle("Dynamic ISF", isOn: $state.dynamicISF)
@@ -34,6 +34,12 @@ extension AAPSDosing {
                                 value: $state.adjustmentFactorPercent,
                                 in: AAPSDosingSettings.adjustmentFactorRange,
                                 step: 5
+                            )
+                            Stepper(
+                                "Starting TDD: \(state.startingTDD) U",
+                                value: $state.startingTDD,
+                                in: AAPSDosingSettings.startingTDDRange,
+                                step: 1
                             )
                             Toggle("Adjust sensitivity from TDD", isOn: $state.adjustSensitivityFromTDD)
                         }

@@ -57,12 +57,26 @@ enum AAPSDetermineBasalSMB {
     /// to cause (the sum of the 5-minute BGIs at `sens`), clamped to `minScale`...1. A rise while
     /// insulin was predicted to lower glucose gives `minScale`. Nil when the predicted drop is too
     /// small to measure against.
-    static func observedInsulinEffectRatio(bg: Double, effect: AAPSObservedInsulinEffect, sens: Double) -> Double? {
+    /// `carbRise` is the part of the observed change put down to carbs absorbing, taken out first so
+    /// food the forecast already counts is not also read as weak insulin.
+    static func observedInsulinEffectRatio(
+        bg: Double,
+        effect: AAPSObservedInsulinEffect,
+        sens: Double,
+        carbRise: Double = 0
+    ) -> Double? {
         let predicted = effect.activities.reduce(0.0) { $0 + round(-$1 * sens * 5, 2) }
         guard predicted <= -ObservedInsulinEffect.minPredictedDrop else { return nil }
-        let observed = bg - effect.glucoseThen
+        let observed = bg - effect.glucoseThen - carbRise
         let ratio = observed >= 0 ? 0 : observed / predicted
         return min(1, max(ObservedInsulinEffect.minScale, ratio))
+    }
+
+    /// With carbs on board, AAPS assumes they raise glucose by at least min_5m_carbimpact every 5
+    /// minutes. That much of the window's rise is the food the forecast already counts.
+    static func carbRiseOverWindow(cob: Double) -> Double {
+        guard cob > 0 else { return 0 }
+        return AAPSMealCalculator.Settings().min5mCarbImpact * Double(ObservedInsulinEffect.windowMinutes / 5)
     }
 
     /// The factor for the insulin effect when every gate passes on the unscaled run, else nil.
@@ -72,7 +86,12 @@ enum AAPSDetermineBasalSMB {
         guard bg >= ObservedInsulinEffect.minGlucose,
               t.minDelta >= ObservedInsulinEffect.minMinDelta,
               t.nearGuardBG >= t.threshold,
-              let ratio = observedInsulinEffectRatio(bg: bg, effect: effect, sens: t.sens),
+              let ratio = observedInsulinEffectRatio(
+                  bg: bg,
+                  effect: effect,
+                  sens: t.sens,
+                  carbRise: carbRiseOverWindow(cob: unscaled.COB ?? 0)
+              ),
               ratio < 1
         else { return nil }
         return ratio

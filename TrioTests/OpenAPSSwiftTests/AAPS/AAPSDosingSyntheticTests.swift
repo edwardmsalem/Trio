@@ -566,6 +566,18 @@ import Testing
         #expect(AAPSDetermineBasalSMB.observedInsulinEffectRatio(bg: 230, effect: Self.effect(observed: -80), sens: 50) == 1)
         // rising while insulin should have dropped it: the floor
         #expect(AAPSDetermineBasalSMB.observedInsulinEffectRatio(bg: 230, effect: Self.effect(observed: 10), sens: 50) == 0.5)
+        // with carbs on board, their assumed rise is taken out before the ratio
+        #expect(AAPSDetermineBasalSMB.carbRiseOverWindow(cob: 0) == 0)
+        #expect(AAPSDetermineBasalSMB.carbRiseOverWindow(cob: 20) == 72)
+        #expect(
+            AAPSDetermineBasalSMB.observedInsulinEffectRatio(
+                bg: 230,
+                effect: Self.effect(observed: 10),
+                sens: 50,
+                carbRise: 72
+            ) ==
+                AAPSDetermineBasalSMB.observedInsulinEffectRatio(bg: 230, effect: Self.effect(observed: -62), sens: 50)
+        )
         let r = AAPSDetermineBasalSMB.observedInsulinEffectRatio(bg: 230, effect: Self.effect(observed: -20.925), sens: 50)
         #expect(abs((r ?? 0) - 0.62) < 1E-9)
     }

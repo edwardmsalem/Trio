@@ -234,6 +234,185 @@ import Testing
         #expect(r.reason.contains("minGuardBG 68 < 70"))
     }
 
+    // MARK: - Recent TDD cap
+
+    @Test("recent TDD cap only lowers") func recentTddCapOnlyLowers() {
+        // over 1.2 x the 7-day: lowered to the cap
+        let high = AAPSDynamicISF.cappedRecentTdd(150, tdd7D: 78, tdd1D: 90)
+        #expect(high.capped)
+        #expect(abs(high.value - 1.2 * 78) < 1E-12)
+        // at or under the cap: untouched, never raised
+        for recent in [0.0, 20, 60, 93.6] {
+            let r = AAPSDynamicISF.cappedRecentTdd(recent, tdd7D: 78, tdd1D: 90)
+            #expect(r.value == recent)
+            #expect(!r.capped)
+        }
+        // no 7-day figure: yesterday is the reference
+        let fallback = AAPSDynamicISF.cappedRecentTdd(150, tdd7D: nil, tdd1D: 70)
+        #expect(fallback.capped)
+        #expect(abs(fallback.value - 84) < 1E-12)
+        // nothing to cap against
+        let none = AAPSDynamicISF.cappedRecentTdd(150, tdd7D: nil, tdd1D: nil)
+        #expect(none.value == 150)
+        #expect(!none.capped)
+        // across a sweep the result is never above the input
+        for recent in stride(from: 0.0, through: 300, by: 7.5) {
+            for tdd7 in [40.0, 78, 120] {
+                #expect(AAPSDynamicISF.cappedRecentTdd(recent, tdd7D: tdd7, tdd1D: 60).value <= recent)
+            }
+        }
+    }
+
+    @Test("Dynamic ISF caps the recent-hours term after big boluses") func dynamicIsfRecentCap() {
+        // the 10-26 evening shape: 7-day 78, yesterday 78, big dinner boluses in the last 4 hours
+        let inputs = AAPSDynamicISF.TddInputs(tdd1D: 78, tdd7D: 78, tddLast24H: 90, tddLast4H: 30, tddLast8to4H: 8)
+        let r = AAPSDynamicISF.calculate(
+            inputs: inputs, glucose: 223, adjustmentFactorPercent: 100, profileMultiplier: 1, insulinPeakMinutes: 75
+        )
+        let uncappedRecent = (1.4 * 30 + 0.6 * 8) * 3
+        let uncapped = uncappedRecent * 0.33 + 78 * 0.34 + 78 * 0.33
+        let capped = 1.2 * 78 * 0.33 + 78 * 0.34 + 78 * 0.33
+        #expect(r.recentTddCapped)
+        #expect(abs(r.tdd! - capped) < 1E-9)
+        #expect(r.tdd! < uncapped)
+        #expect(r.variableSensitivity == AAPSDynamicISF.roundToTenth(1800 / (capped * log(223.0 / 55 + 1))))
+
+        // a normal day is unchanged
+        let normal = AAPSDynamicISF.TddInputs(tdd1D: 78, tdd7D: 78, tddLast24H: 78, tddLast4H: 12, tddLast8to4H: 10)
+        let n = AAPSDynamicISF.calculate(
+            inputs: normal, glucose: 150, adjustmentFactorPercent: 100, profileMultiplier: 1, insulinPeakMinutes: 75
+        )
+        #expect(!n.recentTddCapped)
+        #expect(abs(n.tdd! - ((1.4 * 12 + 0.6 * 10) * 3 * 0.33 + 78 * 0.34 + 78 * 0.33)) < 1E-9)
+    }
+
+    // MARK: - Low guard and upcoming carbs
+
+    /// IOB ticks with a constant activity, as a large recent bolus gives for the first hours.
+    static func activeIob(_ iob: Double, activity: Double) -> [AAPSIobTotal] {
+        (0 ..< 48).map { i in
+            AAPSIobTotal(
+                time: now + Int64(i) * 300_000, iob: iob, activity: activity, lastBolusTime: 0,
+                iobWithZeroTemp: .init(iob: iob, activity: activity)
+            )
+        }
+    }
+
+    static func runGuard(
+        bg: Double,
+        delta: Double,
+        iob: Double,
+        activity: Double,
+        meal: AAPSMealData,
+        upcoming: Double,
+        profile: AAPSOapsProfile = profile(smbMinutes: 120, uamMinutes: 120)
+    ) -> AAPSResult {
+        AAPSDetermineBasalSMB.determineBasal(
+            glucoseStatus: AAPSGlucoseStatus(glucose: bg, delta: delta, shortAvgDelta: delta, longAvgDelta: delta, date: now),
+            currenttemp: AAPSCurrentTemp(),
+            iobDataArray: activeIob(iob, activity: activity),
+            profile: profile,
+            autosensData: AAPSAutosensResult(),
+            mealData: meal,
+            microBolusAllowed: true,
+            currentTime: now,
+            flatBGsDetected: false,
+            dynIsfMode: false,
+            guardUpcomingCarbs: upcoming,
+            timeZone: TimeZone(identifier: "UTC")!
+        )
+    }
+
+    @Test("upcoming fat/protein releases a false low guard block") func upcomingCarbsReleaseGuard() {
+        // BG 230 rising, insulin from a big meal bolus acting, 20 g COB left of 60 g eaten an hour ago,
+        // and 50 g of fat/protein equivalents entered for the next hours
+        let meal = AAPSMealData(carbs: 60, mealCOB: 20, lastCarbTime: Self.now - 60 * 60000)
+        let blocked = Self.runGuard(bg: 230, delta: 2, iob: 3, activity: 0.02, meal: meal, upcoming: 0)
+        #expect(blocked.trace.minGuardBG < blocked.trace.threshold, "\(blocked.reason)")
+        #expect(blocked.rate == 0)
+        #expect(blocked.units == nil)
+        #expect(blocked.reason.contains("minGuardBG \(AAPSFormat.convertBg(blocked.trace.minGuardBG)) <"))
+
+        let released = Self.runGuard(bg: 230, delta: 2, iob: 3, activity: 0.02, meal: meal, upcoming: 50)
+        #expect(released.trace.guardReleasedByUpcomingCarbs, "\(released.reason)")
+        #expect(released.trace.guardBG >= released.trace.threshold)
+        #expect(released.reason.contains("upcoming fat/protein 50g: guard minGuardBG"))
+        #expect(!released.reason.contains("minGuardBG \(AAPSFormat.convertBg(blocked.trace.minGuardBG)) <"))
+        // the guard's figure is the only thing that moved
+        #expect(released.trace.minGuardBG == blocked.trace.minGuardBG)
+        #expect(released.eventualBG == blocked.eventualBG)
+        #expect(released.trace.minPredBG == blocked.trace.minPredBG)
+        #expect(released.COB == blocked.COB)
+        #expect(released.predCOB == blocked.predCOB)
+        #expect(released.predUAM == blocked.predUAM)
+
+        // with the setting off (no grams passed) it is AAPS exactly
+        #expect(Self.runGuard(bg: 230, delta: 2, iob: 3, activity: 0.02, meal: meal, upcoming: 0) == blocked)
+    }
+
+    @Test("future carbs never raise insulinReq above the no-future-carbs result") func upcomingCarbsNeverRaiseDose() {
+        var released = 0
+        for bg in [150.0, 185, 230, 290] {
+            for delta in [-6.0, -2, 0, 3, 8] {
+                for activity in [0.0, 0.01, 0.025, 0.05] {
+                    for mealCOB in [0.0, 15, 40] {
+                        for upcoming in [10.0, 40, 90] {
+                            let meal = mealCOB > 0
+                                ? AAPSMealData(carbs: mealCOB + 20, mealCOB: mealCOB, lastCarbTime: Self.now - 45 * 60000)
+                                : AAPSMealData()
+                            let base = Self.runGuard(
+                                bg: bg,
+                                delta: delta,
+                                iob: activity * 120,
+                                activity: activity,
+                                meal: meal,
+                                upcoming: 0
+                            )
+                            let with = Self.runGuard(
+                                bg: bg, delta: delta, iob: activity * 120, activity: activity, meal: meal, upcoming: upcoming
+                            )
+                            let label = "bg \(bg) delta \(delta) act \(activity) cob \(mealCOB) +\(upcoming)g"
+                            // predictions, eventual BG and COB never see the upcoming carbs
+                            #expect(with.eventualBG == base.eventualBG, "\(label)")
+                            #expect(with.trace.minPredBG == base.trace.minPredBG, "\(label)")
+                            #expect(with.trace.minGuardBG == base.trace.minGuardBG, "\(label)")
+                            #expect(with.COB == base.COB, "\(label)")
+                            #expect(with.trace.guardBG >= base.trace.guardBG, "\(label)")
+                            if with.trace.guardReleasedByUpcomingCarbs {
+                                released += 1
+                                // released: the insulinReq is what AAPS worked out without the carbs,
+                                // never more, and max IOB still caps it
+                                let maxReq = AAPSFormat.round(
+                                    (min(base.trace.minPredBG, base.trace.eventualBG) - base.trace.targetBG) / base.trace.sens, 2
+                                )
+                                #expect((with.insulinReq ?? 0) <= max(0, maxReq) + 1E-9, "\(label)")
+                                #expect((with.insulinReq ?? 0) <= 10 - activity * 120 + 1E-9, "\(label)")
+                                #expect((with.units ?? 0) <= (with.trace.maxBolus ?? 0) + 1E-9, "\(label)")
+                                #expect((with.rate ?? 0) <= AAPSDetermineBasalSMB.maxSafeBasal(Self.profile()), "\(label)")
+                            } else {
+                                // not released: the decision is AAPS's exactly
+                                #expect(with.trace.enableSMB == base.trace.enableSMB, "\(label)")
+                                #expect(with.insulinReq == base.insulinReq, "\(label)")
+                                #expect(with.units == base.units, "\(label)")
+                                #expect(with.rate == base.rate, "\(label)")
+                                #expect(with.duration == base.duration, "\(label)")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        #expect(released > 0, "the sweep must include released blocks")
+    }
+
+    @Test("a real low still blocks: BG under the threshold is never released") func upcomingCarbsKeepRealLowBlock() {
+        let meal = AAPSMealData(carbs: 30, mealCOB: 10, lastCarbTime: Self.now - 30 * 60000)
+        let r = Self.runGuard(bg: 65, delta: -3, iob: 2, activity: 0.015, meal: meal, upcoming: 90)
+        #expect(!r.trace.guardReleasedByUpcomingCarbs)
+        #expect(r.rate == 0)
+        #expect(r.units == nil)
+    }
+
     // MARK: - Settings
 
     @Test("AAPS dosing is on by default and decodes leniently") func settingsDefaults() throws {
@@ -244,6 +423,14 @@ import Testing
         #expect(!decoded.enabled)
         #expect(decoded.adjustmentFactorPercent == 300)
         #expect(decoded.dynamicISF)
+        #expect(decoded.guardSeesUpcomingCarbs) // missing key: on
+        #expect(AAPSDosingSettings.default.guardSeesUpcomingCarbs)
+        let off = try JSONDecoder().decode(AAPSDosingSettings.self, from: Data(#"{"guardSeesUpcomingCarbs":false}"#.utf8))
+        #expect(!off.guardSeesUpcomingCarbs)
+        let junk = try JSONDecoder().decode(AAPSDosingSettings.self, from: Data(#"{"guardSeesUpcomingCarbs":"yes"}"#.utf8))
+        #expect(junk.guardSeesUpcomingCarbs)
+        let roundTrip = try JSONDecoder().decode(AAPSDosingSettings.self, from: JSONEncoder().encode(off))
+        #expect(roundTrip == off)
     }
 
     // MARK: - Stock-mode tiers

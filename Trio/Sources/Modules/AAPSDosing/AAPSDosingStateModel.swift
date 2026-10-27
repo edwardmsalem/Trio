@@ -10,6 +10,7 @@ extension AAPSDosing {
         var adjustSensitivityFromTDD: Bool = true { didSet { persist() } }
         var tierOrder: AAPSTierOrder = .onTopOfDynamic { didSet { persist() } }
         var startingTDD: Int = 78 { didSet { persist() } }
+        var guardSeesUpcomingCarbs: Bool = true { didSet { persist() } }
 
         private var loaded = false
 
@@ -21,6 +22,7 @@ extension AAPSDosing {
             adjustSensitivityFromTDD = s.adjustSensitivityFromTDD
             tierOrder = s.tierOrder
             startingTDD = s.startingTDD
+            guardSeesUpcomingCarbs = s.guardSeesUpcomingCarbs
             loaded = true
         }
 
@@ -32,7 +34,8 @@ extension AAPSDosing {
                 adjustmentFactorPercent: adjustmentFactorPercent,
                 adjustSensitivityFromTDD: adjustSensitivityFromTDD,
                 tierOrder: tierOrder,
-                startingTDD: startingTDD
+                startingTDD: startingTDD,
+                guardSeesUpcomingCarbs: guardSeesUpcomingCarbs
             ))
         }
     }

@@ -58,6 +58,16 @@ extension AAPSDosing {
                         }
                     }
                     .listRowBackground(Color.chart)
+
+                    Section(
+                        header: Text("Low Glucose Guard"),
+                        footer: Text(
+                            "Trio saves fat and protein as carb entries dated in the next few hours. On: the low glucose guard counts the ones due in the next 4 hours, so food you already entered does not stop insulin for a low that will not come. It never adds insulin for that food, and it does not change COB, eventual BG or your safety limits. Off: the guard sees only carbs dated now or earlier, as AAPS does."
+                        )
+                    ) {
+                        Toggle("Guard sees upcoming fat/protein", isOn: $state.guardSeesUpcomingCarbs)
+                    }
+                    .listRowBackground(Color.chart)
                 }
             }
             .listSectionSpacing(sectionSpacing)

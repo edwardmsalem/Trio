@@ -39,6 +39,10 @@ struct AAPSHistory: Codable, Equatable {
     var boluses: [Bolus] = []
     var temps: [TempBasal] = []
     var carbs: [Carbs] = []
+    /// Carb entries already entered but dated after `now`, up to `upcomingCarbsWindow` ahead (Trio's
+    /// fat and protein equivalents). Kept apart from `carbs`, which AAPS's COB reads: only the
+    /// low-glucose guard looks at these. Optional so older encoded history still decodes.
+    var upcomingCarbs: [Carbs]?
     /// Newest first, as AAPS keeps its readings.
     var glucose: [Glucose] = []
     var basalSchedule: [BasalEntry] = []
@@ -58,6 +62,9 @@ struct AAPSHistory: Codable, Equatable {
 }
 
 extension AAPSHistory {
+    /// How far ahead an entered carb entry still counts as upcoming for the guard.
+    static let upcomingCarbsWindow: TimeInterval = 4 * 3600
+
     private static func ms(_ date: Date) -> Int64 { Int64((date.timeIntervalSince1970 * 1000).rounded()) }
     private static func dbl(_ d: Decimal) -> Double { Double(truncating: d as NSNumber) }
 
@@ -69,7 +76,7 @@ extension AAPSHistory {
     ///   the resume (or `now`), which is how AAPS records an Omnipod suspend. Percent temps are
     ///   converted with the scheduled basal at their start.
     /// - Carbs are every carb entry up to `now` (fat and protein equivalents included, as AAPS
-    ///   counts extended carbs).
+    ///   counts extended carbs). Entries dated in the next 4 hours go to `upcomingCarbs` instead.
     static func from(
         pumpHistory: [PumpHistoryEvent],
         carbs: [CarbsEntry],
@@ -146,6 +153,12 @@ extension AAPSHistory {
         history.carbs = carbs.compactMap { c -> Carbs? in
             let time = ms(c.createdAt)
             guard c.carbs > 0, time <= nowMs else { return nil }
+            return Carbs(time: time, amount: dbl(c.carbs))
+        }.sorted { $0.time < $1.time }
+        let upcomingEnd = nowMs + Int64(upcomingCarbsWindow * 1000)
+        history.upcomingCarbs = carbs.compactMap { c -> Carbs? in
+            let time = ms(c.createdAt)
+            guard c.carbs > 0, time > nowMs, time <= upcomingEnd else { return nil }
             return Carbs(time: time, amount: dbl(c.carbs))
         }.sorted { $0.time < $1.time }
 

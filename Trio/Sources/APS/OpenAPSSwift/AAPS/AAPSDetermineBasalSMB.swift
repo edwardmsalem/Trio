@@ -10,6 +10,12 @@ import Foundation
 ///
 /// Not ported: `adv_target_adjustments` (AAPS hard-codes it off) and the skip-neutral-temps
 /// top-of-hour cancel uses the device time zone, as AAPS does.
+///
+/// Trio addition, off unless `guardUpcomingCarbs` > 0: the low-glucose guard (minGuardBG under
+/// threshold stops SMBs and sets a zero temp) also gets a second minGuardBG worked out with those
+/// grams of already-entered, future-dated carbs added to COB, and uses the higher of the two.
+/// Nothing else sees these carbs: eventual BG, minPredBG, insulinReq, the SMB size, carbsReq and
+/// the COB reported all come from AAPS's own numbers, and every other limit is unchanged.
 enum AAPSDetermineBasalSMB {
     private typealias F = AAPSFormat
 
@@ -117,6 +123,7 @@ enum AAPSDetermineBasalSMB {
         isfTiers: [AAPSIsfTiers.Tier] = AAPSIsfTiers.defaults,
         autosensMin: Double = 0.7,
         isfTiersOnDynamic: Bool = false,
+        guardUpcomingCarbs: Double = 0,
         timeZone: TimeZone = .current
     ) -> AAPSResult {
         var rT = AAPSResult()
@@ -498,6 +505,30 @@ enum AAPSDetermineBasalSMB {
         }
         minGuardBG = round(minGuardBG, 0)
 
+        // Trio addition: the guard alone may count entered carbs that are still to come.
+        var guardBG = minGuardBG
+        if guardUpcomingCarbs > 0 {
+            let withUpcoming = upcomingCarbsGuardBG(
+                upcomingCarbs: guardUpcomingCarbs,
+                mealData: mealData,
+                systemTime: systemTime,
+                sensitivityRatio: sensitivityRatio,
+                ci: ci,
+                csf: csf,
+                sens: sens,
+                profile: profile,
+                iobArray: iobArray,
+                bg: bg,
+                enableUAM: enableUAM,
+                minUAMGuardBG: minUAMGuardBG,
+                fallback: minGuardBG
+            )
+            guardBG = max(minGuardBG, withUpcoming)
+        }
+        // it only ever changes the decision by stopping a block that BG itself does not call for
+        let guardReleased = minGuardBG < threshold && guardBG >= threshold && bg >= threshold
+        let effectiveGuardBG = guardReleased ? guardBG : minGuardBG
+
         var minZTUAMPredBG = minUAMPredBG
         if minZTGuardBG < threshold {
             minZTUAMPredBG = (minUAMPredBG + minZTGuardBG) / 2.0
@@ -534,6 +565,10 @@ enum AAPSDetermineBasalSMB {
         if let lastCOBpredBG { rT.reason += ", COBpredBG " + F.convertBg(lastCOBpredBG) }
         if let lastUAMpredBG { rT.reason += ", UAMpredBG " + F.convertBg(lastUAMpredBG) }
         rT.reason += "; "
+        if guardReleased {
+            rT.reason +=
+                "upcoming fat/protein \(F.withoutZeros(round(guardUpcomingCarbs, 1)))g: guard minGuardBG \(F.convertBg(guardBG)), not blocked; "
+        }
 
         var carbsReqBG = naiveEventualBG
         if carbsReqBG < 40 { carbsReqBG = min(minGuardBG, carbsReqBG) }
@@ -553,7 +588,7 @@ enum AAPSDetermineBasalSMB {
         }
 
         _ = minutesAboveMinBG // AAPS only logs this one
-        if enableSMB, minGuardBG < threshold { enableSMB = false }
+        if enableSMB, effectiveGuardBG < threshold { enableSMB = false }
         if maxDelta > 0.20 * bg {
             rT.reason += "maxDelta " + F.convertBg(maxDelta) + " > 20% of BG " + F.convertBg(bg) + ": SMB disabled; "
             enableSMB = false
@@ -574,13 +609,15 @@ enum AAPSDetermineBasalSMB {
             eventualBG: eventualBG, minPredBG: minPredBG, minGuardBG: minGuardBG, minIOBPredBG: minIOBPredBG,
             futureSens: futureSens, targetBG: targetBg, minBG: minBg, maxBG: maxBg, threshold: threshold,
             basal: basal, expectedDelta: expectedDelta, minDelta: minDelta, enableSMB: enableSMB,
-            tierMultiplier: tierMultiplier
+            tierMultiplier: tierMultiplier,
+            guardBG: guardBG,
+            guardReleasedByUpcomingCarbs: guardReleased
         )
 
         if bg < threshold, iobData.iob < -profile.current_basal * 20 / 60, minDelta > 0, minDelta > expectedDelta {
             rT.reason += "IOB \(F.kt(iobData.iob)) < \(F.kt(round(-profile.current_basal * 20 / 60, 2)))"
             rT.reason += " and minDelta \(F.convertBg(minDelta)) > expectedDelta \(F.convertBg(expectedDelta)); "
-        } else if bg < threshold || minGuardBG < threshold {
+        } else if bg < threshold || effectiveGuardBG < threshold {
             rT.reason += "minGuardBG \(F.convertBg(minGuardBG)) < \(F.convertBg(threshold))"
             bgUndershoot = targetBg - minGuardBG
             let worstCaseInsulinReq = bgUndershoot / sens
@@ -792,5 +829,62 @@ enum AAPSDetermineBasalSMB {
             rT.reason += "temp \(F.toFixed2(currenttemp.rate)) < \(F.withoutZeros(round(rate, 2)))U/hr. "
             return setTempBasal(rate, 30, profile, rT, currenttemp)
         }
+    }
+
+    /// minGuardBG as above, with `upcomingCarbs` grams added to COB and to the carbs total, for the
+    /// low-glucose guard only. Mirrors the remaining-carbs setup, the COB prediction and the COB/UAM
+    /// guard blend of `determineBasal`. When the carbs make no COB prediction, returns `fallback`.
+    // swiftlint:disable:next function_parameter_count
+    static func upcomingCarbsGuardBG(
+        upcomingCarbs: Double,
+        mealData: AAPSMealData,
+        systemTime: Int64,
+        sensitivityRatio: Double,
+        ci: Double,
+        csf: Double,
+        sens: Double,
+        profile: AAPSOapsProfile,
+        iobArray: [AAPSIobTotal],
+        bg: Double,
+        enableUAM: Bool,
+        minUAMGuardBG: Double,
+        fallback: Double
+    ) -> Double {
+        let mealCOB = mealData.mealCOB + upcomingCarbs
+        let carbs = mealData.carbs + upcomingCarbs
+        guard carbs > 0 else { return fallback }
+
+        var remainingCATimeMin = 3.0 / sensitivityRatio
+        remainingCATimeMin = max(remainingCATimeMin, mealCOB / 20.0)
+        // no past carbs means no last carb time: count the upcoming carbs as entered now
+        let lastCarbAge = mealData.carbs != 0.0 ? Double(round(Double(systemTime - mealData.lastCarbTime) / 60000.0)) : 0
+        let remainingCATime = round(remainingCATimeMin + 1.5 * lastCarbAge / 60, 1)
+
+        let totalCI = max(0.0, ci / 5 * 60 * remainingCATime / 2)
+        let totalCA = totalCI / csf
+        let remainingCarbsCap = min(90, profile.remainingCarbsCap)
+        let remainingCarbs = min(Double(remainingCarbsCap), max(0.0, mealCOB - totalCA))
+        let remainingCIpeak = remainingCarbs * csf * 5 / 60 / (remainingCATime / 2)
+        let cid = ci == 0.0 ? 0.0 : min(remainingCATime * 60 / 5 / 2, max(0.0, mealCOB * csf / ci))
+        guard cid > 0.0 || remainingCIpeak > 0 else { return fallback }
+
+        var COBpredBGs: [Double] = [bg]
+        var minCOBGuardBG = 999.0
+        for iobTick in iobArray {
+            let predBGI = round(-iobTick.activity * sens * 5, 2)
+            let predDev = ci * (1 - min(1.0, Double(COBpredBGs.count) / (60.0 / 5.0)))
+            let predCI = max(0.0, max(0.0, ci) * (1 - Double(COBpredBGs.count) / max(cid * 2, 1.0)))
+            let intervals = min(Double(COBpredBGs.count), (remainingCATime * 12) - Double(COBpredBGs.count))
+            let remainingCI = max(0.0, intervals / (remainingCATime / 2 * 12) * remainingCIpeak)
+            let cobPred = COBpredBGs[COBpredBGs.count - 1] + predBGI + min(0.0, predDev) + predCI + remainingCI
+            if COBpredBGs.count < 48 { COBpredBGs.append(cobPred) }
+            if cobPred < minCOBGuardBG { minCOBGuardBG = Double(round(cobPred)) }
+        }
+
+        let fractionCarbsLeft = mealCOB / carbs
+        let guardBG = enableUAM
+            ? fractionCarbsLeft * minCOBGuardBG + (1 - fractionCarbsLeft) * minUAMGuardBG
+            : minCOBGuardBG
+        return round(guardBG, 0)
     }
 }

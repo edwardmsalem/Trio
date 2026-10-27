@@ -129,6 +129,10 @@ struct AAPSDetermineBasalTrace: Equatable {
     var minDelta: Double = 0
     var enableSMB: Bool = false
     var tierMultiplier: Double = 1
+    /// The minGuardBG the low-glucose guard used: `minGuardBG`, or higher when upcoming carbs count.
+    var guardBG: Double = 0
+    /// True when upcoming carbs lifted the guard over the threshold and so stopped a block.
+    var guardReleasedByUpcomingCarbs: Bool = false
     var maxBolus: Double?
     var microBolus: Double?
 }

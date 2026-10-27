@@ -25,6 +25,9 @@ import Foundation
 ///   scheduled basal times the autosens ratio above, and carbs absorbed at the 24 h average dynamic
 ///   ISF of recent runs (`AAPSCarbIsfCache`). Without it, Trio's own IOB, meal and glucose status
 ///   are mapped across.
+/// - Upcoming carbs (Trio addition, setting "Guard sees upcoming fat/protein"): carb entries already
+///   entered but dated up to 4 hours ahead, which is how Trio stores fat and protein equivalents,
+///   are handed to DetermineBasalSMB for the low-glucose guard only (`guardUpcomingCarbs`).
 enum AAPSDosingAdapter {
     private static func dbl(_ d: Decimal) -> Double { Double(truncating: d as NSNumber) }
 
@@ -53,6 +56,8 @@ enum AAPSDosingAdapter {
         let autosensMin: Double
         let tiersOnDynamic: Bool
         let tdd: Double?
+        let recentTddCapped: Bool
+        let guardUpcomingCarbs: Double
     }
 
     /// AAPS Dynamic ISF for this run (the plugin's `calculateRawDynIsf`).
@@ -267,6 +272,10 @@ enum AAPSDosingAdapter {
             smbAllowed = false
         }
 
+        let upcomingCarbs = settings.guardSeesUpcomingCarbs
+            ? (context.history?.upcomingCarbs ?? []).map(\.amount).reduce(0, +)
+            : 0
+
         return Prepared(
             glucoseStatus: mappedGlucoseStatus,
             currentTemp: AAPSCurrentTemp(duration: currentTemp.duration, rate: dbl(currentTemp.rate), minutesrunning: nil),
@@ -280,7 +289,9 @@ enum AAPSDosingAdapter {
             tiers: AAPSIsfTiers.fromTrio(vars.isfTiers),
             autosensMin: dbl(profile.autosensMin),
             tiersOnDynamic: settings.tierOrder == .onTopOfDynamic,
-            tdd: dynIsfMode ? dyn.tdd : nil
+            tdd: dynIsfMode ? dyn.tdd : nil,
+            recentTddCapped: dynIsfMode && dyn.recentTddCapped,
+            guardUpcomingCarbs: upcomingCarbs
         )
     }
 
@@ -323,7 +334,8 @@ enum AAPSDosingAdapter {
             isfTiersEnabled: p.tiersEnabled,
             isfTiers: p.tiers,
             autosensMin: p.autosensMin,
-            isfTiersOnDynamic: p.tiersOnDynamic
+            isfTiersOnDynamic: p.tiersOnDynamic,
+            guardUpcomingCarbs: p.guardUpcomingCarbs
         )
         return determination(from: rT, prepared: p, profile: profile, currentTime: currentTime)
     }
@@ -338,6 +350,7 @@ enum AAPSDosingAdapter {
         let ran = rT.eventualBG != nil // false on AAPS's bad-CGM early exits
         let rate = rT.rate.map { TempBasalFunctions.roundBasal(profile: profile, basalRate: dec($0)) }
         var mode = p.dynIsfMode ? "Dynamic ISF, TDD \(AAPSFormat.withoutZeros(p.tdd ?? 0))" : "profile ISF"
+        if p.recentTddCapped { mode += ", recent TDD capped" }
         if p.tiersEnabled {
             mode += ", tiers " + (p.tiersOnDynamic ? "on top of dynamic" : "in Trio order") +
                 " x\(AAPSFormat.withoutZeros(t.tierMultiplier))"

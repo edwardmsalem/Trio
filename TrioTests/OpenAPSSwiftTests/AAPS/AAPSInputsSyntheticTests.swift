@@ -99,6 +99,30 @@ import Testing
         #expect(h.boluses == [.init(time: t0 + 26 * Self.minute, amount: 0.4)])
     }
 
+    @Test("future-dated carbs within 4 hours are upcoming, not COB") func upcomingCarbsSplit() throws {
+        func entry(_ minutesFromNow: Int64, _ grams: Decimal) -> CarbsEntry {
+            let d = Self.date(Self.now + minutesFromNow * Self.minute)
+            return CarbsEntry(
+                id: "c\(minutesFromNow)", createdAt: d, actualDate: d, carbs: grams, fat: nil, protein: nil, note: nil,
+                enteredBy: CarbsEntry.local, isFPU: minutesFromNow > 0, fpuID: nil
+            )
+        }
+        let h = AAPSHistory.from(
+            pumpHistory: [], carbs: [entry(-30, 40), entry(0, 5), entry(60, 12), entry(239, 10), entry(241, 30), entry(90, 0)],
+            glucose: [], basalProfile: [BasalProfileEntry(start: "00:00:00", minutes: 0, rate: 1)],
+            now: Self.date(Self.now), calendar: Self.utc
+        )
+        #expect(h.carbs == [.init(time: Self.now - 30 * Self.minute, amount: 40), .init(time: Self.now, amount: 5)])
+        #expect(h.upcomingCarbs == [
+            .init(time: Self.now + 60 * Self.minute, amount: 12),
+            .init(time: Self.now + 239 * Self.minute, amount: 10)
+        ])
+        // history encoded before the field existed still decodes
+        let old = try JSONDecoder()
+            .decode(AAPSHistory.self, from: Data(#"{"boluses":[],"temps":[],"carbs":[],"glucose":[],"basalSchedule":[]}"#.utf8))
+        #expect(old.upcomingCarbs == nil)
+    }
+
     // MARK: - Glucose status
 
     static func readings(_ values: [(minutesAgo: Int64, value: Double)]) -> [AAPSHistory.Glucose] {

@@ -5,6 +5,9 @@ import Foundation
 ///
 /// - TDD blend: `((1.4 * last4h + 0.6 * last8to4h) * 3 * 0.33 + 7-day * 0.34 + yesterday * 0.33)
 ///   * adjustmentFactor% / 100 * profilePercentage`.
+/// - Trio addition: the recent-hours term (`(1.4 * last4h + 0.6 * last8to4h) * 3`, already scaled
+///   to a day) is capped at 1.2 x the 7-day TDD (yesterday's when there is no 7-day figure), so a
+///   few big meal boluses cannot pull the blend far above a normal day. The cap only ever lowers it.
 /// - Variable ISF: `1800 / (TDD * ln(BG / insulinDivisor + 1))`, rounded to 0.1.
 /// - Autosens ratio: `last24h / 7-day`, then divided by a carbs ratio
 ///   `(last24hCarbs / 7-dayCarbs - 1) * 0.6 + 1` when every one of the 7 days has carbs.
@@ -39,6 +42,19 @@ enum AAPSDynamicISF {
         var variableSensitivity: Double?
         var insulinDivisor: Int
         var partsCalculated: Bool
+        /// True when the recent-hours term was lowered by `recentTddCapRatio`.
+        var recentTddCapped: Bool = false
+    }
+
+    /// The recent-hours term may be at most this multiple of the 7-day (else yesterday's) TDD.
+    static let recentTddCapRatio = 1.2
+
+    /// The recent-hours term (scaled to 24 h) after the cap, and whether the cap lowered it.
+    /// Never raises the term. Without a 7-day or yesterday figure there is nothing to cap against.
+    static func cappedRecentTdd(_ recent: Double, tdd7D: Double?, tdd1D: Double?) -> (value: Double, capped: Bool) {
+        guard let reference = tdd7D ?? tdd1D, reference > 0 else { return (recent, false) }
+        let cap = recentTddCapRatio * reference
+        return recent > cap ? (cap, true) : (recent, false)
     }
 
     /// AAPS insulin divisor from the insulin's peak time in minutes.
@@ -71,7 +87,9 @@ enum AAPSDynamicISF {
               let tdd1D = inputs.tdd1D, let tdd7D = inputs.tdd7D,
               let last4 = inputs.tddLast4H, let last8to4 = inputs.tddLast8to4H
         else { return result }
-        let tddWeightedFromLast8H = ((1.4 * last4) + (0.6 * last8to4)) * 3
+        let recent = cappedRecentTdd(((1.4 * last4) + (0.6 * last8to4)) * 3, tdd7D: tdd7D, tdd1D: tdd1D)
+        let tddWeightedFromLast8H = recent.value
+        result.recentTddCapped = recent.capped
         let tdd = ((tddWeightedFromLast8H * 0.33) + (tdd7D * 0.34) + (tdd1D * 0.33)) * Double(adjustmentFactorPercent) / 100.0 *
             profileMultiplier
         result.tdd = tdd

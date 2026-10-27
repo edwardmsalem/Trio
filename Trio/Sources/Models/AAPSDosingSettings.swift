@@ -20,10 +20,10 @@ struct AAPSDosingSettings: JSON, Equatable {
     /// so Dynamic ISF runs from the first day instead of waiting a week. 0 turns it off. Defaults to
     /// the 78 U 7-day TDD Eddie's AAPS ran with before the move to Trio on 2026-10-22.
     var startingTDD: Int = 78
-    /// Let the low-glucose guard count carb entries already entered but dated up to 4 hours ahead
+    /// Off by default. Let the low-glucose guard count carb entries already entered but dated up to 2 hours ahead
     /// (Trio's fat and protein equivalents). Only the guard sees them: they never raise eventual BG,
-    /// insulinReq, the SMB size or the COB shown. They can only stop a false low-glucose block.
-    var guardSeesUpcomingCarbs: Bool = true
+    /// insulinReq, the SMB size or the COB shown. They can only re-allow SMBs at BG 150+ and not falling, never lift the zero-temp suspend.
+    var guardSeesUpcomingCarbs: Bool = false
 
     static let `default` = AAPSDosingSettings()
 

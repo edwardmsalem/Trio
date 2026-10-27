@@ -337,7 +337,9 @@ import Testing
         #expect(released.trace.guardReleasedByUpcomingCarbs, "\(released.reason)")
         #expect(released.trace.guardBG >= released.trace.threshold)
         #expect(released.reason.contains("upcoming fat/protein 50g: guard minGuardBG"))
-        #expect(!released.reason.contains("minGuardBG \(AAPSFormat.convertBg(blocked.trace.minGuardBG)) <"))
+        // the zero-temp suspend still follows the unmodified guard: only SMBs may come back
+        #expect(released.rate == 0)
+        #expect(released.reason.contains("minGuardBG \(AAPSFormat.convertBg(blocked.trace.minGuardBG)) <"))
         // the guard's figure is the only thing that moved
         #expect(released.trace.minGuardBG == blocked.trace.minGuardBG)
         #expect(released.eventualBG == blocked.eventualBG)
@@ -405,6 +407,18 @@ import Testing
         #expect(released > 0, "the sweep must include released blocks")
     }
 
+    @Test("falling or under 150 is never released") func upcomingCarbsNeedHighSteadyBG() {
+        let meal = AAPSMealData(carbs: 60, mealCOB: 20, lastCarbTime: Self.now - 60 * 60000)
+        #expect(
+            !Self.runGuard(bg: 230, delta: -2, iob: 3, activity: 0.02, meal: meal, upcoming: 50).trace
+                .guardReleasedByUpcomingCarbs
+        )
+        #expect(
+            !Self.runGuard(bg: 140, delta: 2, iob: 3, activity: 0.02, meal: meal, upcoming: 50).trace
+                .guardReleasedByUpcomingCarbs
+        )
+    }
+
     @Test("a real low still blocks: BG under the threshold is never released") func upcomingCarbsKeepRealLowBlock() {
         let meal = AAPSMealData(carbs: 30, mealCOB: 10, lastCarbTime: Self.now - 30 * 60000)
         let r = Self.runGuard(bg: 65, delta: -3, iob: 2, activity: 0.015, meal: meal, upcoming: 90)
@@ -423,12 +437,12 @@ import Testing
         #expect(!decoded.enabled)
         #expect(decoded.adjustmentFactorPercent == 300)
         #expect(decoded.dynamicISF)
-        #expect(decoded.guardSeesUpcomingCarbs) // missing key: on
-        #expect(AAPSDosingSettings.default.guardSeesUpcomingCarbs)
+        #expect(!decoded.guardSeesUpcomingCarbs) // missing key: off
+        #expect(!AAPSDosingSettings.default.guardSeesUpcomingCarbs)
         let off = try JSONDecoder().decode(AAPSDosingSettings.self, from: Data(#"{"guardSeesUpcomingCarbs":false}"#.utf8))
         #expect(!off.guardSeesUpcomingCarbs)
         let junk = try JSONDecoder().decode(AAPSDosingSettings.self, from: Data(#"{"guardSeesUpcomingCarbs":"yes"}"#.utf8))
-        #expect(junk.guardSeesUpcomingCarbs)
+        #expect(!junk.guardSeesUpcomingCarbs)
         let roundTrip = try JSONDecoder().decode(AAPSDosingSettings.self, from: JSONEncoder().encode(off))
         #expect(roundTrip == off)
     }

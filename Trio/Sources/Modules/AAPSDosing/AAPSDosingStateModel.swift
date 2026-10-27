@@ -10,7 +10,7 @@ extension AAPSDosing {
         var adjustSensitivityFromTDD: Bool = true { didSet { persist() } }
         var tierOrder: AAPSTierOrder = .onTopOfDynamic { didSet { persist() } }
         var startingTDD: Int = 78 { didSet { persist() } }
-        var guardSeesUpcomingCarbs: Bool = true { didSet { persist() } }
+        var guardSeesUpcomingCarbs: Bool = false { didSet { persist() } }
 
         private var loaded = false
 

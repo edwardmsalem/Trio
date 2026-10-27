@@ -63,7 +63,7 @@ struct AAPSHistory: Codable, Equatable {
 
 extension AAPSHistory {
     /// How far ahead an entered carb entry still counts as upcoming for the guard.
-    static let upcomingCarbsWindow: TimeInterval = 4 * 3600
+    static let upcomingCarbsWindow: TimeInterval = 2 * 3600
 
     private static func ms(_ date: Date) -> Int64 { Int64((date.timeIntervalSince1970 * 1000).rounded()) }
     private static func dbl(_ d: Decimal) -> Double { Double(truncating: d as NSNumber) }
@@ -76,7 +76,7 @@ extension AAPSHistory {
     ///   the resume (or `now`), which is how AAPS records an Omnipod suspend. Percent temps are
     ///   converted with the scheduled basal at their start.
     /// - Carbs are every carb entry up to `now` (fat and protein equivalents included, as AAPS
-    ///   counts extended carbs). Entries dated in the next 4 hours go to `upcomingCarbs` instead.
+    ///   counts extended carbs). Entries dated in the next 2 hours go to `upcomingCarbs` instead.
     static func from(
         pumpHistory: [PumpHistoryEvent],
         carbs: [CarbsEntry],

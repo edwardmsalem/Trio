@@ -525,8 +525,10 @@ enum AAPSDetermineBasalSMB {
             )
             guardBG = max(minGuardBG, withUpcoming)
         }
-        // it only ever changes the decision by stopping a block that BG itself does not call for
-        let guardReleased = minGuardBG < threshold && guardBG >= threshold && bg >= threshold
+        // it only ever changes the decision by stopping a block that BG itself does not call for:
+        // BG well above the threshold and not falling. It can re-allow SMBs only; the zero-temp
+        // suspend below still follows the unmodified minGuardBG.
+        let guardReleased = minGuardBG < threshold && guardBG >= threshold && bg >= max(threshold, 150) && minDelta >= 0
         let effectiveGuardBG = guardReleased ? guardBG : minGuardBG
 
         var minZTUAMPredBG = minUAMPredBG
@@ -617,7 +619,7 @@ enum AAPSDetermineBasalSMB {
         if bg < threshold, iobData.iob < -profile.current_basal * 20 / 60, minDelta > 0, minDelta > expectedDelta {
             rT.reason += "IOB \(F.kt(iobData.iob)) < \(F.kt(round(-profile.current_basal * 20 / 60, 2)))"
             rT.reason += " and minDelta \(F.convertBg(minDelta)) > expectedDelta \(F.convertBg(expectedDelta)); "
-        } else if bg < threshold || effectiveGuardBG < threshold {
+        } else if bg < threshold || minGuardBG < threshold {
             rT.reason += "minGuardBG \(F.convertBg(minGuardBG)) < \(F.convertBg(threshold))"
             bgUndershoot = targetBg - minGuardBG
             let worstCaseInsulinReq = bgUndershoot / sens

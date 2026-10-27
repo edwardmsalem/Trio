@@ -27,3 +27,6 @@ COPYRIGHT_NOTICE =
 #include? "../../ConfigOverride.xcconfig"
 #include? "../ConfigOverride.xcconfig"
 #include? "ConfigOverride.xcconfig"
+
+// Eddie fork: no "Hey Trioneer, watch out!" warning on launch for non-main branches
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEV_BRANCH_WARNING_DISABLED

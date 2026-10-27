@@ -182,6 +182,30 @@ final class OpenAPS {
         )
     }
 
+    /// Pod or infusion-set changes in the last 24 h. Trio stores them as "SiteChange" rows, which the
+    /// algorithm's pump history leaves out; the AAPS dosing mode's observed-insulin-effect gate reads them.
+    private func fetchSiteChangeDates(on context: NSManagedObjectContext) async throws -> [Date] {
+        let results = try await CoreDataStack.shared.fetchEntitiesAsync(
+            ofType: PumpEventStored.self,
+            onContext: context,
+            predicate: NSPredicate(
+                format: "type == %@ AND timestamp >= %@",
+                PumpEventStored.EventType.siteChange.rawValue,
+                Date.oneDayAgo as NSDate
+            ),
+            key: "timestamp",
+            ascending: false,
+            batchSize: 10
+        )
+
+        return try await context.perform {
+            guard let events = results as? [PumpEventStored] else {
+                throw CoreDataError.fetchError(function: #function, file: #file)
+            }
+            return events.compactMap(\.timestamp)
+        }
+    }
+
     /// Detects a cold-start orphaned resume: returns the resume's object ID if it's an orphaned resume
     private func fetchOrphanedResumes(on context: NSManagedObjectContext) async throws -> [NSManagedObjectID] {
         let results = try await CoreDataStack.shared.fetchEntitiesAsync(
@@ -323,12 +347,14 @@ final class OpenAPS {
                 shouldSmoothGlucose: shouldSmoothGlucose,
                 fetchHours: 29
             )
+            let siteChanges = try await fetchSiteChangeDates(on: context)
             aaps.history = AAPSHistory.from(
                 pumpHistory: pumpHistory,
                 carbs: carbs,
                 glucose: aapsGlucose,
                 basalProfile: basalProfile,
-                now: clock
+                now: clock,
+                siteChanges: siteChanges
             )
             aaps.carbIsfCache = await storage.retrieveAsync(OpenAPS.Monitor.aapsCarbIsf, as: AAPSCarbIsfCache.self)
             trioCustomOrefVariables.aapsDosing = aaps

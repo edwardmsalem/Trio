@@ -58,7 +58,7 @@ extension ISFTiersEditor {
                     Section(
                         header: Text("Carb Ratio Tiering"),
                         footer: Text(
-                            "When on, your carb ratio is also tightened at high BG so meals eaten while high get more insulin. It is DAMPED (about half the ISF aggressiveness, capped at +30%) and never applies below 140 mg/dL. Flagged fatty meals are excluded. Off by default — verify your max-IOB and watch 2–3h post-meal lows before trusting it."
+                            "When on, your carb ratio is also tightened at high BG so meals eaten while high get more insulin. It is DAMPED (about half the ISF aggressiveness, capped at +30%) and never applies below 140 mg/dL. Flagged fatty meals are excluded. Off by default — verify your max-IOB and watch 2–3h post-meal lows before trusting it. AAPS dosing mode always applies this carb ratio tightening, as AAPS does, so this switch only affects Trio's own dosing mode."
                         )
                     ) {
                         Toggle("Also tighten carb ratio at high BG", isOn: $state.carbTierEnabled)

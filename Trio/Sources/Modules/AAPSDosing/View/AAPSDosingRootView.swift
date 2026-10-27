@@ -68,6 +68,19 @@ extension AAPSDosing {
                         Toggle("Guard sees upcoming fat/protein", isOn: $state.guardSeesUpcomingCarbs)
                     }
                     .listRowBackground(Color.chart)
+
+                    Section(
+                        header: Text("Forecast"),
+                        footer: Text(
+                            "On: when glucose over the last 45 minutes fell by less than your insulin should have dropped it, the forecast counts the insulin as weaker to match, never below half and never stronger. That lets microboluses continue when a predicted low is not showing up. It only works at 180 mg/dL or higher, not falling faster than 3 per 5 minutes, with no low forecast in the next 45 minutes, no pod or site change in the last 3 hours, and no gaps in the glucose readings. Max IOB, max SMB, max basal and the low threshold stay the same. Off: the forecast uses your insulin settings as AAPS does."
+                        )
+                    ) {
+                        Toggle(
+                            "Correct forecast from observed insulin effect",
+                            isOn: $state.correctForecastFromObservedInsulinEffect
+                        )
+                    }
+                    .listRowBackground(Color.chart)
                 }
             }
             .listSectionSpacing(sectionSpacing)

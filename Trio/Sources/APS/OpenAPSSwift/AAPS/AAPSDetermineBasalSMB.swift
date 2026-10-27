@@ -16,6 +16,15 @@ import Foundation
 /// grams of already-entered, future-dated carbs added to COB, and uses the higher of the two.
 /// Nothing else sees these carbs: eventual BG, minPredBG, insulinReq, the SMB size, carbsReq and
 /// the COB reported all come from AAPS's own numbers, and every other limit is unchanged.
+///
+/// Trio addition, only when `observedInsulinEffect` is passed (setting "Correct forecast from observed
+/// insulin effect"): when glucose over the last 45 minutes fell by less than the insulin alone was
+/// predicted to drop it, the insulin part of every forecast curve (IOB, COB, UAM, ZT and the naive
+/// eventual BG) is scaled by observed drop / predicted drop, clamped to 0.5...1, so minGuardBG,
+/// minPredBG and eventual BG all see the weaker effect. It only ever weakens the insulin effect. It
+/// runs only at BG 180+, not falling faster than 3 mg/dL per 5 minutes, and when the unscaled guard
+/// forecast stays above the threshold for the next 45 minutes. max IOB, the SMB size limits, max safe
+/// basal and the threshold are unchanged.
 enum AAPSDetermineBasalSMB {
     private typealias F = AAPSFormat
 
@@ -23,6 +32,51 @@ enum AAPSDetermineBasalSMB {
     private static func round(_ v: Double) -> Int { F.roundInt(v) }
 
     static let normalTargetMgdl = 100.0
+
+    /// Limits of the observed-insulin-effect correction (see the type comment).
+    enum ObservedInsulinEffect {
+        /// The window compared, in minutes.
+        static let windowMinutes = 45
+        /// The strongest weakening: the insulin effect is never scaled below half.
+        static let minScale = 0.5
+        static let minGlucose = 180.0
+        /// Not falling faster than this, mg/dL per 5 minutes.
+        static let minMinDelta = -3.0
+        /// Below this predicted drop over the window, mg/dL, the ratio is noise and is not used.
+        static let minPredictedDrop = 15.0
+        /// No pod or site change within this many hours.
+        static let siteChangeHours = 3.0
+        /// Longest allowed gap between glucose readings in the window, in minutes: one missed
+        /// reading (10 minutes) plus a minute for CGM timing jitter.
+        static let maxGlucoseGapMinutes = 11.0
+        /// How far from the window start the first reading may be, in minutes.
+        static let startToleranceMinutes = 4.0
+    }
+
+    /// Observed glucose change over the window divided by the change the insulin alone was predicted
+    /// to cause (the sum of the 5-minute BGIs at `sens`), clamped to `minScale`...1. A rise while
+    /// insulin was predicted to lower glucose gives `minScale`. Nil when the predicted drop is too
+    /// small to measure against.
+    static func observedInsulinEffectRatio(bg: Double, effect: AAPSObservedInsulinEffect, sens: Double) -> Double? {
+        let predicted = effect.activities.reduce(0.0) { $0 + round(-$1 * sens * 5, 2) }
+        guard predicted <= -ObservedInsulinEffect.minPredictedDrop else { return nil }
+        let observed = bg - effect.glucoseThen
+        let ratio = observed >= 0 ? 0 : observed / predicted
+        return min(1, max(ObservedInsulinEffect.minScale, ratio))
+    }
+
+    /// The factor for the insulin effect when every gate passes on the unscaled run, else nil.
+    static func observedInsulinEffectScale(unscaled: AAPSResult, effect: AAPSObservedInsulinEffect) -> Double? {
+        guard let bg = unscaled.bg else { return nil } // bad-CGM early exit, nothing was forecast
+        let t = unscaled.trace
+        guard bg >= ObservedInsulinEffect.minGlucose,
+              t.minDelta >= ObservedInsulinEffect.minMinDelta,
+              t.nearGuardBG >= t.threshold,
+              let ratio = observedInsulinEffectRatio(bg: bg, effect: effect, sens: t.sens),
+              ratio < 1
+        else { return nil }
+        return ratio
+    }
 
     static func calculateExpectedDelta(targetBg: Double, eventualBg: Double, bgi: Double) -> Double {
         let fiveMinBlocks = Double((2 * 60) / 5)
@@ -107,7 +161,6 @@ enum AAPSDetermineBasalSMB {
         }
     }
 
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
     static func determineBasal(
         glucoseStatus: AAPSGlucoseStatus,
         currenttemp: AAPSCurrentTemp,
@@ -124,7 +177,58 @@ enum AAPSDetermineBasalSMB {
         autosensMin: Double = 0.7,
         isfTiersOnDynamic: Bool = false,
         guardUpcomingCarbs: Double = 0,
+        observedInsulinEffect: AAPSObservedInsulinEffect? = nil,
         timeZone: TimeZone = .current
+    ) -> AAPSResult {
+        let run = { (insulinScale: Double) in
+            determineBasalScaled(
+                glucoseStatus: glucoseStatus,
+                currenttemp: currenttemp,
+                iobDataArray: iobDataArray,
+                profile: profile,
+                autosensData: autosensData,
+                mealData: mealData,
+                microBolusAllowed: microBolusAllowed,
+                currentTime: currentTime,
+                flatBGsDetected: flatBGsDetected,
+                dynIsfMode: dynIsfMode,
+                isfTiersEnabled: isfTiersEnabled,
+                isfTiers: isfTiers,
+                autosensMin: autosensMin,
+                isfTiersOnDynamic: isfTiersOnDynamic,
+                guardUpcomingCarbs: guardUpcomingCarbs,
+                insulinScale: insulinScale,
+                timeZone: timeZone
+            )
+        }
+        let unscaled = run(1)
+        guard let effect = observedInsulinEffect,
+              let scale = observedInsulinEffectScale(unscaled: unscaled, effect: effect)
+        else { return unscaled }
+        return run(scale)
+    }
+
+    /// The port itself. `insulinScale` multiplies the insulin effect of every forecast curve and of
+    /// the naive eventual BG (1 is AAPS unchanged).
+    // swiftlint:disable:next function_body_length cyclomatic_complexity function_parameter_count
+    static func determineBasalScaled(
+        glucoseStatus: AAPSGlucoseStatus,
+        currenttemp: AAPSCurrentTemp,
+        iobDataArray: [AAPSIobTotal],
+        profile: AAPSOapsProfile,
+        autosensData: AAPSAutosensResult,
+        mealData: AAPSMealData,
+        microBolusAllowed: Bool,
+        currentTime: Int64,
+        flatBGsDetected: Bool,
+        dynIsfMode: Bool,
+        isfTiersEnabled: Bool,
+        isfTiers: [AAPSIsfTiers.Tier],
+        autosensMin: Double,
+        isfTiersOnDynamic: Bool,
+        guardUpcomingCarbs: Double,
+        insulinScale: Double,
+        timeZone: TimeZone
     ) -> AAPSResult {
         var rT = AAPSResult()
         let deliverAt = currentTime
@@ -247,10 +351,10 @@ enum AAPSDetermineBasalSMB {
 
         let naiveEventualBG: Double
         if dynIsfMode {
-            naiveEventualBG = round(bg - (iobData.iob * sens), 0)
+            naiveEventualBG = round(bg - (iobData.iob * sens * insulinScale), 0)
         } else {
-            if iobData.iob > 0 { naiveEventualBG = round(bg - (iobData.iob * sens), 0) }
-            else { naiveEventualBG = round(bg - (iobData.iob * min(sens, profile.sens)), 0) }
+            if iobData.iob > 0 { naiveEventualBG = round(bg - (iobData.iob * sens * insulinScale), 0) }
+            else { naiveEventualBG = round(bg - (iobData.iob * min(sens, profile.sens) * insulinScale), 0) }
         }
         var eventualBG = naiveEventualBG + Double(deviation)
 
@@ -353,25 +457,33 @@ enum AAPSDetermineBasalSMB {
         var UAMpredBG: Double?
         var COBpredBG: Double?
 
+        // Trio addition: lowest of each guard curve over the next 45 minutes (9 ticks)
+        var nearCOBGuardBG = 999.0
+        var nearUAMGuardBG = 999.0
+        var nearIOBGuardBG = 999.0
+        let nearTicks = ObservedInsulinEffect.windowMinutes / 5
+
         let tdd = profile.TDD
         let divisor = Double(profile.insulinDivisor)
-        for iobTick in iobArray {
-            let predBGI = round(-iobTick.activity * sens * 5, 2)
+        for (tickIndex, iobTick) in iobArray.enumerated() {
+            let predBGI = round(-iobTick.activity * sens * 5, 2) * insulinScale
             let IOBpredBGI = dynIsfMode
                 ? round(
                     -iobTick.activity * (1800 / (tdd * log((max(IOBpredBGs[IOBpredBGs.count - 1], 39.0) / divisor) + 1))) * 5,
                     2
-                )
+                ) * insulinScale
                 : predBGI
             let zt = iobTick.iobWithZeroTemp ?? AAPSIobTotal.ZeroTemp()
-            let predZTBGI = dynIsfMode
-                ? round(-zt.activity * (1800 / (tdd * log((max(ZTpredBGs[ZTpredBGs.count - 1], 39.0) / divisor) + 1))) * 5, 2)
-                : round(-zt.activity * sens * 5, 2)
+            let predZTBGI = (
+                dynIsfMode
+                    ? round(-zt.activity * (1800 / (tdd * log((max(ZTpredBGs[ZTpredBGs.count - 1], 39.0) / divisor) + 1))) * 5, 2)
+                    : round(-zt.activity * sens * 5, 2)
+            ) * insulinScale
             let predUAMBGI = dynIsfMode
                 ? round(
                     -iobTick.activity * (1800 / (tdd * log((max(UAMpredBGs[UAMpredBGs.count - 1], 39.0) / divisor) + 1))) * 5,
                     2
-                )
+                ) * insulinScale
                 : predBGI
             let predDev = ci * (1 - min(1.0, Double(IOBpredBGs.count) / (60.0 / 5.0)))
             IOBpredBG = IOBpredBGs[IOBpredBGs.count - 1] + IOBpredBGI + predDev
@@ -397,6 +509,11 @@ enum AAPSDetermineBasalSMB {
             if uamPred < minUAMGuardBG { minUAMGuardBG = Double(round(uamPred)) }
             if IOBpredBG < minIOBGuardBG { minIOBGuardBG = IOBpredBG }
             if ZTpredBG < minZTGuardBG { minZTGuardBG = round(ZTpredBG, 0) }
+            if tickIndex < nearTicks {
+                nearCOBGuardBG = min(nearCOBGuardBG, cobPred)
+                nearUAMGuardBG = min(nearUAMGuardBG, uamPred)
+                nearIOBGuardBG = min(nearIOBGuardBG, IOBpredBG)
+            }
 
             let insulinPeakTime = 90.0
             let insulinPeak5m = (insulinPeakTime / 60.0) * 12.0
@@ -505,6 +622,19 @@ enum AAPSDetermineBasalSMB {
         }
         minGuardBG = round(minGuardBG, 0)
 
+        // Trio addition: the same blend over the next 45 minutes only, for the observed-effect gate
+        var nearGuardBG: Double
+        if cid > 0.0 || remainingCIpeak > 0 {
+            nearGuardBG = enableUAM
+                ? fractionCarbsLeft * nearCOBGuardBG + (1 - fractionCarbsLeft) * nearUAMGuardBG
+                : nearCOBGuardBG
+        } else if enableUAM {
+            nearGuardBG = nearUAMGuardBG
+        } else {
+            nearGuardBG = nearIOBGuardBG
+        }
+        nearGuardBG = round(nearGuardBG, 0)
+
         // Trio addition: the guard alone may count entered carbs that are still to come.
         var guardBG = minGuardBG
         if guardUpcomingCarbs > 0 {
@@ -521,7 +651,8 @@ enum AAPSDetermineBasalSMB {
                 bg: bg,
                 enableUAM: enableUAM,
                 minUAMGuardBG: minUAMGuardBG,
-                fallback: minGuardBG
+                fallback: minGuardBG,
+                insulinScale: insulinScale
             )
             guardBG = max(minGuardBG, withUpcoming)
         }
@@ -567,6 +698,9 @@ enum AAPSDetermineBasalSMB {
         if let lastCOBpredBG { rT.reason += ", COBpredBG " + F.convertBg(lastCOBpredBG) }
         if let lastUAMpredBG { rT.reason += ", UAMpredBG " + F.convertBg(lastUAMpredBG) }
         rT.reason += "; "
+        if insulinScale != 1 {
+            rT.reason += "observed insulin effect x\(F.withoutZeros(round(insulinScale, 2))); "
+        }
         if guardReleased {
             rT.reason +=
                 "upcoming fat/protein \(F.withoutZeros(round(guardUpcomingCarbs, 1)))g: guard minGuardBG \(F.convertBg(guardBG)), not blocked; "
@@ -613,7 +747,9 @@ enum AAPSDetermineBasalSMB {
             basal: basal, expectedDelta: expectedDelta, minDelta: minDelta, enableSMB: enableSMB,
             tierMultiplier: tierMultiplier,
             guardBG: guardBG,
-            guardReleasedByUpcomingCarbs: guardReleased
+            guardReleasedByUpcomingCarbs: guardReleased,
+            nearGuardBG: nearGuardBG,
+            observedInsulinEffect: insulinScale
         )
 
         if bg < threshold, iobData.iob < -profile.current_basal * 20 / 60, minDelta > 0, minDelta > expectedDelta {
@@ -836,6 +972,7 @@ enum AAPSDetermineBasalSMB {
     /// minGuardBG as above, with `upcomingCarbs` grams added to COB and to the carbs total, for the
     /// low-glucose guard only. Mirrors the remaining-carbs setup, the COB prediction and the COB/UAM
     /// guard blend of `determineBasal`. When the carbs make no COB prediction, returns `fallback`.
+    /// `insulinScale` is the observed-insulin-effect factor of the main forecast.
     // swiftlint:disable:next function_parameter_count
     static func upcomingCarbsGuardBG(
         upcomingCarbs: Double,
@@ -850,7 +987,8 @@ enum AAPSDetermineBasalSMB {
         bg: Double,
         enableUAM: Bool,
         minUAMGuardBG: Double,
-        fallback: Double
+        fallback: Double,
+        insulinScale: Double = 1
     ) -> Double {
         let mealCOB = mealData.mealCOB + upcomingCarbs
         let carbs = mealData.carbs + upcomingCarbs
@@ -873,7 +1011,7 @@ enum AAPSDetermineBasalSMB {
         var COBpredBGs: [Double] = [bg]
         var minCOBGuardBG = 999.0
         for iobTick in iobArray {
-            let predBGI = round(-iobTick.activity * sens * 5, 2)
+            let predBGI = round(-iobTick.activity * sens * 5, 2) * insulinScale
             let predDev = ci * (1 - min(1.0, Double(COBpredBGs.count) / (60.0 / 5.0)))
             let predCI = max(0.0, max(0.0, ci) * (1 - Double(COBpredBGs.count) / max(cid * 2, 1.0)))
             let intervals = min(Double(COBpredBGs.count), (remainingCATime * 12) - Double(COBpredBGs.count))

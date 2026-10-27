@@ -24,6 +24,11 @@ struct AAPSDosingSettings: JSON, Equatable {
     /// (Trio's fat and protein equivalents). Only the guard sees them: they never raise eventual BG,
     /// insulinReq, the SMB size or the COB shown. They can only re-allow SMBs at BG 150+ and not falling, never lift the zero-temp suspend.
     var guardSeesUpcomingCarbs: Bool = false
+    /// On by default. When glucose over the last 45 minutes fell by less than the insulin alone should
+    /// have dropped it, weaken the insulin effect in the forecast to match (never below half, never
+    /// stronger). Only at BG 180+, not falling fast, no low forecast in the next 45 minutes, and no pod
+    /// or site change in the last 3 hours. Limits (max IOB, max SMB, max basal, threshold) unchanged.
+    var correctForecastFromObservedInsulinEffect: Bool = true
 
     static let `default` = AAPSDosingSettings()
 
@@ -40,6 +45,7 @@ extension AAPSDosingSettings {
         case tierOrder
         case startingTDD
         case guardSeesUpcomingCarbs
+        case correctForecastFromObservedInsulinEffect
     }
 
     init(from decoder: Decoder) throws {
@@ -59,6 +65,9 @@ extension AAPSDosingSettings {
             result.startingTDD = min(max(v, Self.startingTDDRange.lowerBound), Self.startingTDDRange.upperBound)
         }
         if let v = try? container.decode(Bool.self, forKey: .guardSeesUpcomingCarbs) { result.guardSeesUpcomingCarbs = v }
+        if let v = try? container.decode(Bool.self, forKey: .correctForecastFromObservedInsulinEffect) {
+            result.correctForecastFromObservedInsulinEffect = v
+        }
         self = result
     }
 }

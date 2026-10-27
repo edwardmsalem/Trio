@@ -487,3 +487,260 @@ import Testing
         #expect(clamped.carbRatioDivisor == 1)
     }
 }
+
+/// Made-up numbers only. The observed-insulin-effect correction (Trio addition to the AAPS mode).
+@Suite("AAPS dosing observed insulin effect") struct AAPSObservedInsulinEffectTests {
+    typealias S = AAPSDosingSyntheticTests
+    typealias Limits = AAPSDetermineBasalSMB.ObservedInsulinEffect
+
+    static let activity = 0.015 // at ISF 50 the insulin alone drops BG 3.75 per 5 minutes, 33.75 over 45
+
+    /// The window as the adapter hands it over: flat insulin activity, BG `drop` lower 45 minutes ago.
+    static func effect(observed: Double, bg: Double = 230, activity: Double = activity) -> AAPSObservedInsulinEffect {
+        AAPSObservedInsulinEffect(glucoseThen: bg - observed, activities: Array(repeating: activity, count: 9))
+    }
+
+    static func run(
+        bg: Double = 230,
+        delta: Double = 0,
+        iob: Double = 3,
+        activity: Double = activity,
+        ticks: [AAPSIobTotal]? = nil,
+        effect: AAPSObservedInsulinEffect?
+    ) -> AAPSResult {
+        AAPSDetermineBasalSMB.determineBasal(
+            glucoseStatus: AAPSGlucoseStatus(glucose: bg, delta: delta, shortAvgDelta: delta, longAvgDelta: delta, date: S.now),
+            currenttemp: AAPSCurrentTemp(),
+            iobDataArray: ticks ?? S.activeIob(iob, activity: activity),
+            profile: S.profile(smbMinutes: 120, uamMinutes: 120),
+            autosensData: AAPSAutosensResult(),
+            mealData: AAPSMealData(),
+            microBolusAllowed: true,
+            currentTime: S.now,
+            flatBGsDetected: false,
+            dynIsfMode: false,
+            observedInsulinEffect: effect,
+            timeZone: TimeZone(identifier: "UTC")!
+        )
+    }
+
+    /// The port at a fixed insulin scale, no gates.
+    static func scaled(bg: Double, delta: Double, iob: Double, activity: Double, scale: Double) -> AAPSResult {
+        AAPSDetermineBasalSMB.determineBasalScaled(
+            glucoseStatus: AAPSGlucoseStatus(glucose: bg, delta: delta, shortAvgDelta: delta, longAvgDelta: delta, date: S.now),
+            currenttemp: AAPSCurrentTemp(),
+            iobDataArray: S.activeIob(iob, activity: activity),
+            profile: S.profile(smbMinutes: 120, uamMinutes: 120),
+            autosensData: AAPSAutosensResult(),
+            mealData: AAPSMealData(),
+            microBolusAllowed: true,
+            currentTime: S.now,
+            flatBGsDetected: false,
+            dynIsfMode: false,
+            isfTiersEnabled: false,
+            isfTiers: AAPSIsfTiers.defaults,
+            autosensMin: 0.7,
+            isfTiersOnDynamic: false,
+            guardUpcomingCarbs: 0,
+            insulinScale: scale,
+            timeZone: TimeZone(identifier: "UTC")!
+        )
+    }
+
+    @Test("the ratio never goes above 1 or below 0.5") func ratioClamp() {
+        for observed in stride(from: -120.0, through: 60, by: 2.5) {
+            for activity in [0.004, 0.01, 0.015, 0.03, 0.08] {
+                guard let r = AAPSDetermineBasalSMB.observedInsulinEffectRatio(
+                    bg: 230, effect: Self.effect(observed: observed, activity: activity), sens: 50
+                ) else {
+                    // only a predicted drop under 15 mg/dL is too small to use
+                    #expect(9 * AAPSFormat.round(activity * 50 * 5, 2) < Limits.minPredictedDrop)
+                    continue
+                }
+                #expect(r <= 1)
+                #expect(r >= 0.5)
+            }
+        }
+        // a fall as big as predicted, or bigger, leaves the insulin effect as it is
+        #expect(AAPSDetermineBasalSMB.observedInsulinEffectRatio(bg: 230, effect: Self.effect(observed: -33.75), sens: 50) == 1)
+        #expect(AAPSDetermineBasalSMB.observedInsulinEffectRatio(bg: 230, effect: Self.effect(observed: -80), sens: 50) == 1)
+        // rising while insulin should have dropped it: the floor
+        #expect(AAPSDetermineBasalSMB.observedInsulinEffectRatio(bg: 230, effect: Self.effect(observed: 10), sens: 50) == 0.5)
+        let r = AAPSDetermineBasalSMB.observedInsulinEffectRatio(bg: 230, effect: Self.effect(observed: -20.925), sens: 50)
+        #expect(abs((r ?? 0) - 0.62) < 1E-9)
+    }
+
+    @Test("a false low block is released with the insulin effect weakened") func releasesFalseBlock() {
+        let unscaled = Self.run(effect: nil)
+        #expect(unscaled.trace.minGuardBG < unscaled.trace.threshold, "\(unscaled.reason)")
+        #expect(unscaled.trace.nearGuardBG >= unscaled.trace.threshold)
+        #expect(unscaled.units == nil)
+
+        let half = Self.run(effect: Self.effect(observed: 0))
+        #expect(half.trace.observedInsulinEffect == 0.5)
+        #expect(half.reason.contains("observed insulin effect x0.5; "), "\(half.reason)")
+        #expect(half.trace.minGuardBG >= half.trace.threshold, "\(half.reason)")
+        #expect((half.units ?? 0) > 0, "\(half.reason)")
+        #expect((half.eventualBG ?? 0) > (unscaled.eventualBG ?? 0))
+        #expect(half.trace.minPredBG >= unscaled.trace.minPredBG)
+
+        let partial = Self.run(effect: Self.effect(observed: -20.925))
+        #expect(abs(partial.trace.observedInsulinEffect - 0.62) < 1E-9)
+        #expect(partial.reason.contains("observed insulin effect x0.62; "), "\(partial.reason)")
+    }
+
+    @Test("each gate blocks the correction") func gatesBlock() {
+        let flat = Self.effect(observed: 0)
+        func untouched(_ r: AAPSResult, _ label: String) {
+            #expect(r.trace.observedInsulinEffect == 1, "\(label)")
+            #expect(!r.reason.contains("observed insulin effect"), "\(label)")
+        }
+        // BG 170
+        let low = Self.run(bg: 170, effect: Self.effect(observed: 0, bg: 170))
+        untouched(low, "bg 170")
+        #expect(low == Self.run(bg: 170, effect: nil))
+        // falling 4 per 5 minutes
+        let falling = Self.run(delta: -4, effect: flat)
+        untouched(falling, "falling 4")
+        #expect(falling == Self.run(delta: -4, effect: nil))
+        // falling exactly 3 is still allowed
+        #expect(Self.run(delta: -3, effect: flat).trace.observedInsulinEffect == 0.5)
+        // near a low within 45 minutes: a fresh bolus about to peak, the unscaled guard dips in the first 45 min
+        var ticks = S.activeIob(8, activity: 0.1)
+        ticks[0].activity = 0.015
+        let nearLow = Self.run(bg: 190, delta: -3, ticks: ticks, effect: Self.effect(observed: 0, bg: 190))
+        let nearLowBase = Self.run(bg: 190, delta: -3, ticks: ticks, effect: nil)
+        #expect(nearLowBase.trace.nearGuardBG < nearLowBase.trace.threshold, "\(nearLowBase.reason)")
+        untouched(nearLow, "near low")
+        #expect(nearLow == nearLowBase)
+        // predicted drop too small to measure
+        let tiny = Self.run(effect: Self.effect(observed: 0, activity: 0.005))
+        untouched(tiny, "tiny predicted drop")
+    }
+
+    // MARK: - Adapter data gates
+
+    static let curve = AAPSIob.Curve(diaHours: 5, peakMinutes: 75)
+
+    static func history(gapMinutes: Int? = nil, siteChangeMinutesAgo: Int? = nil) -> AAPSHistory {
+        var h = AAPSHistory()
+        h.boluses = [AAPSHistory.Bolus(time: S.now - 60 * 60000, amount: 4)]
+        h.basalSchedule = [AAPSHistory.BasalEntry(minutes: 0, rate: 1)]
+        h.temps = [AAPSHistory.TempBasal(time: S.now - 6 * 3_600_000, duration: 6 * 3_600_000, rate: 1)]
+        h.glucose = (0 ... 14).compactMap { k -> AAPSHistory.Glucose? in
+            let minutesAgo = k * 5
+            if let gap = gapMinutes, minutesAgo > 10, minutesAgo < 10 + gap { return nil }
+            return AAPSHistory.Glucose(time: S.now - Int64(minutesAgo) * 60000 - 20000, value: 230)
+        }
+        if let ago = siteChangeMinutesAgo { h.siteChanges = [S.now - Int64(ago) * 60000] }
+        return h
+    }
+
+    static func adapterEffect(_ h: AAPSHistory) -> AAPSObservedInsulinEffect? {
+        AAPSDosingAdapter.observedInsulinEffect(
+            history: h, now: S.now, autosensRatio: 1, curve: curve, calendar: Calendar(identifier: .gregorian)
+        )
+    }
+
+    @Test("clean history gives the 45-minute window") func adapterWindow() {
+        let e = Self.adapterEffect(Self.history())
+        #expect(e?.glucoseThen == 230)
+        #expect(e?.activities.count == 9)
+        // the last activity is the one the loop uses now
+        let nowActivity = AAPSIob.total(
+            at: S.now, now: S.now, ratio: 1, curve: Self.curve, history: Self.history(), includeZeroTemp: false,
+            calendar: Calendar(identifier: .gregorian)
+        ).activity
+        #expect(e?.activities.last == nowActivity)
+        #expect((e?.activities.first ?? 0) > 0)
+    }
+
+    @Test("a site change 2 hours ago blocks, 4 hours ago does not") func adapterSiteChange() {
+        #expect(Self.adapterEffect(Self.history(siteChangeMinutesAgo: 120)) == nil)
+        #expect(Self.adapterEffect(Self.history(siteChangeMinutesAgo: 240)) != nil)
+        // the history builder counts primes and the stored pod changes
+        let h = AAPSHistory.from(
+            pumpHistory: [PumpHistoryEvent(
+                id: "p",
+                type: .prime,
+                timestamp: Date(timeIntervalSince1970: Double(S.now) / 1000 - 3600)
+            )],
+            carbs: [],
+            glucose: [],
+            basalProfile: [],
+            now: Date(timeIntervalSince1970: Double(S.now) / 1000),
+            siteChanges: [Date(timeIntervalSince1970: Double(S.now) / 1000 - 7200)]
+        )
+        #expect(h.siteChanges == [S.now - 7_200_000, S.now - 3_600_000])
+    }
+
+    @Test("a glucose gap over 10 minutes blocks, one missed reading does not") func adapterGap() {
+        #expect(Self.adapterEffect(Self.history(gapMinutes: 10)) != nil) // one reading missing: 10 min apart
+        #expect(Self.adapterEffect(Self.history(gapMinutes: 15)) == nil) // two missing: 15 min apart
+        var stale = Self.history()
+        stale.glucose = stale.glucose.filter { $0.time < S.now - 40 * 60000 } // nothing recent
+        #expect(Self.adapterEffect(stale) == nil)
+        var short = Self.history()
+        short.glucose = short.glucose.filter { $0.time > S.now - 30 * 60000 } // does not reach back 45 min
+        #expect(Self.adapterEffect(short) == nil)
+    }
+
+    // MARK: - Off and bounds
+
+    @Test("setting off gives today's output exactly") func offIsUnchanged() throws {
+        #expect(AAPSDosingSettings.default.correctForecastFromObservedInsulinEffect)
+        let missing = try JSONDecoder().decode(AAPSDosingSettings.self, from: Data(#"{"enabled":true}"#.utf8))
+        #expect(missing.correctForecastFromObservedInsulinEffect) // missing key: on
+        let off = try JSONDecoder()
+            .decode(AAPSDosingSettings.self, from: Data(#"{"correctForecastFromObservedInsulinEffect":false}"#.utf8))
+        #expect(!off.correctForecastFromObservedInsulinEffect)
+        let junk = try JSONDecoder()
+            .decode(AAPSDosingSettings.self, from: Data(#"{"correctForecastFromObservedInsulinEffect":"no"}"#.utf8))
+        #expect(junk.correctForecastFromObservedInsulinEffect)
+        #expect(try JSONDecoder().decode(AAPSDosingSettings.self, from: JSONEncoder().encode(off)) == off)
+
+        // no window passed (setting off) is the port at scale 1, which is the unmodified AAPS port
+        for bg in [120.0, 180, 230, 300] {
+            for delta in [-5.0, 0, 4] {
+                for activity in [0.0, 0.01, 0.03] {
+                    let none = Self.run(bg: bg, delta: delta, iob: activity * 200, activity: activity, effect: nil)
+                    let one = Self.scaled(bg: bg, delta: delta, iob: activity * 200, activity: activity, scale: 1)
+                    #expect(none == one, "bg \(bg) delta \(delta) act \(activity)")
+                    #expect(none.trace.observedInsulinEffect == 1)
+                }
+            }
+        }
+    }
+
+    @Test("with the correction, insulinReq never exceeds the insulin-effect-halved result") func halfBound() {
+        var applied = 0
+        for bg in [180.0, 200, 230, 260, 300] {
+            for delta in [-3.0, -1, 0, 2, 5] {
+                for activity in [0.005, 0.01, 0.015, 0.02, 0.03, 0.05] {
+                    for observed in [-30.0, -15, -5, 0, 10] {
+                        let iob = activity * 200
+                        let r = Self.run(
+                            bg: bg, delta: delta, iob: iob, activity: activity,
+                            effect: Self.effect(observed: observed, bg: bg, activity: activity)
+                        )
+                        let label = "bg \(bg) delta \(delta) act \(activity) obs \(observed)"
+                        #expect(r.trace.observedInsulinEffect >= 0.5 && r.trace.observedInsulinEffect <= 1, "\(label)")
+                        guard r.trace.observedInsulinEffect < 1 else { continue }
+                        applied += 1
+                        let half = Self.scaled(bg: bg, delta: delta, iob: iob, activity: activity, scale: 0.5)
+                        #expect(max(0, r.insulinReq ?? 0) <= max(0, half.insulinReq ?? 0) + 1E-9, "\(label)")
+                        // limits untouched
+                        #expect((r.units ?? 0) <= (r.trace.maxBolus ?? 0) + 1E-9, "\(label)")
+                        #expect((r.rate ?? 0) <= AAPSDetermineBasalSMB.maxSafeBasal(S.profile()) + 1E-9, "\(label)")
+                        #expect((r.insulinReq ?? 0) <= 10 - iob + 1E-9, "\(label)")
+                        #expect(
+                            r.trace.threshold == Self.run(bg: bg, delta: delta, iob: iob, activity: activity, effect: nil)
+                                .trace.threshold
+                        )
+                    }
+                }
+            }
+        }
+        #expect(applied > 0, "the sweep must include applied corrections")
+    }
+}

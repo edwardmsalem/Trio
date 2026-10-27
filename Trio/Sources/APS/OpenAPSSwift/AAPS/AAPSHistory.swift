@@ -46,6 +46,9 @@ struct AAPSHistory: Codable, Equatable {
     /// Newest first, as AAPS keeps its readings.
     var glucose: [Glucose] = []
     var basalSchedule: [BasalEntry] = []
+    /// Pod or infusion-set changes (pod activations, cannula fills, primes, rewinds), oldest first.
+    /// Optional so older encoded history still decodes.
+    var siteChanges: [Int64]?
 
     /// Scheduled basal at `time`, in local time (AAPS `profile.getBasal`).
     func basal(at time: Int64, calendar: Calendar) -> Double {
@@ -77,12 +80,15 @@ extension AAPSHistory {
     ///   converted with the scheduled basal at their start.
     /// - Carbs are every carb entry up to `now` (fat and protein equivalents included, as AAPS
     ///   counts extended carbs). Entries dated in the next 2 hours go to `upcomingCarbs` instead.
+    /// - Site changes are the prime and rewind events in the pump history plus `siteChanges`, the
+    ///   pod or infusion-set changes Trio stores outside the algorithm's pump history.
     static func from(
         pumpHistory: [PumpHistoryEvent],
         carbs: [CarbsEntry],
         glucose: [BloodGlucose],
         basalProfile: [BasalProfileEntry],
         now: Date,
+        siteChanges: [Date] = [],
         calendar: Calendar = .current
     ) -> AAPSHistory {
         let nowMs = ms(now)
@@ -161,6 +167,9 @@ extension AAPSHistory {
             guard c.carbs > 0, time > nowMs, time <= upcomingEnd else { return nil }
             return Carbs(time: time, amount: dbl(c.carbs))
         }.sorted { $0.time < $1.time }
+
+        let primes = events.filter { $0.type == .prime || $0.type == .rewind }.map(\.timestamp)
+        history.siteChanges = Set((primes + siteChanges).map(ms)).filter { $0 <= nowMs }.sorted()
 
         history.glucose = glucose.compactMap { g -> Glucose? in
             guard let value = g.glucose ?? g.sgv else { return nil }

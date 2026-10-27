@@ -11,6 +11,7 @@ extension AAPSDosing {
         var tierOrder: AAPSTierOrder = .onTopOfDynamic { didSet { persist() } }
         var startingTDD: Int = 78 { didSet { persist() } }
         var guardSeesUpcomingCarbs: Bool = false { didSet { persist() } }
+        var correctForecastFromObservedInsulinEffect: Bool = true { didSet { persist() } }
 
         private var loaded = false
 
@@ -23,6 +24,7 @@ extension AAPSDosing {
             tierOrder = s.tierOrder
             startingTDD = s.startingTDD
             guardSeesUpcomingCarbs = s.guardSeesUpcomingCarbs
+            correctForecastFromObservedInsulinEffect = s.correctForecastFromObservedInsulinEffect
             loaded = true
         }
 
@@ -35,7 +37,8 @@ extension AAPSDosing {
                 adjustSensitivityFromTDD: adjustSensitivityFromTDD,
                 tierOrder: tierOrder,
                 startingTDD: startingTDD,
-                guardSeesUpcomingCarbs: guardSeesUpcomingCarbs
+                guardSeesUpcomingCarbs: guardSeesUpcomingCarbs,
+                correctForecastFromObservedInsulinEffect: correctForecastFromObservedInsulinEffect
             ))
         }
     }

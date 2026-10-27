@@ -28,6 +28,10 @@ import Foundation
 /// - Upcoming carbs (Trio addition, setting "Guard sees upcoming fat/protein"): carb entries already
 ///   entered but dated up to 4 hours ahead, which is how Trio stores fat and protein equivalents,
 ///   are handed to DetermineBasalSMB for the low-glucose guard only (`guardUpcomingCarbs`).
+/// - Observed insulin effect (Trio addition, setting "Correct forecast from observed insulin effect"):
+///   the glucose 45 minutes ago and the insulin activity every 5 minutes since, each from the doses
+///   given up to that moment, handed to DetermineBasalSMB (`observedInsulinEffect`). Left out after a
+///   pod or site change in the last 3 hours or with gaps in the glucose readings.
 enum AAPSDosingAdapter {
     private static func dbl(_ d: Decimal) -> Double { Double(truncating: d as NSNumber) }
 
@@ -58,6 +62,42 @@ enum AAPSDosingAdapter {
         let tdd: Double?
         let recentTddCapped: Bool
         let guardUpcomingCarbs: Double
+        let observedInsulinEffect: AAPSObservedInsulinEffect?
+    }
+
+    /// The window the observed-insulin-effect correction compares against, or nil when a pod or site
+    /// changed within `siteChangeHours`, or the glucose readings do not cover the window without a
+    /// gap over `maxGlucoseGapMinutes`.
+    static func observedInsulinEffect(
+        history: AAPSHistory,
+        now: Int64,
+        autosensRatio: Double,
+        curve: AAPSIob.Curve,
+        calendar: Calendar = .current
+    ) -> AAPSObservedInsulinEffect? {
+        typealias Limits = AAPSDetermineBasalSMB.ObservedInsulinEffect
+        let minute: Int64 = 60000
+        let siteWindow = Int64(Limits.siteChangeHours * 60) * minute
+        if (history.siteChanges ?? []).contains(where: { $0 <= now && now - $0 < siteWindow }) { return nil }
+
+        let start = now - Int64(Limits.windowMinutes) * minute
+        let tolerance = Int64(Limits.startToleranceMinutes * 60000)
+        let maxGap = Int64(Limits.maxGlucoseGapMinutes * 60000)
+        let readings = history.glucose.filter { $0.time >= start - tolerance && $0.time <= now }.sorted { $0.time < $1.time }
+        guard let then = readings.min(by: { abs($0.time - start) < abs($1.time - start) }),
+              abs(then.time - start) <= tolerance,
+              let last = readings.last, now - last.time <= maxGap
+        else { return nil }
+        let window = readings.filter { $0.time >= then.time }
+        guard zip(window, window.dropFirst()).allSatisfy({ $1.time - $0.time <= maxGap }) else { return nil }
+
+        let activities = stride(from: start + 5 * minute, through: now, by: Int(5 * minute)).map { t in
+            AAPSIob.total(
+                at: t, now: t, ratio: autosensRatio, curve: curve, history: history,
+                includeZeroTemp: false, calendar: calendar
+            ).activity
+        }
+        return AAPSObservedInsulinEffect(glucoseThen: then.value, activities: activities)
     }
 
     /// AAPS Dynamic ISF for this run (the plugin's `calculateRawDynIsf`).
@@ -229,6 +269,7 @@ enum AAPSDosingAdapter {
 
         // AAPS's own IOB and COB from Trio's history: temp basals counted against the scheduled
         // basal times the autosens ratio the dosing uses, COB from the Oref1 carb chain.
+        var observedEffect: AAPSObservedInsulinEffect?
         if let history = context.history {
             let curve = AAPSIob.Curve(
                 diaHours: max(dbl(profile.dia ?? 5), 5),
@@ -239,6 +280,9 @@ enum AAPSDosingAdapter {
                 ) ?? 75
             )
             iobArray = AAPSIob.iobArray(history: history, now: nowMs, autosensRatio: autosens.ratio, curve: curve)
+            if settings.correctForecastFromObservedInsulinEffect {
+                observedEffect = observedInsulinEffect(history: history, now: nowMs, autosensRatio: autosens.ratio, curve: curve)
+            }
             let cache = context.carbIsfCache
             let isfForCarbs: (Int64) -> Double = { t in
                 let date = Date(timeIntervalSince1970: Double(t) / 1000)
@@ -291,7 +335,8 @@ enum AAPSDosingAdapter {
             tiersOnDynamic: settings.tierOrder == .onTopOfDynamic,
             tdd: dynIsfMode ? dyn.tdd : nil,
             recentTddCapped: dynIsfMode && dyn.recentTddCapped,
-            guardUpcomingCarbs: upcomingCarbs
+            guardUpcomingCarbs: upcomingCarbs,
+            observedInsulinEffect: observedEffect
         )
     }
 
@@ -335,7 +380,8 @@ enum AAPSDosingAdapter {
             isfTiers: p.tiers,
             autosensMin: p.autosensMin,
             isfTiersOnDynamic: p.tiersOnDynamic,
-            guardUpcomingCarbs: p.guardUpcomingCarbs
+            guardUpcomingCarbs: p.guardUpcomingCarbs,
+            observedInsulinEffect: p.observedInsulinEffect
         )
         return determination(from: rT, prepared: p, profile: profile, currentTime: currentTime)
     }

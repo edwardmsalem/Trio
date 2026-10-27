@@ -97,6 +97,16 @@ struct AAPSOapsProfile: Equatable {
     var enableSMB_high_bg_target: Double = 110
 }
 
+/// Trio addition: the history the observed-insulin-effect correction compares against, worked out
+/// by `AAPSDosingAdapter.observedInsulinEffect`. Nil when the data is not good enough to use.
+struct AAPSObservedInsulinEffect: Equatable {
+    /// Glucose at the start of the window.
+    var glucoseThen: Double
+    /// Insulin activity every 5 minutes over the window, oldest first, ending now, each worked out
+    /// from the doses given up to that moment (what the loop saw then).
+    var activities: [Double]
+}
+
 /// How the ISF tiers combine with Dynamic ISF in the AAPS dosing mode.
 enum AAPSTierOrder: String, Codable, CaseIterable, Identifiable {
     /// The tier multiplies the dynamic ISF result. Eddie's AAPS setting.
@@ -133,6 +143,11 @@ struct AAPSDetermineBasalTrace: Equatable {
     var guardBG: Double = 0
     /// True when upcoming carbs lifted the guard over the threshold and so stopped a block.
     var guardReleasedByUpcomingCarbs: Bool = false
+    /// Lowest guard forecast over the next 45 minutes, before any observed-insulin-effect scaling.
+    var nearGuardBG: Double = 0
+    /// The factor the observed-insulin-effect correction put on the forecast insulin effect,
+    /// 1 when it did not apply.
+    var observedInsulinEffect: Double = 1
     var maxBolus: Double?
     var microBolus: Double?
 }

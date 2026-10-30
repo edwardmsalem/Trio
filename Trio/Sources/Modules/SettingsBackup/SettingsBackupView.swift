@@ -11,6 +11,11 @@ struct SettingsBackupView: View {
     @State private var exportError: String?
 
     @State private var showImporter = false
+    @State private var showFolderPicker = false
+    @State private var folderURL = SettingsBackupService.Folder.chosen()
+    @State private var folderStatus: String?
+    @State private var isSavingToFolder = false
+    @State private var isLoadingLatest = false
     @State private var pendingBackup: SettingsBackup?
     @State private var importError: String?
 
@@ -18,6 +23,7 @@ struct SettingsBackupView: View {
     @State private var applyAppSettings = true
     @State private var applyTherapy = true
     @State private var applyBasal = true
+    @State private var applyAAPSDosing = true
 
     @State private var isApplying = false
     @State private var resultMessage: String?
@@ -32,6 +38,7 @@ struct SettingsBackupView: View {
         // a blank screen (with a warning triangle) on iOS 26. The parent provides
         // the "Back" button.
         List {
+            folderSection
             exportSection
             importSection
         }
@@ -44,6 +51,16 @@ struct SettingsBackupView: View {
         ) { result in
             handleImportResult(result)
         }
+        .background {
+            // A second file picker needs its own view; two on one view clash.
+            Color.clear.fileImporter(
+                isPresented: $showFolderPicker,
+                allowedContentTypes: [.folder],
+                allowsMultipleSelection: false
+            ) { result in
+                handleFolderResult(result)
+            }
+        }
         .sheet(item: $pendingBackup) { backup in
             confirmSheet(for: backup)
         }
@@ -51,6 +68,55 @@ struct SettingsBackupView: View {
             Button("OK") {}
         } message: {
             Text(resultMessage ?? "")
+        }
+    }
+
+    // MARK: - Backup folder
+
+    private var folderSection: some View {
+        Section {
+            if let folderURL {
+                Button {
+                    Task { await saveToFolder() }
+                } label: {
+                    if isSavingToFolder {
+                        ProgressView()
+                    } else {
+                        Label("Create Backup", systemImage: "icloud.and.arrow.up")
+                    }
+                }
+                .disabled(isSavingToFolder)
+                Button {
+                    Task { await restoreLatest() }
+                } label: {
+                    if isLoadingLatest {
+                        ProgressView()
+                    } else {
+                        Label("Restore Latest Backup", systemImage: "icloud.and.arrow.down")
+                    }
+                }
+                .disabled(isLoadingLatest)
+                Button {
+                    showFolderPicker = true
+                } label: {
+                    Label("Change Folder (\(SettingsBackupService.Folder.displayName(for: folderURL)))", systemImage: "folder")
+                }
+            } else {
+                Button {
+                    showFolderPicker = true
+                } label: {
+                    Label("Choose Backup Folder", systemImage: "folder.badge.plus")
+                }
+            }
+            if let folderStatus {
+                Text(folderStatus).font(.caption).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Backup Folder")
+        } footer: {
+            Text(
+                "Pick iCloud Drive once on each phone. Create Backup saves into a Trio folder there, and Restore Latest Backup on your other phone loads the newest one. You'll review what changes before anything is applied."
+            )
         }
     }
 
@@ -72,7 +138,7 @@ struct SettingsBackupView: View {
                 Text(exportError).font(.caption).foregroundStyle(.red)
             }
         } header: {
-            Text("Export")
+            Text("Share a Backup File")
         } footer: {
             Text(
                 "Creates a complete settings file (app preferences, alarms, presets, and therapy/dosing settings), then lets you AirDrop, message, or save it. Import it on your other device below."
@@ -118,11 +184,14 @@ struct SettingsBackupView: View {
                     Toggle("App settings & alarms", isOn: $applyAppSettings)
                     Toggle("Therapy profiles (ISF, carb ratio, targets)", isOn: $applyTherapy)
                     Toggle("Basal rates", isOn: $applyBasal)
+                    if backup.aapsDosing != nil || backup.isfTiers != nil {
+                        Toggle("AAPS dosing settings & ISF tiers", isOn: $applyAAPSDosing)
+                    }
                 } header: {
                     Text("Apply")
                 } footer: {
                     Text(
-                        "Therapy profiles and basal rates control how Trio doses insulin. Only restore them onto a device meant to run the same therapy. Basal rates are pushed to your pump and need it connected."
+                        "Therapy profiles, basal rates, and AAPS dosing settings control how Trio doses insulin. Only restore them onto a device meant to run the same therapy. Basal rates are pushed to your pump and need it connected."
                     )
                 }
 
@@ -136,7 +205,7 @@ struct SettingsBackupView: View {
                             Text("Apply Backup")
                         }
                     }
-                    .disabled(isApplying || (!applyAppSettings && !applyTherapy && !applyBasal))
+                    .disabled(isApplying || (!applyAppSettings && !applyTherapy && !applyBasal && !applyAAPSDosing))
                 }
             }
             .navigationTitle("Review Restore")
@@ -165,6 +234,51 @@ struct SettingsBackupView: View {
         }
     }
 
+    private func handleFolderResult(_ result: Result<[URL], Error>) {
+        switch result {
+        case let .success(urls):
+            guard let url = urls.first else { return }
+            do {
+                try SettingsBackupService.Folder.choose(url)
+                folderURL = SettingsBackupService.Folder.chosen()
+                folderStatus = nil
+            } catch {
+                folderStatus = error.localizedDescription
+            }
+        case let .failure(error):
+            folderStatus = error.localizedDescription
+        }
+    }
+
+    private func saveToFolder() async {
+        guard let storage, let settingsManager else {
+            folderStatus = String(localized: "Couldn't access settings.")
+            return
+        }
+        isSavingToFolder = true
+        defer { isSavingToFolder = false }
+        do {
+            let backup = SettingsBackupService.makeBackup(storage: storage, settingsManager: settingsManager)
+            let name = try await SettingsBackupService.Folder.save(backup)
+            folderStatus = String(localized: "Saved \(name)")
+        } catch {
+            folderStatus = error.localizedDescription
+        }
+    }
+
+    private func restoreLatest() async {
+        isLoadingLatest = true
+        defer { isLoadingLatest = false }
+        do {
+            pendingBackup = try await SettingsBackupService.Folder.loadLatest()
+            folderStatus = nil
+        } catch let error as SettingsBackupService.Folder.FolderError {
+            folderStatus = error.localizedDescription
+        } catch {
+            folderStatus = String(localized: "The newest backup in the folder couldn't be read.")
+        }
+    }
+
     private func handleImportResult(_ result: Result<[URL], Error>) {
         importError = nil
         switch result {
@@ -186,7 +300,8 @@ struct SettingsBackupView: View {
         let options = SettingsBackupService.ApplyOptions(
             includeAppSettings: applyAppSettings,
             includeTherapy: applyTherapy,
-            includeBasal: applyBasal
+            includeBasal: applyBasal,
+            includeAAPSDosing: applyAAPSDosing
         )
         let pump = resolver.resolve(DeviceDataManager.self)?.pumpManager
         let result = await SettingsBackupService.apply(

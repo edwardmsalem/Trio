@@ -187,6 +187,20 @@ struct SettingsBackupView: View {
                     if backup.aapsDosing != nil || backup.isfTiers != nil {
                         Toggle("AAPS dosing settings & ISF tiers", isOn: $applyAAPSDosing)
                     }
+                    if let tiers = backup.isfTiers, applyAAPSDosing {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tiers.enabled ? "ISF tiers (on)" : "ISF tiers (off)")
+                            ForEach(tiers.tiers) { tier in
+                                Text("\(tier.bgMin.description)–\(tier.bgMax.description) mg/dL: × \(tier.isfMultiplier.description)")
+                            }
+                            if !SettingsBackupService.isfTiersAreSafe(tiers) {
+                                Text("Outside the allowed limits. These tiers will not be applied.")
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
                 } header: {
                     Text("Apply")
                 } footer: {

@@ -180,6 +180,16 @@ enum SettingsBackupService {
         return try JSONDecoder().decode(SettingsBackup.self, from: data)
     }
 
+    /// The same limits the ISF tiers editor allows: multipliers 0.5 to 1.5, ranges inside
+    /// 0 to 400 mg/dL with a positive width, and never more aggressive than 1.0 below 70.
+    static func isfTiersAreSafe(_ tiers: InsulinSensitivityTiers) -> Bool {
+        tiers.tiers.allSatisfy { tier in
+            tier.isfMultiplier >= 0.5 && tier.isfMultiplier <= 1.5
+                && tier.bgMin >= 0 && tier.bgMax <= 400 && tier.bgMin < tier.bgMax
+                && (tier.bgMin >= 70 || tier.isfMultiplier >= 1)
+        }
+    }
+
     struct ApplyOptions {
         var includeAppSettings = true
         var includeTherapy = true // ISF / CR / targets
@@ -230,9 +240,19 @@ enum SettingsBackupService {
                 storage.save(aapsDosing, as: OpenAPS.Settings.aapsDosing)
             }
             if let tiers = backup.isfTiers {
-                storage.save(tiers, as: OpenAPS.Settings.insulinSensitivityTiers)
+                if isfTiersAreSafe(tiers) {
+                    storage.save(tiers, as: OpenAPS.Settings.insulinSensitivityTiers)
+                    result.applied.append(String(localized: "ISF tiers"))
+                } else {
+                    result.warnings.append(String(
+                        localized: "The ISF tiers in this backup are outside the allowed limits, so your current tiers were kept."
+                    ))
+                }
             }
-            result.applied.append(String(localized: "AAPS dosing settings and ISF tiers"))
+            if backup.aapsDosing != nil {
+                // Decoding already clamped the adjustment factor and starting TDD to their ranges.
+                result.applied.append(String(localized: "AAPS dosing settings"))
+            }
         }
 
         if options.includeBasal, !backup.basalProfile.isEmpty {

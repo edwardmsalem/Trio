@@ -145,7 +145,7 @@ current_build_number = previous_build_number + 1
 
     copy_artifacts(
       target_path: "artifacts",
-      artifacts: ["*.mobileprovision", "*.ipa", "*.dSYM.zip"]
+      artifacts: ["*.dSYM.zip"]
     )
   end
 

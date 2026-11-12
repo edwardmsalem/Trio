@@ -353,12 +353,5 @@ jobs:
           FASTLANE_KEY: ${{ secrets.FASTLANE_KEY }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
 
-      # Upload Build artifacts
-      - name: Upload build log, IPA and Symbol artifacts
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: build-artifacts
-          path: |
-            artifacts
-            buildlog
+      # No build artifacts are uploaded: this repo is public and the IPA carries
+      # compiled-in API keys (Eddie, 2026-11-12).

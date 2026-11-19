@@ -31,7 +31,7 @@ struct WatchConfigGarminAppConfigView: View {
                         }
                         .padding(.top)
                         .onChange(of: state.garminSettings.watchface) { oldValue, newValue in
-                            if oldValue != newValue {
+                            if newValue.requiresTransmissionPause(from: oldValue) {
                                 state.handleWatchfaceChange()
                                 shouldShowWatchfaceSwitchConfirmDialog = true
                             }
@@ -39,7 +39,7 @@ struct WatchConfigGarminAppConfigView: View {
 
                         HStack(alignment: .center) {
                             Text(
-                                "Choose which watchface to support."
+                                "Choose which watchface to support. With watchface data enabled, all installed Garmin Glance faces receive readings."
                             )
                             .font(.footnote)
                             .foregroundColor(.secondary)
@@ -228,8 +228,8 @@ struct WatchConfigGarminAppConfigView: View {
                         "• Trio – The original Trio watchface, developed by Ivan Valkou.\n" +
                         "• Swissalpine – Originally developed for AAPS, adapted to work with Trio.\n" +
                         "• Complication – Not a watchface. A watch app that publishes glucose, IOB, COB and sensitivity ratio as complications, so you can use any watchface that has Connect IQ complication slots. Pick this when you are not running a Trio watchface.\n\n" +
-                        "You must use this configuration setting here BEFORE you switch the watchface on your Garmin device to another watchface.\n\n" +
-                        "⚠️ Changing the watchface will automatically disable data transmission. You will be prompted to resume data transmission after you have changed the watchface on your Garmin device."
+                        "With watchface data enabled, all installed Garmin Glance faces receive readings, including Big Bang. You can switch between them on the watch without changing this selection.\n\n" +
+                        "Switching between Garmin Glance selections here keeps your existing transmission setting. Switching to or from Trio, Swissalpine or Complication pauses transmission and prompts you to resume after changing the face on your watch."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )
@@ -255,7 +255,7 @@ struct WatchConfigGarminAppConfigView: View {
                 hintLabel: "Disable watchface data transmission",
                 hintText: Text(
                     "Important: If you want to use a different watchface on your Garmin device that has no data requirement from this app, disable data transmission to the Garmin watchface app! Otherwise you will not be able to get current data once you re-enable the supported watchface that shows Trio data and you will have to re-install it on your Garmin device.\n\n" +
-                        "Note: When switching between supported watchfaces, data transmission is automatically disabled. You will be prompted to resume data transmission after you have changed the watchface on your Garmin device."
+                        "Switching between Garmin Glance selections keeps this setting unchanged. Switching to or from Trio, Swissalpine or Complication pauses transmission and prompts you to resume it. Disabling watchface data stops all face pushes; it does not stop Trio Bolus."
                 ),
                 sheetTitle: String(localized: "Help", comment: "Help sheet title")
             )

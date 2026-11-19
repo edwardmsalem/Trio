@@ -75,6 +75,7 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
     case premier
     case lange
     case apSport
+    case bigBang
 
     var displayName: String {
         switch self {
@@ -120,6 +121,8 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
             return String(localized: "Lange", comment: "Garmin watchface name")
         case .apSport:
             return String(localized: "AP Sport", comment: "Garmin watchface name")
+        case .bigBang:
+            return String(localized: "Big Bang", comment: "Garmin watchface name")
         }
     }
 
@@ -127,6 +130,13 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
     /// wearer can switch faces on the watch without also changing the pick in Trio.
     static var garminGlanceFaces: [GarminWatchface] {
         allCases.filter { ![.trio, .swissalpine, .complication].contains($0) }
+    }
+
+    /// Glance faces already receive the same broadcast. Switching between them
+    /// must not disable delivery; an explicitly disabled setting stays disabled.
+    func requiresTransmissionPause(from previous: GarminWatchface) -> Bool {
+        previous != self &&
+            !(Self.garminGlanceFaces.contains(previous) && Self.garminGlanceFaces.contains(self))
     }
 
     /// The UUID for the watchface applications in Garmin Connect IQ
@@ -178,6 +188,8 @@ enum GarminWatchface: String, JSON, CaseIterable, Identifiable, Codable, Hashabl
             return UUID(uuidString: "EC2FB1B7-7F87-4F05-ABAF-1816B196AB91")
         case .apSport:
             return UUID(uuidString: "9BE57722-AB1A-49D5-BB48-408CCBB36E51")
+        case .bigBang:
+            return UUID(uuidString: "D0798261-858B-4D18-95D3-8A6937C4FB99")
         }
     }
 }

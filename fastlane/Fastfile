@@ -157,13 +157,33 @@ current_build_number = previous_build_number + 1
       key_content: "#{FASTLANE_KEY}"
     )
     
-    upload_to_testflight(
-      api_key: api_key,
-      skip_submission: false,
-      ipa: "Trio.ipa",
-      skip_waiting_for_build_processing: true,
-      changelog: git_branch+" "+last_git_commit[:abbreviated_commit_hash],
-    )
+    uploaded_build = get_ipa_info_plist_value(ipa: "Trio.ipa", key: "CFBundleVersion").to_i
+
+    begin
+      upload_to_testflight(
+        api_key: api_key,
+        skip_submission: false,
+        ipa: "Trio.ipa",
+        skip_waiting_for_build_processing: true,
+        changelog: git_branch+" "+last_git_commit[:abbreviated_commit_hash],
+      )
+    rescue => upload_error
+      # Xcode 27.2's uploader logs a spurious "CDUploaderStateInfoResumeFilePath"
+      # ERROR line after "UPLOAD SUCCEEDED", which fastlane reports as a failure
+      # (builds 95-103 all reached TestFlight this way). Only treat it as success
+      # when App Store Connect actually lists the build number we just uploaded.
+      found = false
+      6.times do
+        latest = latest_testflight_build_number(app_identifier: ENV["BUNDLE_ID"], api_key: api_key, initial_build_number: 0).to_i
+        if latest >= uploaded_build
+          found = true
+          break
+        end
+        sleep(30)
+      end
+      raise upload_error unless found
+      UI.important("Upload reported an error, but App Store Connect lists build #{uploaded_build}. Continuing.")
+    end
   end
 
   desc "Provision Identifiers and Certificates"

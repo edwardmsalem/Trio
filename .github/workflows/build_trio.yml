@@ -209,6 +209,12 @@ jobs:
           submodules: recursive
           ref: ${{ env.TARGET_BRANCH }}
 
+      - name: Verify Garmin face routing and delivery
+        run: |
+          python3 scripts/test-garmin-face-routing.py
+          python3 scripts/test-garmin-face-delivery.py
+          python3 scripts/test-garmin-face-adapter.py
+
       # Customize Trio: Use patches or download and apply patches from GitHub
       - name: Customize Trio
         run: |

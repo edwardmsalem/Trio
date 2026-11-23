@@ -131,6 +131,27 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// Hash of last sent data to prevent duplicate broadcasts
     private var lastSentDataHash: Int?
 
+    // Glance faces use their own acknowledged, latest-only transport. Bolus,
+    // stock faces and data fields keep their existing sending path.
+    private var faceApps: [String: IQApp] = [:]
+    private lazy var faceDelivery = GarminFaceDelivery(
+        send: { [weak self] key, data, current, completion in
+            DispatchQueue.main.async {
+                self?.sendFaceState(key: key, data: data, current: current, completion: completion)
+            }
+        },
+        schedule: { delay, action in DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action) }
+    )
+
+    private func faceKey(_ app: IQApp) -> String? {
+        guard let device = app.device, let uuid = app.uuid else { return nil }
+        return device.uuid.uuidString + ":" + uuid.uuidString
+    }
+
+    private func isGlanceFace(_ app: IQApp) -> Bool {
+        GarminWatchface.garminGlanceFaces.contains { $0.watchfaceUUID == app.uuid }
+    }
+
     /// Hash of last prepared data to skip redundant preparation
     private var lastPreparedDataHash: Int?
     private var lastPreparedWatchState: [GarminWatchState]?
@@ -773,6 +794,10 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// It also creates and registers watch apps (watchface + data field) for each device.
     /// - Parameter devices: The devices to register.
     private func registerDevices(_ devices: [IQDevice]) {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in self?.registerDevices(devices) }
+            return
+        }
         watchApps.removeAll()
         bolusApps.removeAll()
 
@@ -830,6 +855,12 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 connectIQ?.register(forAppMessages: datafieldApp, delegate: self)
             }
         }
+        faceApps = [:]
+        var keys: [String] = []
+        for app in watchApps where isGlanceFace(app) {
+            if let key = faceKey(app) { faceApps[key] = app; keys.append(key) }
+        }
+        faceDelivery.replaceDestinations(keys)
     }
 
     /// Restores previously persisted devices from local storage into `devices`.
@@ -926,6 +957,14 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             currentHash = data.count // Fallback
         }
 
+        // Face delivery must run even when the legacy broadcast is unchanged:
+        // some faces may have failed while another destination succeeded.
+        if let json = try? JSONSerialization.jsonObject(with: data),
+           let canonical = try? JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])
+        {
+            faceDelivery.offer(canonical)
+        }
+
         if currentHash == lastSentDataHash {
             if debugWatchState {
                 debug(.watchManager, "Garmin: Skipping broadcast - data unchanged")
@@ -938,7 +977,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             return
         }
 
-        watchApps.forEach { app in
+        watchApps.filter { !isGlanceFace($0) }.forEach { app in
             guard let appUUID = app.uuid else {
                 debug(.watchManager, "Garmin: Skipping app with undefined UUID")
                 return
@@ -963,6 +1002,36 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
 
         // Update last sent hash after initiating send
         lastSentDataHash = currentHash
+    }
+
+    /// Adapter for face-only delivery. Recheck eligibility after async status
+    /// lookup so a disabled/removed destination or superseded payload is skipped.
+    private func sendFaceState(key: String, data: Data, current: @escaping () -> Bool,
+                               completion: @escaping (Bool) -> Void) {
+        guard current(), isWatchfaceDataEnabled, let app = faceApps[key],
+              let device = app.device, readyDevices.contains(device.uuid),
+              let sdk = connectIQ,
+              let json = try? JSONSerialization.jsonObject(with: data)
+        else { completion(false); return }
+        sdk.getAppStatus(app) { [weak self] status in
+            DispatchQueue.main.async {
+                guard let self = self, current(), self.isWatchfaceDataEnabled,
+                      self.faceApps[key] != nil, self.readyDevices.contains(device.uuid),
+                      status?.isInstalled == true
+                else { completion(false); return }
+                self.debugGarmin("Garmin: Sending latest state to face \(key)")
+                sdk.sendMessage(json, to: app, progress: { _, _ in }, completion: { result in
+                    switch result {
+                    case .success:
+                        debug(.watchManager, "Garmin: Face transport acknowledged \(key)")
+                        completion(true)
+                    default:
+                        debug(.watchManager, "Garmin: Face transport failed \(key); latest state remains pending")
+                        completion(false)
+                    }
+                })
+            }
+        }
     }
 
     // MARK: - GarminManager Conformance
@@ -1071,6 +1140,10 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
     ///   - device: The device whose status has changed.
     ///   - status: The new status for the device.
     func deviceStatusChanged(_ device: IQDevice, status: IQDeviceStatus) {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in self?.deviceStatusChanged(device, status: status) }
+            return
+        }
         // Always log connection state changes - critical for diagnosing SDK issues
         switch status {
         case .invalidDevice:
@@ -1096,8 +1169,13 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
     /// This is required in SDK 1.8+ - sending before this callback may fail.
     /// - Parameter device: The device whose characteristics have been discovered.
     func deviceCharacteristicsDiscovered(_ device: IQDevice) {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in self?.deviceCharacteristicsDiscovered(device) }
+            return
+        }
         debug(.watchManager, "Garmin: Device characteristics discovered - ready for communication")
         readyDevices.insert(device.uuid)
+        faceDelivery.reconnect(prefix: device.uuid.uuidString + ":")
 
         // Trigger a data send now that device is ready
         // This ensures newly connected devices get data promptly
@@ -1252,5 +1330,141 @@ extension BaseGarminManager: WatchAlertObserver {
                 self?.sendMessage(message, to: app, appName: "app:Bolus")
             }
         }
+    }
+}
+
+// MARK: - Latest-only face delivery (Foundation-only, exercised by script tests)
+
+/// One in-flight face send globally, one newest pending payload per destination.
+/// SDK callbacks, reconnects and timers may arrive on different queues. All state
+/// is protected here; the adapter dispatches SDK operations onto the main queue.
+/// A successful SDK send is a transport acknowledgement, not a watch-render ACK.
+final class GarminFaceDelivery {
+    typealias Send = (String, Data, @escaping () -> Bool, @escaping (Bool) -> Void) -> Void
+    typealias Schedule = (TimeInterval, @escaping () -> Void) -> Void
+    private final class Slot {
+        var pending: Data?
+        var delivered: Data?
+        var failures = 0
+        var retry: UUID?
+    }
+    private struct Attempt {
+        let token: UUID
+        let key: String
+        let data: Data
+    }
+    private let lock = NSRecursiveLock()
+    private let send: Send
+    private let schedule: Schedule
+    private var slots: [String: Slot] = [:]
+    private var order: [String] = []
+    private var cursor = 0
+    private var active: Attempt?
+    private var latest: Data?
+    private var latestDate: UInt64?
+
+    init(send: @escaping Send, schedule: @escaping Schedule) {
+        self.send = send
+        self.schedule = schedule
+    }
+
+    /// Invalidates callbacks from the previous registration, including disable.
+    func replaceDestinations(_ keys: [String]) {
+        lock.lock(); defer { lock.unlock() }
+        active = nil
+        slots = [:]
+        order = []
+        cursor = 0
+        for key in keys where slots[key] == nil {
+            let slot = Slot()
+            slot.pending = latest
+            slots[key] = slot
+            order.append(key)
+        }
+        pump()
+    }
+
+    func offer(_ data: Data) {
+        lock.lock(); defer { lock.unlock() }
+        guard let records = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let date = records.compactMap({ ($0["glucoseDate"] as? NSNumber)?.uint64Value }).max(),
+              date > 0, date <= UInt64(Date().timeIntervalSince1970 * 1000) + 300_000,
+              latestDate == nil || date >= latestDate!
+        else { return }
+        latest = data
+        latestDate = date
+        for slot in slots.values {
+            if slot.pending != data {
+                slot.pending = data
+                slot.failures = 0
+                slot.retry = nil
+            } else if slot.failures >= 4 {
+                // A subsequent broadcast can retry identical data after exhaustion.
+                slot.failures = 0
+            }
+        }
+        pump()
+    }
+
+    /// Clear transport acknowledgements when the device reconnects. Cached
+    /// latest data is sent with its original timestamp, then replaced by updates.
+    func reconnect(prefix: String) {
+        lock.lock(); defer { lock.unlock() }
+        if let attempt = active, attempt.key.hasPrefix(prefix) { active = nil }
+        for (key, slot) in slots where key.hasPrefix(prefix) {
+            slot.delivered = nil
+            slot.failures = 0
+            slot.retry = nil
+        }
+        pump()
+    }
+
+    private func isCurrent(_ attempt: Attempt) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return active?.token == attempt.token && slots[attempt.key]?.pending == attempt.data
+    }
+
+    private func pump() {
+        guard active == nil, !order.isEmpty else { return }
+        for offset in 0..<order.count {
+            let index = (cursor + offset) % order.count
+            let key = order[index]
+            guard let slot = slots[key], let data = slot.pending,
+                  slot.delivered != data, slot.retry == nil, slot.failures < 4
+            else { continue }
+            cursor = (index + 1) % order.count
+            let attempt = Attempt(token: UUID(), key: key, data: data)
+            active = attempt
+            // Missing status/send callbacks must not block every other face.
+            schedule(25) { [weak self] in self?.complete(attempt, success: false) }
+            send(key, data, { [weak self] in self?.isCurrent(attempt) == true },
+                 { [weak self] success in self?.complete(attempt, success: success) })
+            return
+        }
+    }
+
+    private func complete(_ attempt: Attempt, success: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        guard active?.token == attempt.token, let slot = slots[attempt.key] else { return }
+        active = nil
+        if success {
+            slot.delivered = attempt.data
+            slot.failures = 0
+        } else if slot.pending == attempt.data {
+            slot.failures += 1
+            if slot.failures < 4 {
+                let retry = UUID()
+                slot.retry = retry
+                let delay: TimeInterval = [2, 8, 20][slot.failures - 1]
+                schedule(delay) { [weak self] in
+                    guard let self = self else { return }
+                    self.lock.lock(); defer { self.lock.unlock() }
+                    guard let current = self.slots[attempt.key], current.retry == retry else { return }
+                    current.retry = nil
+                    self.pump()
+                }
+            }
+        }
+        pump()
     }
 }
